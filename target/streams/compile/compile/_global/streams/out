@@ -1,5 +1,0 @@
-[0m[[0m[31merror[0m] [0m[0m[31m[31m-- [E008] Not Found Error: C:\Users\cgmar\IdeaProjects\SoccerCardClashWeb\app\filters\AccesLog.scala:21:59 [0m[0m[0m
-[0m[[0m[31merror[0m] [0m[0m[31m21 |[0m      [33mval[0m [36mip[0m = rh.headers.get([31m"X-Forwarded-For"[0m).orElse(rh.remoteAddressOption).getOrElse([31m"-"[0m)[0m
-[0m[[0m[31merror[0m] [0m[0m[31m[31m   |[0m                                                        ^^^^^^^^^^^^^^^^^^^^^^[0m[0m
-[0m[[0m[31merror[0m] [0m[0m[31m   |[0m value remoteAddressOption is not a member of play.api.mvc.RequestHeader[0m
-[0m[[0m[31merror[0m] [0m[0mone error found[0m
