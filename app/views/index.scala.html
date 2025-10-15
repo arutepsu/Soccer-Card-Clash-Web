@@ -3,11 +3,11 @@
 @main(title) {
   <h1>@title</h1>
   <pre id="console" class="console">Loading…</pre>
-  <div class="row"><span>&gt;</span><input id="in" placeholder="Type a command"/><button id="send">Send</button></div>
+  <div class="row">
+    <span>&gt;</span>
+    <input id="in" placeholder="Type a command"/>
+    <button id="send">Send</button>
+  </div>
 
-  <script>
-    // render token into the page
-    const CSRF_TOKEN = '@play.filters.csrf.CSRF.getToken.map(_.value).getOrElse("")';
-  </script>
   <script src='@routes.Assets.versioned("javascripts/tui.js")' defer></script>
 }
