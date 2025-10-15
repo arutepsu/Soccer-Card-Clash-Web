@@ -1,4 +1,4 @@
-\/target/
+/target/
 /project/target/
 /project/project/target/
 /logs/
@@ -13,3 +13,4 @@
 
 .DS_Store
 Thumbs.db
+
