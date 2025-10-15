@@ -4,28 +4,38 @@ const $send = document.getElementById('send');
 const hist = [];
 let idx = -1;
 
-function setText(t){
-  $c.textContent = t || '';
+function appendText(t) {
+  if (!t) return;
+  $c.textContent += t;
   $c.scrollTop = $c.scrollHeight;
 }
 
-async function render() {
-  const res = await fetch('/api/state');
-  setText(await res.text());
+async function firstRender() {
+  const res = await fetch('/api/state', { cache: 'no-store' });
+  appendText(await res.text());
+}
+
+function getMeta(name){
+  const el = document.querySelector(`meta[name="${name}"]`);
+  return el ? el.content : null;
 }
 
 async function send(cmd) {
+  const token = getMeta('csrf-token');
   const res = await fetch('/api/command', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Csrf-Token': CSRF_TOKEN   // <-- important
+      'Csrf-Token': token,
+      'X-CSRF-TOKEN': token
     },
+    credentials: 'same-origin',
     body: JSON.stringify({ command: cmd })
   });
-  setText(await res.text());
+  const text = await res.text();
+  if (!res.ok) appendText(`\n[ERROR ${res.status}] ${text}\n`);
+  else appendText(text);
 }
-
 
 $send.onclick = () => {
   const v = $i.value.trim(); if (!v) return;
@@ -39,10 +49,18 @@ $i.addEventListener('keydown', (e) => {
   else if (e.key === 'ArrowDown') { if (hist.length && idx < hist.length - 1) { idx++; $i.value = hist[idx]; } else { idx = hist.length; $i.value = ''; } }
 });
 
-// live updates (reflect AI/events)
 try {
   const es = new EventSource('/api/stream');
-  es.onmessage = (e) => setText(e.data);
-} catch (_) {}
+  es.onmessage = (e) => appendText(e.data + "\n");
+} catch (_) {
+  (async function poll() {
+    try {
+      const r = await fetch('/api/state', { cache: 'no-store' });
+      appendText(await r.text());
+    } finally {
+      setTimeout(poll, 400);
+    }
+  })();
+}
 
-render();
+firstRender();

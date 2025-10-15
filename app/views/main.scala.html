@@ -1,4 +1,5 @@
-@(title: String)(content: Html)
+@(title: String)(content: Html)(implicit req: play.api.mvc.RequestHeader)
+@import helper._   // brings helper.CSRF into scope
 
 <!DOCTYPE html>
 <html lang="en">
@@ -6,6 +7,10 @@
     <meta charset="utf-8"/>
     <title>@title</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
+
+    <!-- CSRF token for JS fetch() -->
+    <meta name="csrf-token" content="@CSRF.getToken.value">
+
     <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/main.css")'>
   </head>
   <body>
@@ -13,7 +18,6 @@
       <div class="logo-container">
         <img src='@routes.Assets.versioned("images/logo/logo0.5k.png")' alt="Game Logo" class="logo"/>
       </div>
-
       <div class="content-container">
         @content
       </div>
