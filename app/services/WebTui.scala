@@ -2,21 +2,32 @@ package services
 
 import javax.inject._
 import java.io.{ByteArrayOutputStream, PrintStream}
-import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
+import java.util.concurrent.atomic.{AtomicLong, AtomicReference, AtomicBoolean}
 import de.htwg.se.soccercardclash.controller.IController
 import de.htwg.se.soccercardclash.controller.contextHolder.IGameContextHolder
 import de.htwg.se.soccercardclash.view.tui.{Tui, Prompter, TuiKeys, PromptState}
 import de.htwg.se.soccercardclash.util._ // brings ObservableEvent, etc.
 
-/** A TUI that records whatever it prints, both on commands and on events. */
 @Singleton
-class WebTui @Inject() (controller: IController, holder: IGameContextHolder)
+class WebTui @Inject()(controller: IController, holder: IGameContextHolder)
   extends Tui(controller, holder) {
 
-  private val lastText = new AtomicReference[String]("")
   private val revision = new AtomicLong(0L)
-  
-  /** Capture System.out during `body`, stash text, and bump revision if non-empty. */
+  private val lastText = new AtomicReference[String]("")
+  private val booted   = new AtomicBoolean(false)
+
+  private object Buf {
+    private val sb = new StringBuilder
+    def append(s: String): Unit = this.synchronized {
+      if (s.nonEmpty) sb.append(s)
+    }
+    def drain(): String = this.synchronized {
+      if (sb.isEmpty) "" else { val out = sb.toString; sb.clear(); out }
+    }
+    def snapshot(): String = this.synchronized(sb.toString)
+    def isEmpty: Boolean = this.synchronized(sb.isEmpty)
+  }
+
   private def capture[A](body: => A): A = {
     val baos = new ByteArrayOutputStream()
     val ps   = new PrintStream(baos, true, "UTF-8")
@@ -26,28 +37,34 @@ class WebTui @Inject() (controller: IController, holder: IGameContextHolder)
       val s = baos.toString("UTF-8")
       if (s.nonEmpty) {
         lastText.set(s)
+        Buf.append(s)
         revision.incrementAndGet()
       }
       res
     }
   }
 
+  private def showWelcomeOnce(): Unit = {
+    if (booted.compareAndSet(false, true)) {
+      capture { new Prompter(controller, holder).promptMainMenu() }
+    }
+  }
+
   override def processInputLine(in: String): Unit = capture { super.processInputLine(in) }
 
   override def update(e: ObservableEvent): Unit = capture {
-    println(s"[event] " + e.toString)     // debug
     super.update(e)
   }
 
-  /** What the TUI printed last (or the Main Menu if nothing yet). */
-  def snapshot(): String = {
-    val s = lastText.get()
-    if (s == null || s.isEmpty) {
-      capture { new Prompter(controller, holder).promptMainMenu() }
-      lastText.get()
-    } else s
+  def drain(): String = {
+    if (!booted.get()) showWelcomeOnce()
+    Buf.drain()
   }
 
-  /** Monotonic tick that changes whenever snapshot text changes. */
+  def snapshot(): String = {
+    if (!booted.get()) showWelcomeOnce()
+    Buf.snapshot()
+  }
+
   def version(): Long = revision.get()
 }
