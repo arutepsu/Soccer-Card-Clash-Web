@@ -62,16 +62,9 @@ class GameApiController @Inject()(
   def stream: Action[AnyContent] = Action {
     val src: Source[String, _] =
       Source.tick(0.millis, 200.millis, ())
-        .statefulMapConcat { () =>
-          var last = -1L
-          _ =>
-            val v = webTui.version()
-            if (v != last) {
-              last = v
-              List(webTui.snapshot())
-            } else Nil
-        }
-
+        .map(_ => webTui.drain())     // send since-last-print
+        .filter(_.nonEmpty)            // only emit when there’s something
     Ok.chunked(src.via(EventSource.flow)).as(ContentTypes.EVENT_STREAM)
   }
+
 }
