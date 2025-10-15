@@ -32,14 +32,12 @@ class WebTui @Inject() (controller: IController, holder: IGameContextHolder)
     }
   }
 
-
   override def processInputLine(in: String): Unit = capture { super.processInputLine(in) }
 
   override def update(e: ObservableEvent): Unit = capture {
     println(s"[event] " + e.toString)     // debug
     super.update(e)
   }
-
 
   /** What the TUI printed last (or the Main Menu if nothing yet). */
   def snapshot(): String = {
