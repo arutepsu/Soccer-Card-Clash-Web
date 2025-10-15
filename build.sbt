@@ -17,7 +17,8 @@ lazy val sccWeb = (project in file("."))
       "com.google.inject" % "guice" % "6.0.0",
       "com.google.inject.extensions" % "guice-assistedinject" % "6.0.0",
       "net.codingwell" %% "scala-guice" % "6.0.0",
-      "javax.inject" % "javax.inject" % "1"
+      "javax.inject" % "javax.inject" % "1",
+      "com.typesafe.play" %% "filters-helpers" % play.core.PlayVersion.current
     )
   )
 

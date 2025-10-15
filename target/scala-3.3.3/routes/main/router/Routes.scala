@@ -16,6 +16,8 @@ class Routes(
   UiController_0: controllers.UiController,
   // @LINE:2
   GameApiController_1: controllers.GameApiController,
+  // @LINE:24
+  Assets_2: controllers.Assets,
   val prefix: String
 ) extends GeneratedRouter {
 
@@ -24,13 +26,15 @@ class Routes(
     // @LINE:1
     UiController_0: controllers.UiController,
     // @LINE:2
-    GameApiController_1: controllers.GameApiController
-  ) = this(errorHandler, UiController_0, GameApiController_1, "/")
+    GameApiController_1: controllers.GameApiController,
+    // @LINE:24
+    Assets_2: controllers.Assets
+  ) = this(errorHandler, UiController_0, GameApiController_1, Assets_2, "/")
 
   def withPrefix(addPrefix: String): Routes = {
     val prefix = play.api.routing.Router.concatPrefix(addPrefix, this.prefix)
     router.RoutesPrefix.setPrefix(prefix)
-    new Routes(errorHandler, UiController_0, GameApiController_1, prefix)
+    new Routes(errorHandler, UiController_0, GameApiController_1, Assets_2, prefix)
   }
 
   private[this] val defaultPrefix: String = {
@@ -55,6 +59,7 @@ class Routes(
     ("""POST""", this.prefix + (if(this.prefix.endsWith("/")) "" else "/") + """api/save""", """controllers.GameApiController.save()"""),
     ("""GET""", this.prefix + (if(this.prefix.endsWith("/")) "" else "/") + """api/saves""", """controllers.GameApiController.showSaves()"""),
     ("""POST""", this.prefix + (if(this.prefix.endsWith("/")) "" else "/") + """api/load/""" + "$" + """idx<[^/]+>""", """controllers.GameApiController.loadSelect(idx:Int)"""),
+    ("""GET""", this.prefix + (if(this.prefix.endsWith("/")) "" else "/") + """assets/""" + "$" + """file<.+>""", """controllers.Assets.versioned(path:String = "/public", file:Asset)"""),
     Nil
   ).foldLeft(Seq.empty[(String, String, String)]) { (s,e) => e.asInstanceOf[Any] match {
     case r @ (_,_,_) => s :+ r.asInstanceOf[(String, String, String)]
@@ -368,6 +373,24 @@ class Routes(
     )
   )
 
+  // @LINE:24
+  private[this] lazy val controllers_Assets_versioned17_route = Route("GET",
+    PathPattern(List(StaticPart(this.prefix), StaticPart(this.defaultPrefix), StaticPart("assets/"), DynamicPart("file", """.+""",false)))
+  )
+  private[this] lazy val controllers_Assets_versioned17_invoker = createInvoker(
+    Assets_2.versioned(fakeValue[String], fakeValue[Asset]),
+    play.api.routing.HandlerDef(this.getClass.getClassLoader,
+      "router",
+      "controllers.Assets",
+      "versioned",
+      Seq(classOf[String], classOf[Asset]),
+      "GET",
+      this.prefix + """assets/""" + "$" + """file<.+>""",
+      """""",
+      Seq()
+    )
+  )
+
 
   def routes: PartialFunction[RequestHeader, Handler] = {
   
@@ -471,6 +494,12 @@ class Routes(
     case controllers_GameApiController_loadSelect16_route(params@_) =>
       call(params.fromPath[Int]("idx", None)) { (idx) =>
         controllers_GameApiController_loadSelect16_invoker.call(GameApiController_1.loadSelect(idx))
+      }
+  
+    // @LINE:24
+    case controllers_Assets_versioned17_route(params@_) =>
+      call(Param[String]("path", Right("/public")), params.fromPath[Asset]("file", None)) { (path, file) =>
+        controllers_Assets_versioned17_invoker.call(Assets_2.versioned(path, file))
       }
   }
 }

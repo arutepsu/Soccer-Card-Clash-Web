@@ -1,7 +1,5 @@
-[0m[[0m[31merror[0m] [0m[0mC:\Users\cgmar\IdeaProjects\SoccerCardClashWeb\conf\routes:1:1: type UiController is not a member of controllers[0m
-[0m[[0m[31merror[0m] [0m[0mGET     /                       controllers.UiController.index[0m
-[0m[[0m[31merror[0m] [0m[0mC:\Users\cgmar\IdeaProjects\SoccerCardClashWeb\conf\routes:1:1: type UiController is not a member of controllers[0m
-[0m[[0m[31merror[0m] [0m[0mGET     /                       controllers.UiController.index[0m
-[0m[[0m[31merror[0m] [0m[0mC:\Users\cgmar\IdeaProjects\SoccerCardClashWeb\conf\routes:1:1: Ambiguous given instances: both [33mmethod[0m [35mwrapJavaPromiseRequest[0m in [33mobject[0m [35mHandlerInvokerFactory[0m and [33mmethod[0m [35mwrapJavaRequest[0m in [33mobject[0m [35mHandlerInvokerFactory[0m match type play.core.routing.HandlerInvokerFactory[T] of parameter hif of [33mmethod[0m [35mcreateInvoker[0m in [33mclass[0m [35mGeneratedRouter[0m[0m
-[0m[[0m[31merror[0m] [0m[0mGET     /                       controllers.UiController.index[0m
-[0m[[0m[31merror[0m] [0m[0mthree errors found[0m
+[0m[[0m[31merror[0m] [0m[0m[31m[31m-- [E008] Not Found Error: C:\Users\cgmar\IdeaProjects\SoccerCardClashWeb\app\filters\AccesLog.scala:21:59 [0m[0m[0m
+[0m[[0m[31merror[0m] [0m[0m[31m21 |[0m      [33mval[0m [36mip[0m = rh.headers.get([31m"X-Forwarded-For"[0m).orElse(rh.remoteAddressOption).getOrElse([31m"-"[0m)[0m
+[0m[[0m[31merror[0m] [0m[0m[31m[31m   |[0m                                                        ^^^^^^^^^^^^^^^^^^^^^^[0m[0m
+[0m[[0m[31merror[0m] [0m[0m[31m   |[0m value remoteAddressOption is not a member of play.api.mvc.RequestHeader[0m
+[0m[[0m[31merror[0m] [0m[0mone error found[0m
