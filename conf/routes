@@ -1,4 +1,7 @@
-GET   /       controllers.UiController.index
-POST  /tui    controllers.UiController.submit
-GET   /assets/*file  controllers.Assets.versioned(path="/public", file: Asset)
+GET     /                 controllers.RulesController.rules
+GET     /rules            controllers.RulesController.rules
 
+GET     /game             controllers.UiController.game
+POST    /game/submit      controllers.UiController.submit
+
+GET     /assets/*file     controllers.Assets.versioned(path="/public", file: Asset)
