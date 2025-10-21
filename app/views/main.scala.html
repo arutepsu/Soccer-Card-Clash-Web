@@ -1,5 +1,5 @@
 @(title: String)(content: Html)(implicit req: play.api.mvc.RequestHeader)
-@import helper._   // brings helper.CSRF into scope
+@import helper._
 
 <!DOCTYPE html>
 <html lang="en">
@@ -8,7 +8,7 @@
     <title>@title</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
 
-    <!-- CSRF token for JS fetch() -->
+    <!-- CSRF token -->
     <meta name="csrf-token" content="@CSRF.getToken.value">
 
     <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/main.css")'>

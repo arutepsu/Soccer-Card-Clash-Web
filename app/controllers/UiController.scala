@@ -12,17 +12,19 @@ class UiController @Inject()(
   webTui: WebTui
 ) extends MessagesAbstractController(cc) {
 
-  def index: Action[AnyContent] = Action { implicit request: MessagesRequest[AnyContent] =>
+  def game: Action[AnyContent] = Action { implicit request =>
     webTui.bootOnce()
-    Ok(views.html.index("Soccer Card Clash Web", webTui.snapshot(), ""))
+    Ok(views.html.game("Soccer Card Clash Web", webTui.snapshot(), ""))
   }
 
-  def submit: Action[AnyContent] = Action { implicit request: MessagesRequest[AnyContent] =>
+  def submit: Action[AnyContent] = Action { implicit request =>
     val cmd = request.body.asFormUrlEncoded
       .flatMap(_.get("command").flatMap(_.headOption))
       .getOrElse("")
-    val out = webTui.runAndDrain { webTui.processInputLine(cmd) }
-    Ok(views.html.index("Soccer Card Clash Web", out, ""))
-  }
 
+    webTui.bootOnce()
+    webTui.processInputLine(cmd)
+
+    Redirect(routes.UiController.game)
+  }
 }
