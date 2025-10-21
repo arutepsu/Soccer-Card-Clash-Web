@@ -53,7 +53,7 @@ body {
   background-color: #111;
   padding: 1rem;
   height: 360px;
-  width: 1560px;                
+  width: 1280px;                
   border-radius: 6px;
   box-shadow: 0 0 12px rgba(0, 0, 0, 0.3);
   overflow-y: auto;
@@ -67,7 +67,7 @@ body {
   gap: 8px;
   margin-top: 16px;
   align-items: center;
-  width: 1560px;                 
+  width: 1280px;                 
 }
 .row > input {
   flex: 1;
