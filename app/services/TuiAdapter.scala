@@ -5,6 +5,7 @@ import javax.inject._
 import scala.concurrent.{ExecutionContext, Future}
 import de.htwg.se.soccercardclash.controller.IController
 import de.htwg.se.soccercardclash.controller.contextHolder.IGameContextHolder
+
 @Singleton
 class TuiAdapter @Inject()(
   controller: IController,

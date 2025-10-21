@@ -5,8 +5,8 @@ import java.io.{ByteArrayOutputStream, PrintStream}
 import java.util.concurrent.atomic.{AtomicLong, AtomicReference, AtomicBoolean}
 import de.htwg.se.soccercardclash.controller.IController
 import de.htwg.se.soccercardclash.controller.contextHolder.IGameContextHolder
-import de.htwg.se.soccercardclash.view.tui.{Tui, Prompter, TuiKeys, PromptState}
-import de.htwg.se.soccercardclash.util._ // brings ObservableEvent, etc.
+import de.htwg.se.soccercardclash.view.tui.{Tui, Prompter, TuiKeys, PromptState, IPrompter}
+import de.htwg.se.soccercardclash.util._
 
 @Singleton
 class WebTui @Inject()(controller: IController, holder: IGameContextHolder)
@@ -15,12 +15,11 @@ class WebTui @Inject()(controller: IController, holder: IGameContextHolder)
   private val revision = new AtomicLong(0L)
   private val lastText = new AtomicReference[String]("")
   private val booted   = new AtomicBoolean(false)
+  private val prompter: IPrompter = new Prompter(controller, holder)
 
   private object Buf {
     private val sb = new StringBuilder
-    def append(s: String): Unit = this.synchronized {
-      if (s.nonEmpty) sb.append(s)
-    }
+    def append(s: String): Unit = this.synchronized { if (s.nonEmpty) sb.append(s) }
     def drain(): String = this.synchronized {
       if (sb.isEmpty) "" else { val out = sb.toString; sb.clear(); out }
     }
@@ -46,25 +45,22 @@ class WebTui @Inject()(controller: IController, holder: IGameContextHolder)
 
   private def showWelcomeOnce(): Unit = {
     if (booted.compareAndSet(false, true)) {
-      capture { new Prompter(controller, holder).promptMainMenu() }
+      capture { prompter.promptMainMenu() }
     }
   }
 
-  override def processInputLine(in: String): Unit = capture { super.processInputLine(in) }
+  def bootOnce(): Unit = showWelcomeOnce()
 
-  override def update(e: ObservableEvent): Unit = capture {
-    super.update(e)
-  }
-
-  def drain(): String = {
+  def runAndDrain(body: => Any): String = {
     if (!booted.get()) showWelcomeOnce()
+    capture { body }
     Buf.drain()
   }
 
-  def snapshot(): String = {
-    if (!booted.get()) showWelcomeOnce()
-    Buf.snapshot()
-  }
+  override def processInputLine(in: String): Unit = capture { super.processInputLine(in) }
+  override def update(e: ObservableEvent): Unit   = capture { super.update(e) }
 
+  def drain(): String = { if (!booted.get()) showWelcomeOnce(); Buf.drain() }
+  def snapshot(): String = { if (!booted.get()) showWelcomeOnce(); Buf.snapshot() }
   def version(): Long = revision.get()
 }
