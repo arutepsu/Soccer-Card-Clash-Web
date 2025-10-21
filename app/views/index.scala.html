@@ -1,13 +1,17 @@
-@(title: String)(implicit rh: play.api.mvc.RequestHeader)
+@(title: String, console: String, lastCommand: String)(implicit rh: play.api.mvc.RequestHeader)
+@import helper._
 
 @main(title) {
   <h1>@title</h1>
-  <pre id="console" class="console">Loading…</pre>
-  <div class="row">
-    <span>&gt;</span>
-    <input id="in" placeholder="Type a command"/>
-    <button id="send">Send</button>
-  </div>
 
-  <script src='@routes.Assets.versioned("javascripts/tui.js")' defer></script>
+  <pre class="console">@console</pre>
+
+  @helper.form(action = routes.UiController.submit) {
+    @CSRF.formField
+    <div class="row">
+      <span>&gt;</span>
+      <input name="command" value="@lastCommand" autocomplete="off" autofocus />
+      <button type="submit">Send</button>
+    </div>
+  }
 }
