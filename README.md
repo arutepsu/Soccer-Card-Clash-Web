@@ -3,6 +3,7 @@
 </p>
 
 ---
+
 # Soccer Card Clash
 
 An unofficial web version of the Soccer Card Clash game for Web Application classes at 
@@ -12,6 +13,7 @@ Konstanz University of Applied Sciences.
 * 🧠 Outmaneuver your opponent with clever attacks, boosts, and hand manipulation to score goals and win the match.
 
 ---
+
 ## ⚽ Game Overview
 * 🃏 Each player controls a hand of soccer-themed player cards.
 * 🔄 Take turns as the attacker or defender.
@@ -21,6 +23,7 @@ Konstanz University of Applied Sciences.
 ### 📖[Read Full Game Rules](docs/GAMERULES.md)
 
 ---
+
 <h2 style="text-align: center;">▶️ Demo Gameplay</h2>
 <div style="display: flex; gap: 0px;">
   <img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExa3hiaTlobWpiZzM5NjRyb3k5Y2Zwb3BpczF2MXdwOXptOWU1MmpweCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/OjGkzFmRiVrOamBDoF/giphy.gif" alt="Demo Game Creation" height="237"/>
@@ -28,9 +31,11 @@ Konstanz University of Applied Sciences.
 </div>
 
 ---
+
 ## 🖥️ Server
-This project is built using the **Play Framework** (Scala).  
-It provides a simple **text-based TUI (Terminal User Interface)** that runs on a web page through HTTP requests.
+This project is built using the Play Framework (Scala).
+It provides a simple text-based TUI (Terminal User Interface) that runs on a web page through HTTP requests.
+
 ---
 
 ## ✨ Features
@@ -48,6 +53,7 @@ Dive into a cyberpunk-inspired world with bold visuals, neon effects, and a futu
 
 ### ⚔️ Strategic Gameplay
 Mix and match actions like Swap, Boost, and Double Attack to outsmart your opponent.
+
 --- 
 
 ## 📸 Screenshots
