@@ -1,4 +1,4 @@
-@(title: String)(content: Html)(implicit req: play.api.mvc.RequestHeader)
+@(title: String)(content: Html)
 @import helper._
 
 <!DOCTYPE html>
@@ -7,9 +7,6 @@
     <meta charset="utf-8"/>
     <title>@title</title>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-
-    <!-- CSRF token -->
-    <meta name="csrf-token" content="@CSRF.getToken.value">
 
     <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/main.css")'>
   </head>
