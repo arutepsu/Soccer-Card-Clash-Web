@@ -1,9 +1,39 @@
-GET     /                 controllers.RulesController.rules
-GET     /rules            controllers.RulesController.rules
+# Root redirect to main scene UI
+GET     /                       controllers.RedirectController.rootToGame
+GET     /index                  controllers.RedirectController.toGame
+GET     /home                   controllers.RedirectController.toGame
 
-GET     /game             controllers.UiController.game
-POST    /game/submit      controllers.UiController.submit
+# Scene-driven web UI
+GET     /game            controllers.UiController.game()
+GET     /scene/switch/:to          controllers.UiController.switchScene(to: String)
+GET     /scene/current     controllers.UiController.sceneCurrent()
 
-GET     /assets/*file     controllers.Assets.versioned(path="/public", file: Asset)
 
-GET     /fullgamerules       controllers.FullGameRulesController.fullRules
+# Web TUI
+GET     /tui                    controllers.TuiController.tui
+POST    /tui/submit             controllers.TuiController.submit
+
+# Rules pages
+GET     /rules                  controllers.RulesController.rules
+GET     /rules/full             controllers.FullGameRulesController.fullRules
+
+# Game API
+GET     /api/state              controllers.GameApiController.state
+POST    /api/command            controllers.GameApiController.command
+POST    /api/new-game           controllers.GameApiController.newGame
+POST    /api/new-game-ai        controllers.GameApiController.newGameAI
+POST    /api/attack/:idx        controllers.GameApiController.attack(idx: Int)
+POST    /api/double-attack/:idx controllers.GameApiController.doubleAttack(idx: Int)
+POST    /api/regular-swap/:idx  controllers.GameApiController.regularSwap(idx: Int)
+POST    /api/boost-defender/:idx  controllers.GameApiController.boostDefender(idx: Int)
+POST    /api/reverse-swap      controllers.GameApiController.reverseSwap()
+POST    /api/boost-goalkeeper  controllers.GameApiController.boostGoalkeeper()
+POST    /api/undo              controllers.GameApiController.undo()
+POST    /api/redo              controllers.GameApiController.redo()
+POST    /api/save              controllers.GameApiController.save()
+GET     /api/show-saves        controllers.GameApiController.showSaves()
+POST    /api/load-select/:idx   controllers.GameApiController.loadSelect(idx: Int)
+GET     /api/stream             controllers.GameApiController.stream
+
+# Static assets
+GET     /assets/*file           controllers.Assets.versioned(path="/public", file: Asset)

@@ -1,0 +1,41 @@
+@()(implicit request: play.api.mvc.RequestHeader, messages: play.api.i18n.Messages)
+
+<!-- Scene-specific stylesheet -->
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/mainMenu.css")'>
+
+<div class="scene scene--mainmenu">
+  <div class="menu-stack">
+    <img class="logo-image"
+         src='@routes.Assets.versioned("images/logo/logo0.5k.png")'
+         alt="Soccer Card Clash Logo" />
+
+    <div class="buttons">
+      <a class="game-btn" href='@routes.UiController.switchScene("SinglePlayer")'>Singleplayer</a>
+      <a class="game-btn" href='@routes.UiController.switchScene("Multiplayer")'>Multiplayer</a>
+      <a class="game-btn" href='@routes.UiController.switchScene("LoadGame")'>Load Game</a>
+      <button class="game-btn" type="button" data-open-about>About</button>
+      <a class="game-btn" href='@routes.UiController.switchScene("MainMenu")'>Quit</a>
+    </div>
+  </div>
+
+  <!-- About overlay -->
+  <div id="overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-label="About">
+    <div class="overlay-card">
+      <h3>About</h3>
+      <p id="about-text">GENERAL_INFO</p>
+      <div class="overlay-actions" style="margin-top:16px;">
+        <button class="game-btn small" type="button" data-close-about>Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="info-label">Developed by Arutepsu</div>
+</div>
+
+<script>
+(() => {
+  const overlay = document.getElementById('overlay');
+  document.querySelector('[data-open-about]')?.addEventListener('click', () => overlay?.classList.remove('hidden'));
+  document.querySelector('[data-close-about]')?.addEventListener('click', () => overlay?.classList.add('hidden'));
+})();
+</script>
