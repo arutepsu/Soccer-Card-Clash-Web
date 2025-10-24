@@ -1,4 +1,4 @@
-package services
+package services.webtui
 
 import scala.util.Try
 import javax.inject._
