@@ -5,8 +5,8 @@ import com.google.inject.AbstractModule
 // If you have a module in the SE project, import it:
 import de.htwg.se.soccercardclash.module.SoccerCardClashModule
 import de.htwg.se.soccercardclash.view.tui.Tui
-import services.TuiAdapter
-import services.WebTui
+import services.webtui.TuiAdapter
+import services.webtui.WebTui
 
 class Module extends AbstractModule {
   override def configure(): Unit = {

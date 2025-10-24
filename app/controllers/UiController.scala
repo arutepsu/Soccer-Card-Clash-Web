@@ -1,30 +1,42 @@
+// controllers/UiController.scala
 package controllers
 
-import javax.inject._
-import play.api.mvc._
-import play.api.data._
-import play.api.data.Forms._
-import services.WebTui
+import javax.inject.*
+import play.api.mvc.*
+import play.api.i18n.Messages
+import services.WebSceneManager
+import de.htwg.se.soccercardclash.util.*
 
 @Singleton
 class UiController @Inject()(
   cc: MessagesControllerComponents,
-  webTui: WebTui
+  mgr: WebSceneManager
 ) extends MessagesAbstractController(cc) {
 
-  def game: Action[AnyContent] = Action { implicit request =>
-    webTui.bootOnce()
-    Ok(views.html.game("Soccer Card Clash Web", webTui.snapshot(), ""))
+  def game(): Action[AnyContent] = Action { implicit req: MessagesRequest[AnyContent] =>
+    implicit val m: Messages = messagesApi.preferred(req)
+    Ok(views.html.scenes.gamepage("Soccer Card Clash Web", mgr.sceneHtml))
   }
 
-  def submit: Action[AnyContent] = Action { implicit request =>
-    val cmd = request.body.asFormUrlEncoded
-      .flatMap(_.get("command").flatMap(_.headOption))
-      .getOrElse("")
+  def switchScene(to: String): Action[AnyContent] = Action { implicit req: MessagesRequest[AnyContent] =>
+    implicit val m: Messages = messagesApi.preferred(req)
+    val tgt: Option[SceneSwitchEvent] = to match {
+      case "MainMenu"              => Some(SceneSwitchEvent.MainMenu)
+      case "Multiplayer"           => Some(SceneSwitchEvent.Multiplayer)
+      case "SinglePlayer"          => Some(SceneSwitchEvent.SinglePlayer)
+      case "AISelection"           => Some(SceneSwitchEvent.AISelection)
+      case "LoadGame"              => Some(SceneSwitchEvent.LoadGame)
+      case "PlayingField"          => Some(SceneSwitchEvent.PlayingField)
+      case "AttackerHandCards"     => Some(SceneSwitchEvent.AttackerHandCards)
+      case "AttackerDefenderCards" => Some(SceneSwitchEvent.AttackerDefenderCards)
+      case _ => None
+    }
+    tgt.foreach(GlobalObservable.notifyObservers)
+    Redirect(routes.UiController.game())
+  }
 
-    webTui.bootOnce()
-    webTui.processInputLine(cmd)
-
-    Redirect(routes.UiController.game)
+  def sceneCurrent(): Action[AnyContent] = Action { implicit req: MessagesRequest[AnyContent] =>
+    implicit val m: Messages = messagesApi.preferred(req)
+    Ok(mgr.sceneHtml)
   }
 }

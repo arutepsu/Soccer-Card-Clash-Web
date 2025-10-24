@@ -1,4 +1,4 @@
-package services
+package services.webtui
 
 import javax.inject._
 import java.io.{ByteArrayOutputStream, PrintStream}
