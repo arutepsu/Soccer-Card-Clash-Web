@@ -7,7 +7,7 @@ import play.api.http.ContentTypes
 import akka.stream.scaladsl.Source
 import scala.concurrent.{ExecutionContext}
 import scala.concurrent.duration._
-import services.{TuiAdapter, WebTui}
+import services.webtui._
 import play.api.libs.json._
 
 @Singleton

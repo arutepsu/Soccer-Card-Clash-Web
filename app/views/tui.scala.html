@@ -1,4 +1,7 @@
-@(title: String, console: String, lastCommand: String)(implicit rh: play.api.mvc.RequestHeader)
+@(title: String, console: String, lastCommand: String)(
+  implicit request: play.api.mvc.RequestHeader,
+  messages: play.api.i18n.Messages
+)
 @import helper._
 
 @main(title) {
@@ -6,8 +9,8 @@
 
   <pre class="console">@console</pre>
 
-  @helper.form(action = routes.UiController.submit) {
-    @CSRF.formField
+  @helper.form(action = routes.TuiController.submit) {
+    @helper.CSRF.formField
     <div class="row">
       <span>&gt;</span>
       <input name="command" value="@lastCommand" autocomplete="off" autofocus />
