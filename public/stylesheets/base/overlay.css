@@ -1,0 +1,134 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0,0,0,0.6);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 500ms ease;
+  z-index: 9999;
+}
+
+.overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.overlay-frame {
+  --scale-closed: .90;
+  --scale-open: 1;
+  --scale-closing: .80;
+  --anim-dur: 500ms;
+
+  --frame-max-w: 1100px;
+  --base-w: 70vw;
+  --size-mult: 1;
+
+  width: min(calc(var(--base-w) * var(--size-mult)), var(--frame-max-w));
+  aspect-ratio: 1200 / 800;
+  position: relative;
+  background: var(--frame-img) center / contain no-repeat;
+  filter: drop-shadow(0 0 20px rgba(0,0,0,.6));
+
+  transform: scale(var(--scale-closed));
+  transition: transform var(--anim-dur) ease;
+}
+
+.overlay.visible .overlay-frame {
+  transform: scale(var(--scale-open));
+}
+
+.overlay.is-closing .overlay-frame {
+  transform: scale(var(--scale-closing));
+}
+
+.overlay-scroll {
+  --safe-top: 16%;
+  --safe-right: 8%;
+  --safe-bottom: 16%;
+  --safe-left: 8%;
+
+  position: absolute;
+  top: var(--safe-top);
+  right: var(--safe-right);
+  bottom: var(--safe-bottom);
+  left: var(--safe-left);
+
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: clamp(12px, 2vw, 22px);
+  box-sizing: border-box;
+  scroll-behavior: smooth;
+}
+
+.overlay-scroll::-webkit-scrollbar { width: 9px; }
+.overlay-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.35);
+  border-radius: 6px;
+}
+
+
+.overlay-textflow {
+  padding: 20px;
+  line-height: 1.6;
+  text-align: left;
+  background: transparent;
+  color: #e8eef5;
+  font-family: "Rajdhani", Arial, sans-serif;
+  white-space: pre-line;
+}
+
+.general-header {
+  display: block;
+  font-weight: 700;
+  font-size: clamp(26px, 3vw, 36px);
+  color: #ffd75a;
+  margin-bottom: 6px;
+  text-shadow: 0 0 12px rgba(255, 215, 90, 0.6);
+  text-align: center;
+}
+
+.dialog-title {
+  font-family: "Rajdhani", Arial, sans-serif;
+  font-size: clamp(28px, 3.2vw, 36px);
+  font-weight: 700;
+  text-align: center;
+  background: linear-gradient(135deg, #ff00cc 0%, #83018e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+  margin: 0 0 12px;
+}
+
+@supports not (-webkit-background-clip: text) {
+  .dialog-title {
+    color: #ff47d6;
+  }
+}
+
+.dialog-message {
+  font-family: "Rajdhani", Arial, sans-serif;
+  font-size: clamp(18px, 1.8vw, 22px);
+  font-weight: 500;
+  color: #dddddd;
+  text-align: center;
+  line-height: 1.7;
+  text-shadow: 0 1px 4px rgba(158, 75, 223, 0.8);
+  white-space: pre-line;
+  margin: 0;
+}
+
+.overlay-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 5px;
+}
+
+.dialog-message strong {
+  color: #fff;
+  font-weight: 600;
+}
+

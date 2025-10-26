@@ -15,7 +15,7 @@ class UiController @Inject()(
 
   def game(): Action[AnyContent] = Action { implicit req: MessagesRequest[AnyContent] =>
     implicit val m: Messages = messagesApi.preferred(req)
-    Ok(views.html.scenes.gamepage("Soccer Card Clash Web", mgr.sceneHtml))
+    Ok(views.html.scenes.gamepage("", mgr.sceneHtml))
   }
 
   def switchScene(to: String): Action[AnyContent] = Action { implicit req: MessagesRequest[AnyContent] =>
