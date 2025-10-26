@@ -1,23 +1,22 @@
-# Root redirect to main scene UI
-GET     /                       controllers.RedirectController.rootToGame
-GET     /index                  controllers.RedirectController.toGame
-GET     /home                   controllers.RedirectController.toGame
+GET     /                        controllers.RedirectController.rootToGame
 
-# Scene-driven web UI
-GET     /game            controllers.UiController.game()
-GET     /scene/switch/:to          controllers.UiController.switchScene(to: String)
-GET     /scene/current     controllers.UiController.sceneCurrent()
+GET     /main-menu               controllers.UiController.mainMenu()
+GET     /singleplayer            controllers.UiController.singleplayer()
+GET     /multiplayer             controllers.UiController.multiplayer()
+GET     /ai                      controllers.UiController.ai()
+GET     /load-game               controllers.UiController.loadGame()
+GET     /playing-field           controllers.UiController.playingField()
+GET     /attacker-hand           controllers.UiController.attackerHand()
+GET     /attacker-defenders      controllers.UiController.attackerDefenders()
 
+GET     /scene/:to               controllers.UiController.scene(to: String)
+GET     /scene/switch/:to        controllers.UiController.switchScene(to: String)
+GET     /scene/current           controllers.UiController.sceneCurrent()
+GET     /rules                   controllers.RulesController.rules
+GET     /rules/full              controllers.FullGameRulesController.fullRules
+GET     /tui                     controllers.TuiController.tui
+POST    /tui/submit              controllers.TuiController.submit
 
-# Web TUI
-GET     /tui                    controllers.TuiController.tui
-POST    /tui/submit             controllers.TuiController.submit
-
-# Rules pages
-GET     /rules                  controllers.RulesController.rules
-GET     /rules/full             controllers.FullGameRulesController.fullRules
-
-# Game API
 GET     /api/state              controllers.GameApiController.state
 POST    /api/command            controllers.GameApiController.command
 POST    /api/new-game           controllers.GameApiController.newGame
@@ -35,5 +34,4 @@ GET     /api/show-saves        controllers.GameApiController.showSaves()
 POST    /api/load-select/:idx   controllers.GameApiController.loadSelect(idx: Int)
 GET     /api/stream             controllers.GameApiController.stream
 
-# Static assets
 GET     /assets/*file           controllers.Assets.versioned(path="/public", file: Asset)
