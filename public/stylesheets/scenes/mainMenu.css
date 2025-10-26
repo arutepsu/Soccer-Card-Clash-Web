@@ -1,131 +1,65 @@
-/* === MAIN MENU: full-screen stadium background === */
-.scene--mainmenu {
-  position: relative;
-  min-height: 100vh;
+html, body {
+  height: 100%;
   margin: 0;
-  background-image: url('/assets/images/data/frames/background1.jpg');
+  padding: 0;
+  overflow: hidden;
+}
+
+.scene--mainmenu {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  background-image: url('/assets/images/frames/background1.jpg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
 
-  /* Rajdhani fallback stack */
-  font-family: "Rajdhani", "Rajdhani-SemiBold", Arial, sans-serif;
-
-  display: flex;
-  align-items: center;   /* vertical center for stack */
-  justify-content: center; /* horizontal center */
+  font-family: "Rajdhani", Arial, sans-serif;
+  overflow: hidden;
 }
 
-/* Stack with logo on top and buttons column below */
 .menu-stack {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 28px;
-  width: 100%;
-  max-width: 720px;
-  padding: 24px 16px;
+  gap: 0;
+  padding: 0;
+  margin: 0;
 }
 
-/* Logo */
-.logo-image {
-  max-width: 440px;
-  width: 70vw;
-  height: auto;
-  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));
-}
-
-/* Buttons column */
 .buttons {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 22px;
+  gap: 0;
+  margin-top: 0; 
 }
 
-/* === Sprite-style neon buttons (like JavaFX GameButtonFactory) ===
-   button.png is a 2-state sprite (normal on top half, hover/pressed on bottom).
-*/
-.game-btn {
-  display: block;
-  width: 260px;             /* close to 200x150 feel, adapted for web */
-  height: 72px;
-  line-height: 72px;        /* vertically center text */
-  text-align: center;
-  text-decoration: none;
-  cursor: pointer;
-
-  background-image: url('/assets/images/data/buttons/button.png');
-  background-size: 100% 200%;   /* full width, double height (sprite) */
-  background-position: center top;
-  background-repeat: no-repeat;
-  background-color: transparent;
-
-  color: #e9e9ff;
-  font-size: 22px;
-  font-weight: 500;
-
-  border: 0;
-  border-radius: 10px;       /* keeps edges smooth if sprite has rounded corners */
-  padding: 0;
-
-  /* glow + motion like your DropShadow + translate animations */
-  filter: drop-shadow(0 1px 6px rgba(158, 75, 223, 0.8));
-  transition: transform 120ms ease, background-position 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+.gbtn {
+  margin: 0;
+  transform: scale(0.98);
 }
 
-/* hover = show second half of sprite & lift a bit */
-.game-btn:hover {
-  background-position: center bottom;
-  transform: translateY(-3px);
-  box-shadow: 0 0 14px rgba(255, 215, 0, 0.45);
-}
-
-/* active press = push down slightly (like your translateDownAnimation) */
-.game-btn:active {
-  transform: translateY(2px);
-  filter: drop-shadow(0 0 6px rgba(158,75,223,0.6));
-}
-
-/* About overlay */
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.72);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-}
-.overlay.hidden { display: none; }
-
-.overlay-card {
-  background: rgba(30, 30, 40, 0.92);
-  padding: 40px;
-  border-radius: 16px;
-  color: #fff;
-  width: min(90vw, 640px);
-  text-align: center;
-  box-shadow: 0 0 22px rgba(255, 215, 0, 0.45);
-}
-
-/* Smaller button variant inside overlay */
-.game-btn.small {
-  width: auto;
+.logo-image {
+  max-width: 280px;
+  width: 50vw;
   height: auto;
-  line-height: normal;
-  padding: 10px 18px;
-  font-size: 18px;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
+  margin-bottom: 4px;
 }
 
-/* Bottom info label (green neon) */
 .info-label {
   position: absolute;
-  bottom: 18px;
+  bottom: 8px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 28px;
+  font-size: 20px;
   color: #39FF14;
-  text-shadow: 0 0 10px #39FF14, 0 0 18px rgba(57,255,20,0.6);
+  text-shadow: 0 0 6px #39FF14, 0 0 12px rgba(57,255,20,0.6);
   pointer-events: none;
+  line-height: 1;
 }

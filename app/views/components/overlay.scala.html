@@ -1,0 +1,46 @@
+@(id: String = "overlay",
+  title: String = "About the Game",
+  messageHtml: Html = Html(""),
+  bgImagePath: String = "images/frames/overlay.png",
+  // safe-area insets (percentages) for the scroll window inside the frame
+  safeTop: String = "8%",
+  safeRight: String = "6%",
+  safeBottom: String = "12%",
+  safeLeft: String = "6%"
+)(implicit request: play.api.mvc.RequestHeader)
+
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/base/overlay.css")'>
+
+<div id="@id"
+     class="overlay hidden"
+     role="dialog"
+     aria-modal="true"
+     aria-label="@title"
+     aria-hidden="true">
+
+  <div class="overlay-frame"
+       style='
+         --frame-img: url("@routes.Assets.versioned(bgImagePath)");
+         --safe-top: @safeTop;
+         --safe-right: @safeRight;
+         --safe-bottom: @safeBottom;
+         --safe-left: @safeLeft;
+       '>
+
+    <div class="overlay-scroll">
+      <div class="overlay-textflow">
+        <div class="dialog-title">@title</div>
+        <div class="dialog-message">
+          @messageHtml
+        </div>
+
+        <div class="overlay-actions">
+            <button class="gbtn" type="button" data-close-overlay>Close</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src='@routes.Assets.versioned("javascripts/overlay.js")' defer></script>

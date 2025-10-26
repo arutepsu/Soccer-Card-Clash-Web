@@ -1,7 +1,8 @@
 @()(implicit request: play.api.mvc.RequestHeader, messages: play.api.i18n.Messages)
+@import views.html.components.overlay
 
-<!-- Scene-specific stylesheet -->
 <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/mainMenu.css")'>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/base/gameButton.css")'>
 
 <div class="scene scene--mainmenu">
   <div class="menu-stack">
@@ -10,32 +11,25 @@
          alt="Soccer Card Clash Logo" />
 
     <div class="buttons">
-      <a class="game-btn" href='@routes.UiController.switchScene("SinglePlayer")'>Singleplayer</a>
-      <a class="game-btn" href='@routes.UiController.switchScene("Multiplayer")'>Multiplayer</a>
-      <a class="game-btn" href='@routes.UiController.switchScene("LoadGame")'>Load Game</a>
-      <button class="game-btn" type="button" data-open-about>About</button>
-      <a class="game-btn" href='@routes.UiController.switchScene("MainMenu")'>Quit</a>
-    </div>
-  </div>
-
-  <!-- About overlay -->
-  <div id="overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-label="About">
-    <div class="overlay-card">
-      <h3>About</h3>
-      <p id="about-text">GENERAL_INFO</p>
-      <div class="overlay-actions" style="margin-top:16px;">
-        <button class="game-btn small" type="button" data-close-about>Close</button>
-      </div>
+      <a class="gbtn" href='@routes.UiController.switchScene("SinglePlayer")'>Singleplayer</a>
+      <a class="gbtn" href='@routes.UiController.switchScene("Multiplayer")'>Multiplayer</a>
+      <a class="gbtn" href='@routes.UiController.switchScene("LoadGame")'>Load Game</a>
+      <button class="gbtn" type="button" data-open-overlay>About</button>
+      <a class="gbtn" href='@routes.UiController.switchScene("MainMenu")'>Quit</a>
     </div>
   </div>
 
   <div class="info-label">Developed by Arutepsu</div>
 </div>
 
-<script>
-(() => {
-  const overlay = document.getElementById('overlay');
-  document.querySelector('[data-open-about]')?.addEventListener('click', () => overlay?.classList.remove('hidden'));
-  document.querySelector('[data-close-about]')?.addEventListener('click', () => overlay?.classList.add('hidden'));
-})();
-</script>
+@overlay(
+  title = "About the Game",
+  messageHtml = Html("""
+    <p><strong>Soccer Card Clash</strong> is a fast-paced, strategic 2-player card game where soccer meets tactical mind games!</p>
+    <p>Each player takes turns attacking and defending using a hand of soccer-themed cards. Every card represents a player with unique strengths. You must outmaneuver your opponent by choosing the right card at the right moment!</p>
+    <p>Roles switch after each round: today’s attacker becomes tomorrow’s defender. Strategic use of boosts and goalkeeper plays can shift the tide in your favor.</p>
+    <p>Victory goes to the player who scores the most successful attacks by the end of the match. Are you ready to kick off and clash?</p>
+  """),
+  bgImagePath = "images/frames/overlay.png",
+  safeTop = "8%", safeRight = "6%", safeBottom = "12%", safeLeft = "6%"
+)
