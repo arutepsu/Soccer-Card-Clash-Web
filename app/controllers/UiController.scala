@@ -67,4 +67,17 @@ class UiController @Inject()(
   def attackerHand(): Action[AnyContent]     = scene("attacker-hand")
   def attackerDefenders(): Action[AnyContent]= scene("attacker-defenders")
 
+  def startMultiplayerGame: Action[AnyContent] = Action { implicit req =>
+    val data = req.body.asFormUrlEncoded.getOrElse(Map.empty)
+    val p1   = data.get("player1").flatMap(_.headOption).getOrElse("Player 1")
+    val p2   = data.get("player2").flatMap(_.headOption).getOrElse("Player 2")
+
+    // TODO: call your GameUseCases / service to create the game here
+    // gameUseCases.startMultiplayer(p1, p2)
+
+    // then go to your multiplayer scene
+    Redirect(routes.UiController.switchScene("Multiplayer"))
+      .flashing("info" -> s"$p1 vs $p2 started")
+  }
+
 }

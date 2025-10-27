@@ -8,7 +8,6 @@ GET     /load-game               controllers.UiController.loadGame()
 GET     /playing-field           controllers.UiController.playingField()
 GET     /attacker-hand           controllers.UiController.attackerHand()
 GET     /attacker-defenders      controllers.UiController.attackerDefenders()
-
 GET     /scene/:to               controllers.UiController.scene(to: String)
 GET     /scene/switch/:to        controllers.UiController.switchScene(to: String)
 GET     /scene/current           controllers.UiController.sceneCurrent()
@@ -33,5 +32,8 @@ POST    /api/save              controllers.GameApiController.save()
 GET     /api/show-saves        controllers.GameApiController.showSaves()
 POST    /api/load-select/:idx   controllers.GameApiController.loadSelect(idx: Int)
 GET     /api/stream             controllers.GameApiController.stream
+
+
+POST   /multiplayer/start    controllers.UiController.startMultiplayerGame
 
 GET     /assets/*file           controllers.Assets.versioned(path="/public", file: Asset)

@@ -21,6 +21,12 @@ html, body {
   font-family: "Rajdhani", Arial, sans-serif;
   overflow: hidden;
 }
+.scene--mainmenu.is-active {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
 
 .menu-stack {
   display: flex;
