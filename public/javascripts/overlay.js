@@ -40,14 +40,11 @@
     requestAnimationFrame(() => overlay.classList.add('visible'));
     document.body.classList.add('no-scroll');
 
-    // --- FIX: reset scroll and focus top safely ---
     if (scrollContainer) {
-        // temporarily disable smooth scroll
         const prev = scrollContainer.style.scrollBehavior;
         scrollContainer.style.scrollBehavior = 'auto';
         scrollContainer.scrollTop = 0;
 
-        // focus the title (top element) without scrolling
         const titleEl = overlay.querySelector('.dialog-title');
         if (titleEl && typeof titleEl.focus === 'function') {
         titleEl.focus({ preventScroll: true });
@@ -55,12 +52,10 @@
         scrollContainer.focus({ preventScroll: true });
         }
 
-        // restore smooth scroll for user interactions
         requestAnimationFrame(() => {
         scrollContainer.style.scrollBehavior = prev || 'smooth';
         });
     }
-    // ----------------------------------------------
 
     clearTimeout(autoTimer);
     if (isAuto) {
