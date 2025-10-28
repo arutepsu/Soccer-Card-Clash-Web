@@ -1,6 +1,42 @@
 @()(implicit request: play.api.mvc.RequestHeader, messages: play.api.i18n.Messages)
 @import helper._
 
-<div class="scene scene--ai-selection">
-  <h2>AI Selection Scene</h2>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/ai.css")'>
+
+<div class="scene scene--ai">
+  <h class ="header">Choose Your AI Opponent</h>
+  <div class="opponents">
+    <div class="card">
+      <img src="/assets/images/players/taka.jpg" alt="Taka">
+      <h2>Taka</h2>
+      <p>Balanced and smart attacker.</p>
+    </div>
+
+    <div class="card">
+      <img src="/assets/images/players/bitstrom.jpg" alt="Bitstorm">
+      <h2>Bitstorm</h2>
+      <p>Aggressive, double-hitting striker.</p>
+    </div>
+
+    <div class="card">
+      <img src="/assets/images/players/defendra.jpg" alt="Defendra">
+      <h2>Defendra</h2>
+      <p>Specialist in boosting defense.</p>
+    </div>
+
+    <div class="card">
+      <img src="/assets/images/players/meta.jpg" alt="MetaAI">
+      <h2>MetaAI</h2>
+      <p>Adaptive, unpredictable decision-maker.</p>
+    </div>
+  </div>
+  
+  <div class="buttons">
+    <a class="gbtn" href='@routes.UiController.ai()'> Start </a>
+    <a class="gbtn" href='@routes.UiController.multiplayer()'> Back </a>
+  </div>
 </div>
+
+<!--<div class="scene scene--loadgame">
+  <h2>Load Game Scene</h2>
+</div>>

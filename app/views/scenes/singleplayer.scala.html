@@ -1,6 +1,20 @@
 @()(implicit request: play.api.mvc.RequestHeader, messages: play.api.i18n.Messages)
 @import helper._
 
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/singleplayer.css")'>
+
 <div class="scene scene--singleplayer">
-  <h2>Single Player Scene</h2>
+  <img class="logo-image"
+         src='@routes.Assets.versioned("images/logo/logo0.5k.png")'
+         alt="Soccer Card Clash Logo" />
+  <h class ="header">Create Players</h>
+  <h2 class = "playername">Enter Player's Name</h2>
+  <input class="inputplayer" type="text" id="p1name" name="player1"><br><br>
+    <a class="gbtn" href='@routes.UiController.ai()'> start </a>
+    <a class="gbtn" href='@routes.UiController.mainMenu()'> back </a>
+  </div>
 </div>
+
+<!--<div class="scene scene--loadgame">
+  <h2>Load Game Scene</h2>
+</div>>

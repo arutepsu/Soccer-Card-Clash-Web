@@ -1,0 +1,91 @@
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.scene--singleplayer {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start; /* Changed from center to flex-start */
+  padding-top: 50px; /* Add space from top */
+
+  background-image: url('/assets/images/frames/background2.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  font-family: "Rajdhani", Arial, sans-serif;
+  overflow: hidden;
+}
+
+.scene--loadgame .container {
+  background-color: #9a6cb2;
+  color: #9a6cb2;
+  width: 80vw;
+  height: 80vh;
+  margin: 0;
+  padding: 10px 1000 10px 0;
+}
+
+.scene--singleplayer .header {
+  color: #f3ca04;
+  font-size: 80px;
+  font-weight: bold;
+  margin-top: -70px;
+  text-shadow: 0 0 10px rgba(243, 202, 4, 0.8), 0 4px 8px rgba(0, 0, 0, 0.6);
+}
+
+.scene--singleplayer .playername {
+  color: #f3ca04;
+  margin-top: 0px;
+  text-shadow: 0 0 10px rgba(243, 202, 4, 0.8), 0 4px 8px rgba(0, 0, 0, 0.6);
+}
+
+.scene--singleplayer .inputplayer {
+  background-color: #0f0030;
+  margin-top: 0px;
+  border: 2px solid #563ed8;
+  width: 20vw;
+  height: 5vh;
+  color: white;
+  font-size: 30px;
+}
+
+.buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin-top: 0;
+}
+
+.gbtn {
+  margin: 0;
+  transform: scale(0.98);
+}
+
+.scene--singleplayer .logo-image {
+  max-width: 500px;
+  width: 40vw;
+  height: auto;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
+  margin-bottom: 20px;
+  margin-top: -60px;
+}
+
+.info-label {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 20px;
+  color: #39FF14;
+  text-shadow: 0 0 6px #39FF14, 0 0 12px rgba(57,255,20,0.6);
+  pointer-events: none;
+  line-height: 1;
+}
