@@ -4,18 +4,19 @@
 <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/mainMenu.css")'>
 <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/base/gameButton.css")'>
 
-<div class="scene scene--mainmenu">
+<div class="scene scene--mainmenu is-active" aria-hidden="false">
   <div class="menu-stack">
     <img class="logo-image"
          src='@routes.Assets.versioned("images/logo/logo0.5k.png")'
          alt="Soccer Card Clash Logo" />
 
-    <div class="buttons">
+    <nav class="buttons" aria-label="Main menu">
       <a class="gbtn" href='@routes.UiController.singleplayer()'>Singleplayer</a>
       <a class="gbtn" href='@routes.UiController.multiplayer()'>Multiplayer</a>
       <a class="gbtn" href='@routes.UiController.loadGame()'>Load Game</a>
       <button class="gbtn" type="button" data-open-overlay>About</button>
-    </div>
+      <a class="gbtn" href='@routes.UiController.mainMenu()'>Quit</a>
+    </nav>
   </div>
 
   <div class="info-label">Developed by Arutepsu</div>
