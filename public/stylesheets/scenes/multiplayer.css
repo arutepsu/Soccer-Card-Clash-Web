@@ -1,0 +1,129 @@
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;700&display=swap');
+
+:root {
+  --gold: #FFD700;
+  --ink: #0F0030;
+  --violet: #5F3FFC;
+  --text: #f0e9fa;
+}
+
+.scene--create-multiplayer {
+  position: fixed;
+  inset: 0;
+  background-image: url('/assets/images/frames/background2.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  display: grid;
+  place-items: center;
+
+  font-family: "Rajdhani", Arial, sans-serif;
+}
+
+.panel.create-player-panel {
+  width: min(92vw, 560px);
+  min-height: 560px;
+  padding: 20px 16px;
+  border-radius: 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+
+.logo-image {
+  max-width: 320px;
+  width: 70%;
+  height: auto;
+  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));
+}
+
+.titles {
+  text-align: center;
+  margin-top: 4px;
+}
+
+.title {
+  font-size: clamp(38px, 7vw, 68px);
+  font-weight: 700;
+  color: var(--gold);
+  text-shadow: 2px 2px 2px rgba(0,0,0,0.75);
+  margin: 0;
+  line-height: 1.05;
+}
+
+.subtitle {
+  font-size: clamp(16px, 2.4vw, 22px);
+  font-weight: 700;
+  color: var(--gold);
+  margin: 4px 0 0 0;
+}
+
+.inputs {
+  width: 100%;
+  margin-top: 6px;
+  display: grid;
+  gap: 10px;
+  place-items: center;
+}
+
+.player-text-input {
+  width: 300px;
+  height: 40px;
+  padding: 10px 12px;
+
+  font-size: 20px;
+  font-family: "Rajdhani", Arial, sans-serif;
+  font-weight: 400;
+  color: var(--text);
+
+  background: var(--ink);
+  border: 2px solid var(--violet);
+  border-radius: 6px;
+  outline: none;
+}
+
+.player-text-input::placeholder {
+  color: rgba(240, 233, 250, 0.6);
+}
+
+.player-text-input:focus {
+  box-shadow: 0 0 0 3px rgba(95, 63, 252, 0.25);
+}
+
+.buttons {
+  display: grid;
+  gap: 10px;
+  place-items: center;
+  margin-top: 10px;
+}
+
+/* Optional: secondary style for Back link while reusing .gbtn base */
+.gbtn.gbtn--secondary {
+  opacity: 0.9;
+}
+
+/* Minimal overlay styling (optional) */
+.overlay.hidden { display: none; }
+.overlay {
+  position: fixed; inset: 0;
+  display: grid; place-items: center;
+  background: rgba(0,0,0,0.6);
+  z-index: 50;
+}
+.overlay__content {
+  background: #121212;
+  padding: 24px;
+  border-radius: 16px;
+  width: min(90vw, 420px);
+  text-align: center;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.6);
+}
+.overlay__content p {
+  color: #eee;
+  margin: 0 0 16px 0;
+  font-family: "Rajdhani", Arial, sans-serif;
+  font-size: 18px;
+}

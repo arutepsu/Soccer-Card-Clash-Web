@@ -1,20 +1,45 @@
 @()(implicit request: play.api.mvc.RequestHeader, messages: play.api.i18n.Messages)
 @import helper._
 
-<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/createPlayerMulti.css")'>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/multiplayer.css")'>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/base/gameButton.css")'>
 
-<div class="scene scene--createplayermulti">
-  <img class="logo-image"
-         src='@routes.Assets.versioned("images/logo/logo0.5k.png")'
-         alt="Soccer Card Clash Logo" />
-  <h class ="header">Create Players</h>
-  <h2 class = "playername">Enter player names</h2>
-  <input class="inputplayer" type="text" id="p1name" name="player1"><br><br>
-  <input class="inputplayer" type="text" id="p2name" name="player2"><br><br>
+<div class="scene scene--create-multiplayer is-active" aria-hidden="false">
+  <div class="panel create-player-panel">
+    <div class="logo">
+      <img
+        class="logo-image"
+        src='@routes.Assets.versioned("images/logo/logo0.5k.png")'
+        alt="Soccer Card Clash Logo" />
+    </div>
 
-  <div class="Button">
-    <a class="gbtn" href='@routes.UiController.mainMenu()'> start </a>
-    <a class="gbtn" href='@routes.UiController.mainMenu()'> back </a>
+    <div class="titles">
+      <h1 class="title">Create Players</h1>
+      <p class="subtitle">Enter Player Names</p>
+    </div>
+
+    @helper.form(action = routes.UiController.startMultiplayerGame) { @CSRF.formField
+      <div class="inputs">
+        <input class="player-text-input" type="text" name="player1"
+               placeholder="Player 1" required autofocus />
+        <input class="player-text-input" type="text" name="player2"
+               placeholder="Player 2" required />
+      </div>
+
+      <div class="buttons">
+        <button class="gbtn" type="submit">Start</button>
+        <a class="gbtn gbtn--secondary" href='@routes.UiController.switchScene("MainMenu")'>Back</a>
+      </div>
+    }
+
+  </div>
+
+  <!-- Optional overlay hook (for alerts) -->
+  <div class="overlay hidden" id="overlay" aria-hidden="true" tabindex="-1">
+    <div class="overlay__content">
+      <p id="overlayMessage"></p>
+      <button type="button" class="gbtn" data-close-overlay>OK</button>
+    </div>
   </div>
 </div>
 
