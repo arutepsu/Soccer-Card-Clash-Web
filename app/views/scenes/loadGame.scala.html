@@ -1,6 +1,17 @@
 @()(implicit request: play.api.mvc.RequestHeader, messages: play.api.i18n.Messages)
 @import helper._
 
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/loadGame.css")'>
+
 <div class="scene scene--loadgame">
-  <h2>Load Game Scene</h2>
+  <h class ="header">Select a Saved Game</h>
+  <div class="container">
+  </div>
+  <div class="Button">
+    <a class="gbtn" href='@routes.UiController.mainMenu()'> back </a>
+  </div>
 </div>
+
+<!--<div class="scene scene--loadgame">
+  <h2>Load Game Scene</h2>
+</div>>

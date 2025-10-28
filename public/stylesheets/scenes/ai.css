@@ -1,0 +1,101 @@
+html,
+body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.scene--ai {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding-top: 150px;
+
+    background-image: url('/assets/images/frames/background8.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+
+    font-family: "Rajdhani", Arial, sans-serif;
+    overflow: hidden;
+}
+
+.card h2 {
+    color: #ff00ff;
+    margin: 10px 0 5px;
+}
+
+.card p {
+    color: #ccc;
+    font-size: 0.9rem;
+}
+
+.scene--ai .header {
+    color: #f3ca04;
+    font-size: 80px;
+    font-weight: bold;
+    margin-top: -70px;
+    text-shadow: 0 0 10px rgba(243, 202, 4, 0.8), 0 4px 8px rgba(0, 0, 0, 0.6);
+}
+
+.opponents {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 40px;
+    flex-wrap: wrap;
+    margin-top: 60px;
+}
+
+.card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 0 30px #ff00ff;
+}
+
+.card {
+    background: rgba(0, 0, 0, 0.7);
+    border: 2px solid #7700ff;
+    border-radius: 20px;
+    width: 220px;
+    padding: 20px;
+    box-shadow: 0 0 20px #7700ff;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.card img {
+    width: 100%;
+    border-radius: 12px;
+    margin-bottom: 15px;
+}
+
+.buttons {
+    margin-top: 8px;
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    align-items: center;
+}
+
+.gbtn {
+     padding: 12px 24px;
+    margin: 0;
+    transform: scale(0.98);
+    display: inline-flex; 
+    align-items: center;
+}
+
+.info-label {
+    position: absolute;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 20px;
+    color: #39FF14;
+    text-shadow: 0 0 6px #39FF14, 0 0 12px rgba(57, 255, 20, 0.6);
+    pointer-events: none;
+    line-height: 1;
+}
