@@ -9,62 +9,74 @@ import scala.concurrent.{ExecutionContext}
 import scala.concurrent.duration._
 import services.webtui._
 import play.api.libs.json._
+import app.models.WebGameState
+import de.htwg.se.soccercardclash.controller.contextHolder.IGameContextHolder
+import app.mapping.ViewStateMapper
 
 @Singleton
 class GameApiController @Inject()(
   cc: ControllerComponents,
   tui: TuiAdapter,
-  webTui: WebTui
+  webTui: WebTui,
+  ctxHolder: IGameContextHolder
 )(implicit ec: ExecutionContext) extends AbstractController(cc) {
 
-  def state: Action[AnyContent] = Action.async {
-    tui.render().map(txt => Ok(txt).as(TEXT))
+  /** ---- helpers ---- */
+  private def currentWebState(): WebGameState =
+    ViewStateMapper.toWebState(ctxHolder.get)
+
+  private def okJsonState = Ok(Json.toJson(currentWebState())).as(JSON)
+
+  private def okText(text: String) = Ok(text).as(TEXT)
+
+  /** ---- JSON: current structured state for the UI ---- */
+  def state: Action[AnyContent] = Action {
+    okJsonState
   }
 
-  def command: Action[play.api.libs.json.JsValue] =
-    Action.async(parse.json) { req =>
-      val cmd = (req.body \ "command").asOpt[String].getOrElse("")
-      tui.execute(cmd).map(out => Ok(out).as(TEXT))
-    }
+  /** ---- TUI: text endpoints (kept) ---- */
+  def command: Action[JsValue] = Action.async(parse.json) { req =>
+    val cmd = (req.body \ "command").asOpt[String].getOrElse("")
+    tui.execute(cmd).map(okText)
+  }
 
-  def newGame: Action[play.api.libs.json.JsValue] =
-    Action.async(parse.json) { req =>
-      val p1 = (req.body \ "p1").asOpt[String].getOrElse("Player 1")
-      val p2 = (req.body \ "p2").asOpt[String].getOrElse("Player 2")
-      tui.newGame(p1, p2).map(out => Ok(out).as(TEXT))
-    }
+  def newGame: Action[JsValue] = Action.async(parse.json) { req =>
+    val p1 = (req.body \ "p1").asOpt[String].getOrElse("Player 1")
+    val p2 = (req.body \ "p2").asOpt[String].getOrElse("Player 2")
+    tui.newGame(p1, p2).map(_ => okJsonState) // return fresh JSON state for UI
+  }
 
-  def newGameAI: Action[play.api.libs.json.JsValue] =
-    Action.async(parse.json) { req =>
-      val human = (req.body \ "human").asOpt[String].getOrElse("Human")
-      val ai    = (req.body \ "ai").asOpt[String].getOrElse("Bot")
-      tui.newGameWithAI(human, ai).map(out => Ok(out).as(TEXT))
-    }
+  def newGameAI: Action[JsValue] = Action.async(parse.json) { req =>
+    val human = (req.body \ "human").asOpt[String].getOrElse("Human")
+    val ai    = (req.body \ "ai").asOpt[String].getOrElse("Bot")
+    tui.newGameWithAI(human, ai).map(_ => okJsonState)
+  }
 
-  private def ok(text: String) = Ok(text).as(TEXT)
+  /** ---- Game actions: return updated JSON state so UI can refresh ---- */
+  def attack(idx: Int)        = Action.async { tui.singleAttack(idx).map(_ => okJsonState) }
+  def doubleAttack(idx: Int)  = Action.async { tui.doubleAttack(idx).map(_ => okJsonState) }
 
-  def attack(idx: Int)        = Action.async { tui.singleAttack(idx).map(ok) }
-  def doubleAttack(idx: Int)  = Action.async { tui.doubleAttack(idx).map(ok) }
+  def regularSwap(idx: Int)   = Action.async { tui.regularSwap(idx).map(_ => okJsonState) }
+  def reverseSwap()           = Action.async { tui.reverseSwap().map(_ => okJsonState) }
 
-  def regularSwap(idx: Int)   = Action.async { tui.regularSwap(idx).map(ok) }
-  def reverseSwap()           = Action.async { tui.reverseSwap().map(ok) }
+  def boostDefender(idx: Int) = Action.async { tui.boostDefender(idx).map(_ => okJsonState) }
+  def boostGoalkeeper()       = Action.async { tui.boostGoalkeeper().map(_ => okJsonState) }
 
-  def boostDefender(idx: Int) = Action.async { tui.boostDefender(idx).map(ok) }
-  def boostGoalkeeper()       = Action.async { tui.boostGoalkeeper().map(ok) }
+  def undo()                  = Action.async { tui.undo().map(_ => okJsonState) }
+  def redo()                  = Action.async { tui.redo().map(_ => okJsonState) }
+  def save()                  = Action.async { tui.save().map(_ => okJsonState) }
 
-  def undo()                  = Action.async { tui.undo().map(ok) }
-  def redo()                  = Action.async { tui.redo().map(ok) }
-  def save()                  = Action.async { tui.save().map(ok) }
+  def showSaves()             = Action.async { tui.showSavedGames().map(okText) }
+  def loadSelect(idx: Int)    = Action.async { tui.loadSelect(idx).map(_ => okJsonState) }
 
-  def showSaves()             = Action.async { tui.showSavedGames().map(ok) }
-  def loadSelect(idx: Int)    = Action.async { tui.loadSelect(idx).map(ok) }
-
+  /** ---- SSE stream: push JSON diffs or full state ----
+    * If your WebTui only yields text, you can ignore this or send text events.
+    * Here we push the full state on a timer; you can replace with change-driven logic.
+    */
   def stream: Action[AnyContent] = Action {
     val src: Source[String, _] =
       Source.tick(0.millis, 200.millis, ())
-        .map(_ => webTui.drain())
-        .filter(_.nonEmpty)
+        .map(_ => Json.stringify(Json.toJson(currentWebState())))
     Ok.chunked(src.via(EventSource.flow)).as(ContentTypes.EVENT_STREAM)
   }
-
 }

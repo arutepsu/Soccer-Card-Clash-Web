@@ -1,5 +1,5 @@
 // application/services/DefaultGameUseCases.scala
-package app.services
+package app.api
 
 import javax.inject._
 import app.models.WebGameState

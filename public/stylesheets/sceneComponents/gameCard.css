@@ -1,0 +1,38 @@
+:root{
+  --card-scale: 0.32;
+  --card-base-w: 350px;
+  --card-base-h: 500px;
+  --card-w: calc(var(--card-base-w) * var(--card-scale));
+  --card-h: calc(var(--card-base-h) * var(--card-scale));
+  --shadow: 5px 5px 10px rgba(0,0,0,.7);
+  --shadow-hover: 8px 10px 16px rgba(0,0,0,.6);
+}
+
+.game-card {
+  width: var(--card-w);
+  height: var(--card-h);
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  transition: transform .2s ease, opacity .2s ease, box-shadow .2s ease;
+}
+
+.game-card:hover { transform: translateY(-4px) scale(1.05); box-shadow: var(--shadow-hover); }
+
+
+@keyframes pulse-105 {
+  0% { transform: scale(1.00); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1.00); }
+}
+.card--pulse { animation: pulse-105 1s ease-in-out infinite; }
+
+.game-card.is-defeated {
+  filter: grayscale(0.95) contrast(0.9) brightness(0.9);
+  opacity: 0.9;
+}
+@media (max-width: 1200px) { :root { --card-scale: 0.40; } }
+@media (max-width: 900px)  { :root { --card-scale: 0.36; } }
+@media (max-width: 700px)  { :root { --card-scale: 0.32; } }
