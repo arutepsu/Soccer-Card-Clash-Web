@@ -1,0 +1,45 @@
+.card-bar-frame {
+  background: var(--frame-bg, rgba(0,0,0,.10));
+  padding: 5px;
+  border: 2px solid var(--frame-border, #fff);
+  border-radius: 6px;
+}
+
+.defender-row,
+.goalkeeper-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.defender-row { padding: 5px; }
+.goalkeeper-row { padding: 10px; }
+
+.field-card { cursor: pointer; }
+
+.field-card:hover {
+  box-shadow: var(--shadow-hover, 0 14px 28px rgba(0,0,0,.55));
+  transform: translateY(-2px);
+}
+
+.field-card.is-defeated {
+  filter: grayscale(.95) contrast(.9) brightness(.9);
+  opacity: .9;
+}
+
+.field-card.goalkeeper {
+  outline: 2px dashed rgba(255,255,255,.35);
+  outline-offset: 2px;
+}
+
+.player-label {
+  font-family: "Rajdhani", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-size: 26px;
+  color: var(--text-color);
+  text-align: center;
+  text-shadow:
+    0 1px 0 rgba(0,0,0,0.30),
+    0 0 8px var(--neon);
+  margin: 4px 0 8px;
+}
