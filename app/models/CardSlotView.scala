@@ -1,6 +1,11 @@
 package app.models
+import play.api.libs.json._
 
 final case class CardSlotView(
-  id: String,               // slot index-based id: "att-slot-0", etc.
+  id: String,
   card: Option[CardView]
 )
+
+object CardSlotView {
+  implicit val writes: OWrites[CardSlotView] = Json.writes[CardSlotView]
+}

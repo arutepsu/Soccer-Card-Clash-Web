@@ -1,0 +1,118 @@
+:root {
+  --avatar-box-size: 140px;
+  --avatar-scale: 0.9;
+  --inner-gap: 10px;
+   --bar-top-margin: 25px;
+}
+
+.players-bar {
+  margin-top: var(--bar-top-margin);
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 30px 0;
+
+  background-image: url("/assets/images/frames/frame.png");
+  background-repeat: no-repeat;
+  background-size: 60% 325%;
+  background-position: center;
+  background-color: transparent;
+
+  font-family: "Rajdhani", sans-serif;
+  box-sizing: border-box;
+}
+
+.players-bar__inner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--inner-gap);
+  width: fit-content;
+  max-width: 95%;
+}
+
+.player-avatar-box {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  width: 115px;
+  background: none;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+  z-index: 5;
+}
+
+.player__avatar {
+  width: 100px;
+  height: auto;
+  border-radius: 8px;
+  object-fit: contain;
+  display: block;
+}
+
+
+.scores-title {
+  font-family: "Rajdhani", sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: #dddddd;
+  text-align: center;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.15),
+               0 1px 4px rgba(158, 75, 223, 0.8);
+}
+
+.player-name {
+  font-family: "Rajdhani", sans-serif;
+  font-size: 40px;
+  font-weight: 400;
+  color: #ffffff;
+}
+
+.player-actions {
+  font-family: "Rajdhani", sans-serif;
+  font-size: 18px;
+  color: #dddddd;
+  text-align: center;
+  white-space: pre-line;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.15),
+               0 1px 4px rgba(158, 75, 223, 0.8);
+}
+
+.player-score {
+  font-family: "Rajdhani", sans-serif;
+  font-size: 58px;
+  font-weight: 700;
+  color: #FFD700;
+  text-shadow: 2px 2px 10px rgba(0,0,0,0.75);
+  transition: transform 0.2s ease, color 0.3s ease;
+}
+
+.player-score.updated {
+  transform: scale(1.12);
+  color: #fffcb3;
+}
+
+.score-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 220px;
+}
+
+.score-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+.score-row .spacer {
+  flex: 1 1 auto;
+}

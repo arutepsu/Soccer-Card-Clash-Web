@@ -18,19 +18,30 @@
       <p class="subtitle">Enter Player Names</p>
     </div>
 
-    @helper.form(action = routes.UiController.startMultiplayerGame) { @CSRF.formField
-      <div class="inputs">
-        <input class="player-text-input" type="text" name="player1"
-               placeholder="Player 1" required autofocus />
-        <input class="player-text-input" type="text" name="player2"
-               placeholder="Player 2" required />
-      </div>
+  @helper.form(action = routes.UiController.startMultiplayerGame) {
+    @CSRF.formField
 
-      <div class="buttons">
-        <button class="gbtn" type="submit">Start</button>
-        <a class="gbtn gbtn--secondary" href='@routes.UiController.switchScene("MainMenu")'>Back</a>
-      </div>
-    }
+    <div class="inputs">
+      <input class="player-text-input"
+            type="text"
+            name="player1"
+            placeholder="Player 1"
+            required
+            autofocus />
+
+      <input class="player-text-input"
+            type="text"
+            name="player2"
+            placeholder="Player 2"
+            required />
+    </div>
+
+    <div class="buttons">
+      <button class="gbtn" type="submit">Start</button>
+      <a class="gbtn gbtn--secondary"
+        href='@routes.UiController.switchScene("MainMenu")'>Back</a>
+    </div>
+  }
 
   </div>
 
