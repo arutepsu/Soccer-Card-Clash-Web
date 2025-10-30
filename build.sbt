@@ -22,6 +22,6 @@ lazy val sccWeb = (project in file("."))
     )
   )
 
-lazy val scc = ProjectRef(file("../SoccerCardClash"), "root")
+lazy val scc = ProjectRef(file("../Soccer-Card-Clash"), "root")
 
 
