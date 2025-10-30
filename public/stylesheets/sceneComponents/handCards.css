@@ -17,3 +17,50 @@
   padding: 10px 0;
   width: 100%;
 }
+#hand-row {
+  position: relative;
+  padding-right: 115px;
+}
+
+#attacker-avatar-box {
+  position: absolute;
+  right: 275px;
+  bottom: -0px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: -10px;
+
+  width: 115px;
+  background: none;
+  box-shadow: none;
+  padding: 0;
+  z-index: 5;
+}
+
+#attacker-avatar-box .attacker-label {
+  font-family: "Rajdhani", sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #cfd7ff;
+  text-shadow: 0 0 6px rgba(120, 140, 255, 0.8);
+  margin-bottom: 0px;
+}
+
+#attacker-avatar-box img {
+  width: 70px;
+  height: auto;
+  border-radius: 8px;
+  object-fit: contain;
+  box-shadow: 0 0 10px rgba(120, 140, 255, 0.8);
+}
+
+#attacker-avatar-box .attacker-label {
+  font-family: "Rajdhani", sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #cfd7ff;
+  text-shadow: 0 0 6px rgba(120, 140, 255, 0.8);
+  margin-bottom: 10px;
+}
+

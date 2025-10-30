@@ -28,11 +28,6 @@
   opacity: .9;
 }
 
-.field-card.goalkeeper {
-  outline: 2px dashed rgba(255,255,255,.35);
-  outline-offset: 2px;
-}
-
 .player-label {
   font-family: "Rajdhani", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   font-size: 26px;

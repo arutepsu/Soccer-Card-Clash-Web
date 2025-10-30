@@ -5,9 +5,9 @@ export function createHandCardRendererBase() {
     if (!first) return -40;
     const w = parseFloat(getComputedStyle(first).width) || 140;
     const ratio =
-      handSize >= 10 ? 0.55 :
-      handSize >= 6  ? 0.45 :
-                       0.25;
+      handSize >= 10 ? 0.60 :
+      handSize >= 6  ? 0.50 :
+                       0.30;
     return -Math.round(w * ratio);
   }
 
