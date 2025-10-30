@@ -101,31 +101,32 @@ function mount(el) {
     if (el) el.textContent = String(v);
   }
 
-    function setAvatar(sel, player) {
+  function setAvatar(sel, player) {
     const img = root?.querySelector(sel);
     if (!img || !player) return;
 
     try {
-        const url = registry.getAvatarUrl(player);
-        if (!url) return;
+      const url = registry.getAvatarUrl(player);
+      if (!url) return;
 
-        img.decoding = 'async';
-        img.loading = 'lazy';
-        img.src = url;
+      img.decoding = 'async';
+      img.loading = 'lazy';
+      img.src = url;
 
-        img.removeAttribute('width');
-        img.removeAttribute('height');
+      img.removeAttribute('width');
+      img.removeAttribute('height');
 
-        // Flexible styling
-        img.style.width = '100%';
-        img.style.height = 'auto';
-        img.style.maxWidth = '80px';
-        img.style.maxHeight = '80px';
-        img.style.objectFit = 'cover';
-        img.style.borderRadius = '50%';
-        img.style.display = 'block';
+      img.style.width = '100%';
+      img.style.height = '100%';
+      img.style.objectFit = 'cover';
+      img.style.borderRadius = '0';
+      img.style.display = 'block';
+
+      img.style.maxWidth = '';
+      img.style.maxHeight = '';
     } catch { /* ignore */ }
-    }
+  }
+
 
 
 

@@ -1,7 +1,6 @@
-// /assets/javascripts/cardImageRegistryWeb.js
 export function createCardImageRegistry(options = {}) {
   const cardsPath = options.cardsPath ?? "/assets/images/cards/";
-  const images = new Map(); // fileName -> HTMLImageElement
+  const images = new Map();
   let fallback = cardsPath + "flippedCard.png";
   let defeated = cardsPath + "defeated.png";
 
@@ -25,20 +24,17 @@ export function createCardImageRegistry(options = {}) {
     values.forEach(v => suits.forEach(s => all.push(`${v}_of_${s}.png`)));
     all.push("flippedCard.png", "defeated.png");
 
-    // try to preload; don't hard-fail for missing non-core
     await Promise.allSettled(all.map(_preloadOne));
 
-    // ensure fallbacks exist (use already-loaded or fall back to given URLs)
     if (!images.has("flippedCard.png")) images.set("flippedCard.png", Object.assign(new Image(), { src: fallback }));
     if (!images.has("defeated.png")) images.set("defeated.png", Object.assign(new Image(), { src: defeated }));
     fallback = images.get("flippedCard.png").src;
     defeated = images.get("defeated.png").src;
   }
 
-    // cardImageRegistryWeb.js
     function getImageUrl(fileName) {
     if (!fileName) return fallback;
-    const withExt = fileName.endsWith('.png') ? fileName : `${fileName}.png`; // <- add this
+    const withExt = fileName.endsWith('.png') ? fileName : `${fileName}.png`;
     return images.get(withExt)?.src ?? url(withExt);
     }
 
