@@ -1,0 +1,84 @@
+/* --------------------------
+   Playing Field Scene Layout
+   -------------------------- */
+.scene--playingfield {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background-image: url("/assets/images/frames/background5.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  font-family: "Rajdhani", Arial, sans-serif;
+  color: #e8eef5;
+  overflow: hidden;
+}
+.board {
+  display: grid;
+  grid-template-columns: 180px 1fr 180px;
+  align-items: center;
+  justify-items: center;
+  gap: clamp(6px, 1vw, 12px);
+  padding: clamp(4px, 2vw, 10px);
+}
+#nav-bar {
+  display: flex;
+  flex-direction: column;
+  justify-self: end;
+  align-items: flex-end;
+  gap: 9px;
+  transform: translateX(450px);
+}
+
+#action-bar {
+  display: flex;
+  flex-direction: column;
+  justify-self: start;
+  align-items: flex-start;
+  gap: 9px;
+  transform: translateX(-450px);
+}
+
+
+.input-blocker {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(2px);
+  display: none;
+  z-index: 1000;
+}
+.input-blocker.is-active {
+  display: block;
+  animation: fadeIn 0.3s ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 1024px) {
+  .board {
+    grid-template-columns: 160px 1fr 160px;
+  }
+}
+
+@media (max-width: 768px) {
+  .scene--playingfield {
+    grid-template-rows: auto 1fr auto;
+    padding: 0;
+  }
+
+  .board {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 12px;
+  }
+
+  #nav-bar {
+    flex-direction: row;
+    justify-content: center;
+  }
+}

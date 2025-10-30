@@ -1,6 +1,64 @@
 @()(implicit request: play.api.mvc.RequestHeader, messages: play.api.i18n.Messages)
 @import helper._
+@import views.html.components.overlay
+@import views.html.sceneComponents.playersBar
 
-<div class="scene scene--playingfield">
-  <h2>Playing Field Scene</h2>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/playingField.css")'>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/gameCard.css")'>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/base/gameButton.css")'>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/playersBar.css")'>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/fieldCards.css")'>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/handCards.css")'>
+
+
+<div class="scene scene--playingfield is-active" data-scene="PlayingField" aria-live="polite">
+  @views.html.sceneComponents.playersBar()
+
+  <main class="board" role="main">
+    <nav id="nav-bar" aria-label="Navigation menu">
+    </nav>
+
+    <section id="field" aria-label="Defender Field">
+      <div class="card-bar-frame" id="field-frame">
+      </div>
+    </section>
+
+
+    <aside id="action-bar" aria-label="Action buttons">
+    </aside>
+  </main>
+
+  <footer id="hand-row" aria-label="Attacker Hand and Avatar">
+    <section id="hand" aria-label="Attacker Hand"></section>
+    <section id="attacker-avatar-box" aria-label="Current Attacker"></section>
+  </footer>
+
+
+  <div id="input-blocker" class="input-blocker" aria-hidden="true"></div>
 </div>
+
+@overlay(
+  id = "overlay",
+  title = "About the Game",
+  messageHtml = Html(""),
+  bgImagePath = "images/frames/overlay.png",  // <- your frame image
+  // safe-area for the scroll window inside the frame (match your overlay.css)
+  safeTop = "16%",
+  safeRight = "8%",
+  safeBottom = "16%",
+  safeLeft = "8%"
+)
+
+<button type="button" data-open-overlay hidden aria-hidden="true" tabindex="-1">Open Overlay</button>
+
+<script type="module">
+  import { initPlayingFieldScene } from '@routes.Assets.versioned("javascripts/playingFieldScene.js")';
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    const apiState = await fetch('/api/state').then(r => r.json());
+    const scene = await initPlayingFieldScene();
+    scene.updateFromServerContext(apiState);
+
+  });
+</script>
+

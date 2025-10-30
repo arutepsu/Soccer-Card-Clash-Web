@@ -13,6 +13,8 @@ import de.htwg.se.soccercardclash.model.gameComponent.IGameState
 import de.htwg.se.soccercardclash.model.playerComponent.playerAction.PlayerActionPolicies
 import de.htwg.se.soccercardclash.model.cardComponent.base.types.BoostedCard
 import scala.reflect.Selectable.reflectiveSelectable
+import de.htwg.se.soccercardclash.model.cardComponent.ICard
+import de.htwg.se.soccercardclash.model.cardComponent.base.types.BoostedCard
 
 object ViewStateMapper {
 
@@ -25,14 +27,24 @@ object ViewStateMapper {
     val att = roles.attacker
     val de  = roles.defender
 
-    val attackerHand = qToSeq(gameCards.getPlayerHand(att)).map(toCardView)
-    val defenderHand = qToSeq(gameCards.getPlayerHand(de)).map(toCardView)
+    // ---- HANDS (CardView)
+// ---- HANDS (CardView)
+    def handFor(p: IPlayer): Seq[CardView] =
+      qToSeq(gameCards.getPlayerHand(p)).map(toCardView)
 
-    val attackerField = toSlots(gameCards.getPlayerDefenders(att), "att-slot")
-    val defenderField = toSlots(gameCards.getPlayerDefenders(de), "def-slot")
+    // ---- FIELDS (CardSlotView)
+    def fieldSlotsFor(p: IPlayer, prefix: String): Seq[CardSlotView] = {
+      // Already a List[Option[ICard]], no need for pattern matching
+      val defenders: List[Option[ICard]] = gameCards.getPlayerDefenders(p)
+      print(defenders)
+      defenders.zipWithIndex.map { case (maybeCard, i) =>
+        CardSlotView(id = s"$prefix-$i", card = maybeCard.map(toCardView))
+      }
+    }
+ 
 
-    val attackerGK = gameCards.getPlayerGoalkeeper(att).map(toCardView)
-    val defenderGK = gameCards.getPlayerGoalkeeper(de).map(toCardView)
+    val attackerGK = gameCards.getPlayerGoalkeeper(att).map(toCardView) // Option[CardView]
+    val defenderGK = gameCards.getPlayerGoalkeeper(de).map(toCardView)  // Option[CardView]
 
     val allowed = ActionLimitsMapper.toAllowed(att, de)
 
@@ -43,10 +55,10 @@ object ViewStateMapper {
         defender = scores.getScore(de)
       ),
       cards = CardsView(
-        attackerHand = attackerHand,
-        defenderHand = defenderHand,
-        attackerField = attackerField,
-        defenderField = defenderField,
+        attackerHand       = handFor(att),
+        defenderHand       = handFor(de),
+        attackerField      = fieldSlotsFor(att, "att"),
+        defenderField      = fieldSlotsFor(de,  "def"),
         attackerGoalkeeper = attackerGK,
         defenderGoalkeeper = defenderGK
       ),
@@ -54,37 +66,46 @@ object ViewStateMapper {
     )
   }
 
-  private def qToSeq(q: IHandCardsQueue): Seq[ICard] = {
-    import scala.reflect.Selectable.reflectiveSelectable
+  private def qToSeq(q: IHandCardsQueue): Seq[ICard] =
+    q.toList // or q.cards
 
-    q match {
-      case s: scala.collection.Seq[?] =>
-        s.asInstanceOf[scala.collection.Seq[ICard]].toSeq
-      case it: scala.collection.Iterable[?] =>
-        it.asInstanceOf[scala.collection.Iterable[ICard]].toSeq
-      case _ =>
-        try {
-          q.asInstanceOf[{ def getCards: scala.collection.Iterable[ICard] }].getCards.toSeq
-        } catch {
-          case _: Throwable => Seq.empty
-        }
+
+
+  private def toCardView(c: ICard): CardView = {
+    val isBoosted = c match {
+      case _: BoostedCard => true
+      case _              => false
     }
+    val rankStr = c.value.toString
+    val suitStr = c.suit.toString
+    CardView(
+      id       = stableId(c),
+      rank     = rankStr,
+      suit     = suitStr,
+      value    = c.valueToInt,
+      boosted  = isBoosted,
+      fileName = toFileName(rankStr, suitStr)
+    )
   }
 
 
-  private def toSlots(defenders: List[Option[ICard]], prefix: String): Seq[CardSlotView] =
-    defenders.zipWithIndex.map { case (c, i) =>
-      CardSlotView(id = s"$prefix-$i", card = c.map(toCardView))
+  private def toFileName(rank: String, suit: String): String = {
+    def r(s: String) = s.toLowerCase match {
+      case "jack" | "j"  => "jack"
+      case "queen"| "q"  => "queen"
+      case "king" | "k"  => "king"
+      case "ace"  | "a"  => "ace"
+      case other         => other
     }
-
-  private def toCardView(c: ICard): CardView =
-    CardView(
-      id      = stableId(c),
-      rank    = c.value.toString,
-      suit    = c.suit.toString,
-      value   = c.valueToInt,
-      boosted = false
-    )
+    def sName(s: String) = s.toLowerCase match {
+      case "club" | "clubs"       => "clubs"
+      case "diamond" | "diamonds" => "diamonds"
+      case "heart" | "hearts"     => "hearts"
+      case "spade" | "spades"     => "spades"
+      case other                  => other
+    }
+    s"${r(rank)}_of_${sName(suit)}"
+  }
 
   private def stableId(c: ICard): String =
     s"${c.suit}-${c.value}-${System.identityHashCode(c)}"
