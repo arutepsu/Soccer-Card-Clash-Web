@@ -17,20 +17,20 @@ GET     /tui                     controllers.TuiController.tui
 POST    /tui/submit              controllers.TuiController.submit
 
 GET     /api/state              controllers.GameApiController.state
-POST    /api/command            controllers.GameApiController.command
-POST    /api/new-game           controllers.GameApiController.newGame
-POST    /api/new-game-ai        controllers.GameApiController.newGameAI
-POST    /api/attack/:idx        controllers.GameApiController.attack(idx: Int)
-POST    /api/double-attack/:idx controllers.GameApiController.doubleAttack(idx: Int)
-POST    /api/regular-swap/:idx  controllers.GameApiController.regularSwap(idx: Int)
-POST    /api/boost-defender/:idx  controllers.GameApiController.boostDefender(idx: Int)
-POST    /api/reverse-swap      controllers.GameApiController.reverseSwap()
-POST    /api/boost-goalkeeper  controllers.GameApiController.boostGoalkeeper()
-POST    /api/undo              controllers.GameApiController.undo()
-POST    /api/redo              controllers.GameApiController.redo()
-POST    /api/save              controllers.GameApiController.save()
-GET     /api/show-saves        controllers.GameApiController.showSaves()
-POST    /api/load-select/:idx   controllers.GameApiController.loadSelect(idx: Int)
+POST    /api/command            controllers.TuiController.command
+POST    /api/new-game           controllers.TuiController.newGame
+POST    /api/new-game-ai        controllers.TuiController.newGameAI
+POST    /api/singleAttack   controllers.GameApiController.singleAttack
+POST    /api/double-attack/:idx controllers.TuiController.doubleAttack(idx: Int)
+POST    /api/regular-swap/:idx  controllers.TuiController.regularSwap(idx: Int)
+POST    /api/boost-defender/:idx  controllers.TuiController.boostDefender(idx: Int)
+POST    /api/reverse-swap      controllers.TuiController.reverseSwap()
+POST    /api/boost-goalkeeper  controllers.TuiController.boostGoalkeeper()
+POST    /api/undo              controllers.TuiController.undo()
+POST    /api/redo              controllers.TuiController.redo()
+POST    /api/save              controllers.TuiController.save()
+GET     /api/show-saves        controllers.TuiController.showSaves()
+POST    /api/load-select/:idx   controllers.TuiController.loadSelect(idx: Int)
 GET     /api/stream             controllers.GameApiController.stream
 
 
