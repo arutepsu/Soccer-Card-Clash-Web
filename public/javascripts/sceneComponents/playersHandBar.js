@@ -1,27 +1,33 @@
-// playersHandBarWeb.js
-
 function resolveState(getOrState) {
   return typeof getOrState === 'function' ? getOrState() : getOrState;
 }
 
 function handsOf(gs, pid) {
-  return (
-    gs?.cards?.hands?.[pid] ??
-    gs?.gameCards?.hands?.[pid] ??
-    []
-  );
+  const fromHands = gs?.cards?.hands?.[pid] ?? gs?.gameCards?.hands?.[pid];
+  if (fromHands) return fromHands;
+  if (pid === 'att') return gs?.cards?.attackerHand ?? [];
+  if (pid === 'def') return gs?.cards?.defenderHand ?? [];
+  return [];
+}
+
+function handSig(gs, pid) {
+  if (pid === 'att') return (gs?.cards?.attackerHand ?? []).map(c => c?.fileName ?? '').join('|');
+  if (pid === 'def') return (gs?.cards?.defenderHand ?? []).map(c => c?.fileName ?? '').join('|');
+  return '';
 }
 
 export function createPlayersHandBar(player, initialGameState, renderer) {
   let root;
   let currentRow;
-  let getState = initialGameState;
+  let getState = (typeof initialGameState === 'function') ? initialGameState : () => initialGameState;
+  let prevSig = null;
 
   function afterRowInserted(row) {
     try {
       const gs = resolveState(getState);
       const size = handsOf(gs, player.id).length;
       renderer.applyOverlapSpacing(row, size);
+      prevSig = handSig(gs, player.id);
     } catch { /* no-op */ }
 
     [...row.children].forEach(node => {
@@ -35,24 +41,21 @@ export function createPlayersHandBar(player, initialGameState, renderer) {
 
   function mount(el) {
     root = el;
-
     currentRow = renderer.createHandCardRow(player, getState);
     root.replaceChildren(currentRow);
-
-    if (player?.id === 'att') {
-      root.classList.add('attacker-hand-bar');
-    }
-
+    if (player?.id === 'att') root.classList.add('attacker-hand-bar');
     root.setAttribute('role', 'region');
     root.setAttribute('aria-label', `${player?.id === 'att' ? 'Attacker' : 'Defender'} hand`);
-
     afterRowInserted(currentRow);
   }
 
   function updateBar(newGameState) {
-    getState = newGameState;
+    getState = (typeof newGameState === 'function') ? newGameState : () => newGameState;
 
-    const newRow = renderer.createHandCardRow(player, getState);
+    const gs = resolveState(getState);
+    const next = handSig(gs, player.id);
+    if (prevSig === next) return;
+
     [...(currentRow?.children ?? [])].forEach(node => {
       node.animate(
         [
@@ -64,6 +67,7 @@ export function createPlayersHandBar(player, initialGameState, renderer) {
     });
 
     setTimeout(() => {
+      const newRow = renderer.createHandCardRow(player, getState);
       root.replaceChildren(newRow);
       currentRow = newRow;
       afterRowInserted(newRow);
@@ -71,6 +75,5 @@ export function createPlayersHandBar(player, initialGameState, renderer) {
   }
 
   function selectedCardIndex() { return null; }
-
   return { mount, updateBar, selectedCardIndex };
 }

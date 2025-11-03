@@ -1,5 +1,4 @@
 // playersAvatarRegistryWeb.js
-// Web mirror of PlayerAvatarRegistry (no framework dependency)
 
 export function createPlayerAvatarRegistry(options = {}) {
   const avatarsPath = options.avatarsPath ?? "/assets/images/players/";
@@ -13,7 +12,6 @@ export function createPlayerAvatarRegistry(options = {}) {
     "meta.jpg",
   ];
 
-  // Strategy → filename mapping
   const aiStrategyMap = {
     TakaStrategy: "taka.jpg",
     BitstormStrategy: "bitstrom.jpg",
@@ -21,11 +19,9 @@ export function createPlayerAvatarRegistry(options = {}) {
     MetaAIStrategy: "meta.jpg",
   };
 
-  // caches
-  const images = new Map();              // fileName -> HTMLImageElement (preloaded)
-  const playerImageMap = new Map();      // playerId -> fileName
+  const images = new Map();
+  const playerImageMap = new Map();
 
-  // --- helpers ---------------------------------------------------------------
 
   function fileUrl(fileName) {
     return `${avatarsPath}${fileName}`;
@@ -41,16 +37,11 @@ export function createPlayerAvatarRegistry(options = {}) {
     });
   }
 
-  // --- public API ------------------------------------------------------------
-
   async function preloadAvatars() {
-    // mirrors Scala preload (throws if missing)
     await Promise.all(knownFiles.map(preload));
   }
 
-  // player: { id: string, name: string, playerType: 'Human' | { kind:'AI', strategy: string } }
   function assignAvatar(player, fileName) {
-    // ensure preloaded or just record mapping (lazy load is fine too)
     playerImageMap.set(player.id, fileName);
   }
 
@@ -91,13 +82,7 @@ export function createPlayerAvatarRegistry(options = {}) {
     return img;
   }
 
-  // --- utils -----------------------------------------------------------------
-
   function isAI(playerType) {
-    // expected shapes:
-    //  - "Human"
-    //  - { kind: 'AI', strategy: 'TakaStrategy' }
-    //  - { type: 'AI', strategy: 'TakaStrategy' }
     if (playerType === "Human") return false;
     if (typeof playerType === "object" && playerType) {
       const k = playerType.kind ?? playerType.type;
@@ -107,25 +92,19 @@ export function createPlayerAvatarRegistry(options = {}) {
   }
 
   function normalizeStrategyName(name) {
-    // extract simple class name if full path (e.g., package.My$TakaStrategy)
     if (!name) return "";
     const parts = String(name).split(/[.$]/);
     return parts[parts.length - 1];
   }
 
   return {
-    // config
     avatarsPath,
-    // preload/cache
     preloadAvatars,
-    // assignment
     assignAvatar,
     assignAvatarsInOrder,
-    // getters
     getAvatarFileName,
     getAvatarUrl,
     getAvatarImg,
-    // expose caches if needed (read-only snapshots)
     getImages: () => Object.fromEntries([...images.keys()].map(k => [k, fileUrl(k)])),
   };
 }
