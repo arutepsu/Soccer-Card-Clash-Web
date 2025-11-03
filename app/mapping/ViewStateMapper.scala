@@ -36,7 +36,6 @@ object ViewStateMapper {
     def fieldSlotsFor(p: IPlayer, prefix: String): Seq[CardSlotView] = {
       // Already a List[Option[ICard]], no need for pattern matching
       val defenders: List[Option[ICard]] = gameCards.getPlayerDefenders(p)
-      print(defenders)
       defenders.zipWithIndex.map { case (maybeCard, i) =>
         CardSlotView(id = s"$prefix-$i", card = maybeCard.map(toCardView))
       }

@@ -12,71 +12,91 @@ import play.api.libs.json._
 import app.models.WebGameState
 import de.htwg.se.soccercardclash.controller.contextHolder.IGameContextHolder
 import app.mapping.ViewStateMapper
+import app.api.IGameUseCases
+import controllers.dto.SingleAttackDto
 
 @Singleton
 class GameApiController @Inject()(
   cc: ControllerComponents,
-  tui: TuiAdapter,
-  webTui: WebTui,
-  ctxHolder: IGameContextHolder
+  ctxHolder: IGameContextHolder,
+  gameUseCases: IGameUseCases
 )(implicit ec: ExecutionContext) extends AbstractController(cc) {
 
-  /** ---- helpers ---- */
-  private def currentWebState(): WebGameState =
-    ViewStateMapper.toWebState(ctxHolder.get)
 
-  private def okJsonState = Ok(Json.toJson(currentWebState())).as(JSON)
-
-  private def okText(text: String) = Ok(text).as(TEXT)
-
-  /** ---- JSON: current structured state for the UI ---- */
-  def state: Action[AnyContent] = Action {
-    okJsonState
+  sealed trait AttackTarget
+  object AttackTarget {
+    final case class DefenderAt(index: Int) extends AttackTarget
+    case object Goalkeeper extends AttackTarget
   }
 
-  /** ---- TUI: text endpoints (kept) ---- */
-  def command: Action[JsValue] = Action.async(parse.json) { req =>
-    val cmd = (req.body \ "command").asOpt[String].getOrElse("")
-    tui.execute(cmd).map(okText)
+  /* ---------- helpers ---------- */
+
+  private def withSid(f: String => Result)(implicit req: RequestHeader): Result =
+    req.session.get("sid").map(f).getOrElse(Unauthorized("No session id (sid) in cookie/session)"))
+
+  private def toTarget(dto: SingleAttackDto): Either[String, AttackTarget] = {
+    dto.target.toLowerCase match {
+      case "goalkeeper" => Right(AttackTarget.Goalkeeper)
+      case "defender" =>
+        dto.index match {
+          case Some(i) =>
+            if (i >= 0 && i <= 2) Right(AttackTarget.DefenderAt(i))
+            else Left(s"Defender index out of range: $i (expected 0..2)")
+          case None =>
+            Left("Missing 'index' for target=defender")
+        }
+      case other =>
+        Left(s"Unknown target: $other")
+    }
   }
 
-  def newGame: Action[JsValue] = Action.async(parse.json) { req =>
-    val p1 = (req.body \ "p1").asOpt[String].getOrElse("Player 1")
-    val p2 = (req.body \ "p2").asOpt[String].getOrElse("Player 2")
-    tui.newGame(p1, p2).map(_ => okJsonState) // return fresh JSON state for UI
+
+
+  /* ---------- endpoints ---------- */
+
+  def state: Action[AnyContent] = Action { implicit req =>
+    withSid { sid =>
+      gameUseCases.state(sid) match {
+        case Right(web) => Ok(Json.toJson(web)).as(JSON)
+        case Left(err)  => NotFound(Json.obj("error" -> err.message))
+      }
+    }
   }
 
-  def newGameAI: Action[JsValue] = Action.async(parse.json) { req =>
-    val human = (req.body \ "human").asOpt[String].getOrElse("Human")
-    val ai    = (req.body \ "ai").asOpt[String].getOrElse("Bot")
-    tui.newGameWithAI(human, ai).map(_ => okJsonState)
+  def stream: Action[AnyContent] = Action { implicit req =>
+    withSid { sid =>
+      val src =
+        Source.tick(0.seconds, 200.millis, ())
+          .map(_ => gameUseCases.state(sid))
+          .collect { case Right(web) => web }
+          .map(web => Json.stringify(Json.toJson(web)))
+
+      Ok.chunked(src.via(EventSource.flow)).as(ContentTypes.EVENT_STREAM)
+    }
   }
 
-  /** ---- Game actions: return updated JSON state so UI can refresh ---- */
-  def attack(idx: Int)        = Action.async { tui.singleAttack(idx).map(_ => okJsonState) }
-  def doubleAttack(idx: Int)  = Action.async { tui.doubleAttack(idx).map(_ => okJsonState) }
-
-  def regularSwap(idx: Int)   = Action.async { tui.regularSwap(idx).map(_ => okJsonState) }
-  def reverseSwap()           = Action.async { tui.reverseSwap().map(_ => okJsonState) }
-
-  def boostDefender(idx: Int) = Action.async { tui.boostDefender(idx).map(_ => okJsonState) }
-  def boostGoalkeeper()       = Action.async { tui.boostGoalkeeper().map(_ => okJsonState) }
-
-  def undo()                  = Action.async { tui.undo().map(_ => okJsonState) }
-  def redo()                  = Action.async { tui.redo().map(_ => okJsonState) }
-  def save()                  = Action.async { tui.save().map(_ => okJsonState) }
-
-  def showSaves()             = Action.async { tui.showSavedGames().map(okText) }
-  def loadSelect(idx: Int)    = Action.async { tui.loadSelect(idx).map(_ => okJsonState) }
-
-  /** ---- SSE stream: push JSON diffs or full state ----
-    * If your WebTui only yields text, you can ignore this or send text events.
-    * Here we push the full state on a timer; you can replace with change-driven logic.
+  /** Single attack via JSON:
+    * { "target": "goalkeeper" }  -> GK attack
+    * { "target": "defender", "index": 0 } -> defender@0
     */
-  def stream: Action[AnyContent] = Action {
-    val src: Source[String, _] =
-      Source.tick(0.millis, 200.millis, ())
-        .map(_ => Json.stringify(Json.toJson(currentWebState())))
-    Ok.chunked(src.via(EventSource.flow)).as(ContentTypes.EVENT_STREAM)
+  def singleAttack: Action[JsValue] = Action(parse.json) { implicit req =>
+    withSid { sid =>
+      req.body.validate[SingleAttackDto].fold(
+        bad => BadRequest(Json.obj("error" -> JsError.toJson(bad))),
+        dto => toTarget(dto) match {
+          case Left(msg) => BadRequest(Json.obj("error" -> msg))
+          case Right(AttackTarget.Goalkeeper) =>
+            gameUseCases.singleAttack(-1, sid) match {
+              case Right(web) => Ok(Json.toJson(web)).as(JSON)
+              case Left(err)  => BadRequest(Json.obj("error" -> err.message))
+            }
+          case Right(AttackTarget.DefenderAt(i)) =>
+            gameUseCases.singleAttack(i, sid) match {
+              case Right(web) => Ok(Json.toJson(web)).as(JSON)
+              case Left(err)  => BadRequest(Json.obj("error" -> err.message))
+            }
+        }
+      )
+    }
   }
 }

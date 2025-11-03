@@ -5,20 +5,20 @@ export function createActionButtonBar() {
   function mount(el) {
     root = el;
     root.innerHTML = `
-      <button class="gbtn" data-action="attack-regular">Attack</button>
-      <button class="gbtn" data-action="attack-double">Double Attack</button>
-      <button class="gbtn" data-action="info">Info</button>
+      <button type="button" class="gbtn" data-action="attack-regular">Attack</button>
+      <button type="button" class="gbtn" data-action="attack-double">Double Attack</button>
+      <button type="button" class="gbtn" data-action="info">Info</button>
     `;
     root.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-action]'); if (!btn) return;
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      e.preventDefault();            // <-- important inside forms
       const action = btn.dataset.action;
-      if (action === 'info') {
-        openInfoDialog('GAME_INFO');
-        return;
-      }
+      if (action === 'info') { openInfoDialog('GAME_INFO'); return; }
       onAction(action);
     });
   }
+
 
   function setEnabled(map) {
     if (!root) return;
