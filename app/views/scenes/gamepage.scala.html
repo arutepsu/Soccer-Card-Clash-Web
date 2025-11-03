@@ -3,7 +3,18 @@
   messages: play.api.i18n.Messages
 )
 
-@main(title) {
-  <h1>@title</h1>
-  <div id="scene-root" class="fade-in">@sceneHtml</div>
-}
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>@title</title>
+    @defining(play.filters.csrf.CSRF.getToken(request)) { maybeToken =>
+      @maybeToken.map { t =>
+        <meta name="csrf-token" content="@t.value">
+      }
+    }
+  </head>
+  <body>
+    <h1>@title</h1>
+    <div id="scene-root" class="fade-in">@sceneHtml</div>
+  </body>
+</html>

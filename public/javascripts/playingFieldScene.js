@@ -4,20 +4,18 @@ import { createPlayersBar }          from './sceneComponents/playersBar.js';
 import { createNavButtonBar }        from './sceneComponents/navButtonBar.js';
 import { createActionButtonBar }     from './sceneComponents/actionButtonBar.js';
 
-import { createCardImageRegistry }           from './utils/cardImageRegistry.js';
-import { createDefaultFieldCardRenderer }    from './sceneComponents/fieldCardRenderer.js';
-import { createPlayersFieldBar }             from './sceneComponents/playersFieldBar.js';
+import { createCardImageRegistry }        from './utils/cardImageRegistry.js';
+import { createDefaultFieldCardRenderer } from './sceneComponents/fieldCardRenderer.js';
+import { createPlayersFieldBar }          from './sceneComponents/playersFieldBar.js';
 
-import { createDefaultHandCardRenderer } from './sceneComponents/handCardRenderer.js';
-import { createPlayersHandBar }          from './sceneComponents/playersHandBar.js';
+import { createDefaultHandCardRenderer }  from './sceneComponents/handCardRenderer.js';
+import { createPlayersHandBar }           from './sceneComponents/playersHandBar.js';
 
 import { createComparisonHandler } from './utils/comparisonHandler.js';
 
-/**
- * Build a lightweight view object for components that expect
- * { players: {attacker, defender}, cards: {...}, allowed }
- * using the REAL mapper output (WebGameState).
- */
+import { createGameApi } from './api/gameApi.js';
+import { createPlayingFieldController } from './controllers/playingFieldController.js';
+
 function buildSceneViewFromWeb(web, registry) {
   const attacker = {
     id: 'att',
@@ -40,19 +38,13 @@ function buildSceneViewFromWeb(web, registry) {
   const mapHand = (list = []) => list.map((c, i, arr) => {
     const isLast = i === arr.length - 1;
     const front  = toImg(c?.fileName);
-    return {
-      imgFront: front,
-      imgBack: back,
-      img: isLast ? front : back,
-    };
+    return { imgFront: front, imgBack: back, img: isLast ? front : back };
   });
 
-  const mapField = (list = []) =>
-    list.map(slot => ({ img: toImg(slot?.card?.fileName) }));
+  const mapField = (list = []) => list.map(slot => ({ img: toImg(slot?.card?.fileName) }));
 
   return {
     players: { attacker, defender },
-
     cards: {
       attackerHand: web.cards.attackerHand,
       defenderHand: web.cards.defenderHand,
@@ -75,7 +67,6 @@ function buildSceneViewFromWeb(web, registry) {
         def: toImg(web.cards.defenderGoalkeeper?.fileName),
       }
     },
-
     allowed: web.allowed
   };
 }
@@ -105,12 +96,9 @@ export async function initPlayingFieldScene() {
   const actionBar = createActionButtonBar();
   actionBar.mount(document.getElementById('action-bar'));
 
-  // 3) field & hand components
+  // 3) renderers (reused by controller)
   const fieldRenderer = createDefaultFieldCardRenderer({ defeatedImg: cardRegistry.getDefeatedImage() });
-  let fieldBar;
-
-  const handRenderer = createDefaultHandCardRenderer();
-  let handBar;
+  const handRenderer  = createDefaultHandCardRenderer();
 
   // 4) comparison / dialogs
   const comparison = createComparisonHandler();
@@ -120,61 +108,75 @@ export async function initPlayingFieldScene() {
   const attackerAvatarBox = document.getElementById('attacker-avatar-box');
   function setAITurn(active) { inputBlocker?.classList.toggle('is-active', !!active); }
 
-  // 6) controller bridge hook
-  function dispatch(evt) {
-    window.dispatchEvent(new CustomEvent('pf:event', { detail: evt }));
-  }
-  navBar.onSceneEvent((evt) => dispatch(evt));
-  actionBar.onClick((action) => dispatch({ type: 'GameAction', action }));
 
-  // 7) state update API (call with REAL WebGameState from ViewStateMapper.toWebState(ctx))
-    function updateFromServerContext(web) {
-    // 1) Assign avatars first (stable IDs must match what the bar uses internally)
+  // 7) API + Controller
+  const api = createGameApi();
+
+// in initPlayingFieldScene()
+  const controller = createPlayingFieldController({
+    api,
+    fieldRenderer,
+    handRenderer,
+    createPlayersFieldBar,
+    createPlayersHandBar,
+    elField: document.getElementById('field'),
+    elHand:  document.getElementById('hand'),
+    mapWebToScene: (web) => buildSceneViewFromWeb(web, cardRegistry),
+  });
+
+
+  // 8) action buttons → controller
+// ONE registration only
+  actionBar.onClick((action) => {
+    const key = typeof action === 'string' ? action : action?.id || action?.type;
+    if (key === 'attack-regular' || key === 'single-attack' || key === 'singleAttack' || key === 'attack') {
+      controller.onSingleAttack();
+      return;
+    }
+    window.dispatchEvent(new CustomEvent('pf:event', { detail: { type: 'GameAction', action: key } }));
+  });
+
+
+  // 9) SSE live updates (optional but recommended)
+  const evtSrc = new EventSource('/api/stream');
+  evtSrc.addEventListener('message', (e) => {
+    try {
+      const web = JSON.parse(e.data);
+      applyUiFromWeb(web);
+     controller.updateFromServerContext(web);
+    } catch (err) {
+      console.error('stream parse failed', err);
+    }
+  });
+
+  function applyUiFromWeb(web) {
+    // assign avatars to match PlayersBar IDs
     const attackerRef = { id: 'att', name: web.roles.attacker, playerType: 'Human' };
     const defenderRef = { id: 'def', name: web.roles.defender, playerType: 'Human' };
     avatarRegistry.assignAvatarsInOrder([attackerRef, defenderRef]);
 
-    // 2) Update the PlayersBar with the WebGameState (it will look up by id 'att'/'def')
     playersBar.updateFromWebState(web);
-
-    // 3) Bottom-right attacker avatar box — use the same object (ID!) you just assigned
     attackerAvatarBox.innerHTML = `
-        <span class="attacker-label">Attacker:</span>
-        <img class="attacker-avatar neon-avatar" src="${avatarRegistry.getAvatarUrl(attackerRef)}" alt="">
-        <span class="attacker-name">${attackerRef.name}</span>
+      <span class="attacker-label">Attacker:</span>
+      <img class="attacker-avatar neon-avatar" src="${avatarRegistry.getAvatarUrl(attackerRef)}" alt="">
+      <span class="attacker-name">${attackerRef.name}</span>
     `;
+  }
 
-    // 4) Build the view for other components
-    const st = buildSceneViewFromWeb(web, cardRegistry);
-    window.cardRegistry = cardRegistry;
-    window.lastSt = st;
-    
-    const defender = st.players.defender;
-    if (!fieldBar) {
-        fieldBar = createPlayersFieldBar(defender, () => st, fieldRenderer);
-        fieldBar.mount(document.getElementById('field'));
-    } else {
-        fieldBar.updateBar(st);
-    }
-
-    const attacker = st.players.attacker;
-    if (!handBar) {
-      handBar = createPlayersHandBar(attacker, () => st, handRenderer);
-      handBar.mount(document.getElementById('hand'));
-    } else {
-      handBar.updateBar(() => st);
-    }
-    }
-
-
-  // 8) expose scene API
+  // 10) expose scene API for initial boot call
   return {
     setAITurn,
-    updateFromServerContext,
+    updateFromServerContext(web) {
+      applyUiFromWeb(web);
+     window.cardRegistry = cardRegistry;
+     window.lastSt = buildSceneViewFromWeb(web, cardRegistry);
+     controller.updateFromServerContext(web);
+    },
     showComparison: (data) => comparison.openComparison(data),
     showGoal: (name) => comparison.goalScored({ winnerName: name }),
     showGameOver: (name, scoreLine) => comparison.gameOver({ winnerName: name, scoreLine }),
     setActionEnabled: (map) => actionBar.setEnabled(map),
     refreshOnRoleSwitch: () => playersBar.refreshOnRoleSwitch(),
+    destroy() { evtSrc.close(); }
   };
 }

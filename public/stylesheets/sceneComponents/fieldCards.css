@@ -28,6 +28,12 @@
   opacity: .9;
 }
 
+.is-selected {
+  outline: 3px solid rgba(255, 215, 0, 0.9);
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
+}
+
+
 .player-label {
   font-family: "Rajdhani", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   font-size: 26px;
