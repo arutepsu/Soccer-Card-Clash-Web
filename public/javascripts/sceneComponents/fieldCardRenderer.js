@@ -1,5 +1,7 @@
-// createDefaultFieldCardRenderer.js
-// sceneComponents/fieldCardRenderer.js
+// /assets/javascripts/sceneComponents/fieldCardRenderer.js
+import { createCardAnimations } from '../utils/cardAnimations.js';
+const anim = createCardAnimations();
+
 export function createDefaultFieldCardRenderer(assets = {}) {
   const defeatedImg = assets.defeatedImg || '/assets/images/cards/defeated.png';
   const cardBaseUrl = assets.cardBaseUrl || '/assets/images/cards/';
@@ -10,16 +12,34 @@ export function createDefaultFieldCardRenderer(assets = {}) {
 
   function defendersOf(gs, pid) {
     if (!gs?.cards) return [];
-    return pid === 'att'
-      ? (gs.cards.attackerField || [])
-      : (gs.cards.defenderField || []);
+    return pid === 'att' ? (gs.cards.attackerField || []) : (gs.cards.defenderField || []);
   }
 
   function gkOf(gs, pid) {
     if (!gs?.cards) return null;
-    return pid === 'att'
-      ? (gs.cards.attackerGoalkeeper || null)
-      : (gs.cards.defenderGoalkeeper || null);
+    return pid === 'att' ? (gs.cards.attackerGoalkeeper || null) : (gs.cards.defenderGoalkeeper || null);
+  }
+
+  function paintCardEl(el, cardLike) {
+    const data = cardLike?.card ?? cardLike;
+
+    const url = fileNameToUrl(data?.fileName);
+    if (url) {
+      el.style.backgroundImage = `url("${url}")`;
+      el.classList.remove('is-defeated');
+    } else {
+      el.style.backgroundImage = `url("${defeatedImg}")`;
+      el.classList.add('is-defeated');
+    }
+
+    el.style.backgroundSize = 'cover';
+    el.style.backgroundPosition = 'center';
+
+    if (data?.isBoosted) {
+      anim.applyBoostEffect(el);
+    } else {
+      anim.removeBoostEffect(el);
+    }
   }
 
   function createDefenderRow(player, getGameState) {
@@ -37,18 +57,7 @@ export function createDefaultFieldCardRenderer(assets = {}) {
       const el = document.createElement('div');
       el.className = 'field-card game-card';
       el.dataset.index = String(index);
-
-
-      const url = fileNameToUrl(slot?.card?.fileName);
-      if (url) {
-        el.style.backgroundImage = `url("${url}")`;
-      } else {
-        el.style.backgroundImage = `url("${defeatedImg}")`;
-        el.classList.add('is-defeated');
-      }
-
-      el.style.backgroundSize = 'cover';
-      el.style.backgroundPosition = 'center';
+      paintCardEl(el, slot);
       row.appendChild(el);
     });
 
@@ -67,17 +76,7 @@ export function createDefaultFieldCardRenderer(assets = {}) {
     el.className = 'field-card game-card goalkeeper';
     el.dataset.index = 'g';
 
-
-    const url = fileNameToUrl(gk?.fileName);
-    if (url) {
-      el.style.backgroundImage = `url("${url}")`;
-    } else {
-      el.style.backgroundImage = `url("${defeatedImg}")`;
-      el.classList.add('is-defeated');
-    }
-
-    el.style.backgroundSize = 'cover';
-    el.style.backgroundPosition = 'center';
+    paintCardEl(el, gk);
     row.appendChild(el);
     return row;
   }
