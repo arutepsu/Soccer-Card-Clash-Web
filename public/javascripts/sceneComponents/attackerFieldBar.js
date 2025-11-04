@@ -1,9 +1,9 @@
 // Wraps createDefaultFieldCardRenderer to add click selection.
-export function createAttackerFieldBar(attackerPlayer, getGameState, fieldRenderer) {
+export function createAttackerFieldBar(getCurrentAttacker, getGameState, fieldRenderer) {
   let root = null;
   let mounted = false;
   let selected = null;
-
+  let lastAttackerName = null;
   const cssSelect = (el) => el.classList.add('is-selected');
   const cssUnselectAll = () => {
     if (!root) return;
@@ -16,6 +16,16 @@ export function createAttackerFieldBar(attackerPlayer, getGameState, fieldRender
   function render() {
     if (!root) return;
     root.innerHTML = '';
+
+       const attackerPlayer = typeof getCurrentAttacker === 'function'
+     ? getCurrentAttacker()
+     : { id: 'att', name: getGameState()?.roles?.attacker };
+
+   const attName = attackerPlayer?.name ?? null;
+   if (attName !== lastAttackerName) {
+     lastAttackerName = attName;
+     selected = null;
+   }
 
     const defRow = fieldRenderer.createDefenderRow(attackerPlayer, getGameState);
     const gkRow  = fieldRenderer.createGoalkeeperRow(attackerPlayer, getGameState);

@@ -1,3 +1,4 @@
+// /assets/javascripts/sceneComponents/attackerBar.js
 export function createAttackerBar(avatarRegistry) {
   let root = null;
   let webState = null;
@@ -21,24 +22,37 @@ export function createAttackerBar(avatarRegistry) {
     `;
   }
 
+  function currentAttackerFrom(st) {
+    // prefer players.attacker if present; fall back to roles.attacker
+    const pa = st?.players?.attacker;
+    if (pa) return { id: 'att', name: pa.name ?? st?.roles?.attacker, playerType: pa.playerType ?? 'Human' };
+    return { id: 'att', name: st?.roles?.attacker, playerType: 'Human' };
+  }
+
   function render() {
     if (!root || !webState) return;
 
-    const attacker = { id: 'att', name: webState.roles?.attacker, playerType: 'Human' };
-    const defender = { id: 'def', name: webState.roles?.defender, playerType: 'Human' };
+    const attacker = currentAttackerFrom(webState);
 
-    try { avatarRegistry.getAvatarFileName(attacker); }
-    catch { avatarRegistry.assignAvatarsInOrder([attacker, defender]); }
+    // Ensure attacker has an avatar without assigning defender
+    try {
+      // will throw/return falsy if unknown in registry
+      avatarRegistry.getAvatarFileName(attacker);
+    } catch {
+      // assign just the attacker; registry should support 1-length arrays
+      avatarRegistry.assignAvatarsInOrder([attacker]);
+    }
 
     const imgEl  = root.querySelector('[data-attacker-avatar]');
     const nameEl = root.querySelector('[data-attacker-name]');
     if (imgEl)  imgEl.src = avatarRegistry.getAvatarUrl(attacker);
     if (nameEl) nameEl.textContent = attacker.name ?? 'Attacker';
 
+    // action limits for the CURRENT attacker
     const actionsEl = root.querySelector('[data-attacker-actions]');
     if (actionsEl) {
-      const lim = webState.allowed?.attacker || {};
-      const toNum = (x, f=0) => (Number.isFinite(Number(x)) ? Number(x) : f);
+      const lim = webState.allowed?.attacker || webState.allowed?.[attacker.id] || {};
+      const toNum = (x, f = 0) => (Number.isFinite(Number(x)) ? Number(x) : f);
       const swap  = toNum(lim.swapRemaining, 0);
       const boost = toNum(lim.boostRemaining, 0);
       const da    = toNum(lim.doubleAttackRemaining, 0);
