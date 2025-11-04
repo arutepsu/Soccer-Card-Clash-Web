@@ -1,6 +1,43 @@
 @()(implicit request: play.api.mvc.RequestHeader, messages: play.api.i18n.Messages)
 @import helper._
+@import views.html.components.overlay
+@defining(play.filters.csrf.CSRF.getToken) { csrfOpt =>
 
-<div class="scene scene--attackerdefenders">
-  <h2>Attacker Defenders Scene</h2>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/attackerDefendersScene.css")'>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/gameCard.css")'>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/fieldCards.css")'>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/gameAlert.css")'>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/attackerBar.css")'>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/base/gameButton.css")'>
+
+
+
+<div class="scene scene--attacker-defenders">
+  <section id="attacker-bar" aria-label="Current Attacker"></section>
+
+  <div class="scene__center">
+    <!-- (Removed the label div entirely) -->
+    <div id="attacker-defenders-field" class="players-field players-field--attacker" aria-label="Attacker defenders and goalkeeper"></div>
+      <div class="scene__buttons" role="group" aria-label="Actions">
+        <button id="btn-boost" class="gbtn gbtn--lg">Boost Card</button>
+        <button id="btn-info"  class="gbtn">Info</button>
+        <button id="btn-back"  class="gbtn">Back to Game</button>
+      </div>
+  </div>
+
+  <div id="overlay-root" class="overlay-root" aria-hidden="true"></div>
 </div>
+
+@overlay(
+  id = "overlay",
+  title = "About the Game",
+  messageHtml = Html(""),
+  safeTop = "16%", safeRight = "8%", safeBottom = "16%", safeLeft = "8%"
+)
+
+@csrfOpt.map { t =>
+  <meta name="csrf-token" content="@t.value">
+}
+
+<script type="module" src='@routes.Assets.versioned("javascripts/attackerDefendersScene.js")'></script>
+}
