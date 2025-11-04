@@ -1,0 +1,62 @@
+/* /assets/stylesheets/components/gameAlert.css */
+
+.game-alert {
+  position: relative;
+  width: min(90vw, 800px);
+  aspect-ratio: 4 / 3;            /* similar to 800x600 look; adjusts responsively */
+  display: grid;
+  place-items: center;
+  outline: none;
+}
+
+.game-alert__bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;              /* preserves frame look */
+  filter: drop-shadow(0 8px 24px rgba(0,0,0,0.45));
+  pointer-events: none;
+  user-select: none;
+}
+
+.game-alert__box {
+  position: relative;
+  z-index: 1;
+  width: 80%;
+  max-width: 560px;
+  margin: 0 auto;
+  display: grid;
+  gap: 20px;
+  justify-items: center;
+  text-align: center;
+}
+
+/* ScalaFX-inspired text styles, web-ified */
+.dialog-message {
+  font-family: "Rajdhani", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+  font-size: clamp(18px, 2.2vw, 22px);
+  color: #dddddd;
+  text-shadow:
+    0 1px 0 rgba(158, 75, 223, 0.6),
+    0 0 8px rgba(158, 75, 223, 0.35);
+}
+
+/* The OK button uses your existing .game-btn styles.
+   Add a small tweak for layout inside the alert. */
+.game-alert__ok {
+  min-width: 150px;
+  min-height: 48px;
+}
+
+/* Optional: title style if you add one later */
+.dialog-title {
+  font-family: "Rajdhani", sans-serif;
+  font-size: clamp(24px, 3.6vw, 32px);
+  font-weight: 700;
+  background: linear-gradient(135deg, #ff00cc, #83018e);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.35);
+}

@@ -3,14 +3,12 @@ import { createPlayerAvatarRegistry } from './utils/playersAvatarRegistry.js';
 import { createPlayersBar }          from './sceneComponents/playersBar.js';
 import { createNavButtonBar }        from './sceneComponents/navButtonBar.js';
 import { createActionButtonBar }     from './sceneComponents/actionButtonBar.js';
-
-import { createCardImageRegistry }        from './utils/cardImageRegistry.js';
+import { createOverlay }             from './overlay.js';
+import { createCardImageRegistry }   from './utils/cardImageRegistry.js';
 import { createDefaultFieldCardRenderer } from './sceneComponents/fieldCardRenderer.js';
 import { createPlayersFieldBar }          from './sceneComponents/playersFieldBar.js';
-
 import { createDefaultHandCardRenderer }  from './sceneComponents/handCardRenderer.js';
 import { createPlayersHandBar }           from './sceneComponents/playersHandBar.js';
-
 import { createComparisonHandler } from './utils/comparisonHandler.js';
 
 import { createGameApi } from './api/gameApi.js';
@@ -72,10 +70,27 @@ function buildSceneViewFromWeb(web, registry) {
 }
 
 export async function initPlayingFieldScene() {
-  // 0) overlay
-  const overlay = document.getElementById('overlay');
-  if (overlay && !overlay.__openOverlay && window.SCCOverlay?.initOverlay) {
-    window.SCCOverlay.initOverlay('#overlay', '[data-open-overlay]');
+  const overlayHost = document.getElementById('overlay');
+  const overlayInst = overlayHost ? createOverlay({ host: overlayHost }) : null;
+
+  if (overlayHost && overlayInst) {
+    const htmlToNode = (html) => {
+      const tpl = document.createElement('template');
+      tpl.innerHTML = html.trim();
+      return tpl.content.firstElementChild || document.createTextNode('');
+    };
+    overlayHost.__showOverlay = (nodeOrHtml, opts) => {
+      const node = typeof nodeOrHtml === 'string' ? htmlToNode(nodeOrHtml) : nodeOrHtml;
+      overlayInst.show(node, opts);
+    };
+    overlayHost.__hideOverlay = () => overlayInst.hide();
+    overlayHost.__openOverlay = (opts) => overlayInst.show(
+      overlayHost.querySelector('.overlay-scroll')?.firstElementChild ?? document.createElement('div'),
+      opts
+    );
+    overlayHost.addEventListener('click', (e) => {
+      if (e.target.closest?.('[data-close-overlay]')) overlayInst.hide();
+    });
   }
 
   // 1) registries
@@ -96,7 +111,7 @@ export async function initPlayingFieldScene() {
   const actionBar = createActionButtonBar();
   actionBar.mount(document.getElementById('action-bar'));
 
-  // 3) renderers (reused by controller)
+  // 3) renderers
   const fieldRenderer = createDefaultFieldCardRenderer({ defeatedImg: cardRegistry.getDefeatedImage() });
   const handRenderer  = createDefaultHandCardRenderer();
 
@@ -108,11 +123,9 @@ export async function initPlayingFieldScene() {
   const attackerAvatarBox = document.getElementById('attacker-avatar-box');
   function setAITurn(active) { inputBlocker?.classList.toggle('is-active', !!active); }
 
-
-  // 7) API + Controller
+  // 6) API + Controller
   const api = createGameApi();
 
-// in initPlayingFieldScene()
   const controller = createPlayingFieldController({
     api,
     fieldRenderer,
@@ -124,53 +137,100 @@ export async function initPlayingFieldScene() {
     mapWebToScene: (web) => buildSceneViewFromWeb(web, cardRegistry),
   });
 
-
-  // 8) action buttons → controller
-// ONE registration only
+  // 7) action buttons → controller
   actionBar.onClick((action) => {
     const key = typeof action === 'string' ? action : action?.id || action?.type;
-    if (key === 'attack-regular' || key === 'single-attack' || key === 'singleAttack' || key === 'attack') {
-      controller.onSingleAttack();
+
+  switch (key) {
+    case 'attack-regular':
+    case 'attack-defender':
+    case 'attack':
+    case 'single-attack':
+    case 'singleAttack':
+      controller.onSingleAttackDefender?.();
       return;
-    }
-    window.dispatchEvent(new CustomEvent('pf:event', { detail: { type: 'GameAction', action: key } }));
+
+    case 'attack-goalkeeper':
+    case 'single-attack-gk':
+    case 'attack-gk':
+      controller.onSingleAttackGoalkeeper?.();
+      return;
+
+    case 'attack-double':
+    case 'double-attack':
+      controller.onDoubleAttack?.();
+      return;
+
+    case 'swap':
+    case 'swap-regular':
+      controller.onSwapSelected?.();
+      return;
+    case 'swap-reverse':
+    case 'reverse-swap':
+      controller.onReverseSwap?.();
+      return;
+
+    case 'boost':
+    case 'boost-selected':
+      controller.onBoostSelected?.();
+      return;
+
+    case 'undo':
+      controller.onUndo?.();
+      return;
+    case 'redo':
+      controller.onRedo?.();
+      return;
+
+    default:
+      window.dispatchEvent(new CustomEvent('pf:event', { detail: { type: 'GameAction', action: key } }));
+      }
   });
 
-
-  // 9) SSE live updates (optional but recommended)
+  // 8) SSE live updates
   const evtSrc = new EventSource('/api/stream');
   evtSrc.addEventListener('message', (e) => {
     try {
       const web = JSON.parse(e.data);
       applyUiFromWeb(web);
-     controller.updateFromServerContext(web);
+      controller.updateFromServerContext(web);
     } catch (err) {
       console.error('stream parse failed', err);
     }
   });
 
   function applyUiFromWeb(web) {
-    // assign avatars to match PlayersBar IDs
     const attackerRef = { id: 'att', name: web.roles.attacker, playerType: 'Human' };
     const defenderRef = { id: 'def', name: web.roles.defender, playerType: 'Human' };
     avatarRegistry.assignAvatarsInOrder([attackerRef, defenderRef]);
 
     playersBar.updateFromWebState(web);
-    attackerAvatarBox.innerHTML = `
-      <span class="attacker-label">Attacker:</span>
-      <img class="attacker-avatar neon-avatar" src="${avatarRegistry.getAvatarUrl(attackerRef)}" alt="">
-      <span class="attacker-name">${attackerRef.name}</span>
-    `;
+    if (attackerAvatarBox) {
+      attackerAvatarBox.innerHTML = `
+        <span class="attacker-label">Attacker:</span>
+        <img class="attacker-avatar neon-avatar" src="${avatarRegistry.getAvatarUrl(attackerRef)}" alt="">
+        <span class="attacker-name">${attackerRef.name}</span>
+      `;
+    }
   }
 
-  // 10) expose scene API for initial boot call
+  // 9) initial state (helpful on first load before SSE ticks)
+  try {
+    const initial = await api.fetchGameState();
+    applyUiFromWeb(initial);
+    controller.updateFromServerContext(initial);
+  } catch (e) {
+    console.error('initial state fetch failed', e);
+  }
+
+  // 10) expose scene API
   return {
     setAITurn,
     updateFromServerContext(web) {
       applyUiFromWeb(web);
-     window.cardRegistry = cardRegistry;
-     window.lastSt = buildSceneViewFromWeb(web, cardRegistry);
-     controller.updateFromServerContext(web);
+      window.cardRegistry = cardRegistry;
+      window.lastSt = buildSceneViewFromWeb(web, cardRegistry);
+      controller.updateFromServerContext(web);
     },
     showComparison: (data) => comparison.openComparison(data),
     showGoal: (name) => comparison.goalScored({ winnerName: name }),
