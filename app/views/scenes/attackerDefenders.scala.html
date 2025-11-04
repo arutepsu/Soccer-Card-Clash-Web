@@ -10,34 +10,38 @@
 <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/attackerBar.css")'>
 <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/base/gameButton.css")'>
 
-
-
-<div class="scene scene--attacker-defenders">
-  <section id="attacker-bar" aria-label="Current Attacker"></section>
-
-  <div class="scene__center">
-    <!-- (Removed the label div entirely) -->
-    <div id="attacker-defenders-field" class="players-field players-field--attacker" aria-label="Attacker defenders and goalkeeper"></div>
-      <div class="scene__buttons" role="group" aria-label="Actions">
-        <button id="btn-boost" class="gbtn gbtn--lg">Boost Card</button>
-        <button id="btn-info"  class="gbtn">Info</button>
-        <button id="btn-back"  class="gbtn">Back to Game</button>
-      </div>
-  </div>
-
-  <div id="overlay-root" class="overlay-root" aria-hidden="true"></div>
-</div>
-
-@overlay(
-  id = "overlay",
-  title = "About the Game",
-  messageHtml = Html(""),
-  safeTop = "16%", safeRight = "8%", safeBottom = "16%", safeLeft = "8%"
-)
-
 @csrfOpt.map { t =>
   <meta name="csrf-token" content="@t.value">
 }
 
-<script type="module" src='@routes.Assets.versioned("javascripts/attackerDefendersScene.js")'></script>
+<!-- Root for WebSceneManager -->
+<div id="app" data-scene="AttackerDefenderCards">
+
+  <div class="scene scene--attacker-defenders is-active" aria-live="polite">
+    <section id="attacker-bar" aria-label="Current Attacker"></section>
+
+    <div class="scene__center">
+      <div id="attacker-defenders-field"
+           class="players-field players-field--attacker"
+           aria-label="Attacker defenders and goalkeeper"></div>
+
+      <div class="scene__buttons" role="group" aria-label="Actions">
+        <button id="btn-boost" class="gbtn gbtn--lg" type="button">Boost Card</button>
+        <button id="btn-info"  class="gbtn"       type="button">Info</button>
+        <a       id="btn-back"  class="gbtn"       href='@routes.UiController.playingField()'>Back to Game</a>
+      </div>
+    </div>
+  </div>
+
+  @overlay(
+    id = "overlay",
+    title = "About the Game",
+    messageHtml = Html(""),
+    bgImagePath = "images/frames/overlay.png",
+    safeTop = "16%", safeRight = "8%", safeBottom = "16%", safeLeft = "8%"
+  )
+</div>
+
+<!-- Only the global app entry -->
+<script type="module" src='@routes.Assets.versioned("javascripts/app.js")'></script>
 }
