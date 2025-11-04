@@ -18,16 +18,14 @@ POST    /tui/submit              controllers.TuiController.submit
 
 GET     /api/state              controllers.GameApiController.state
 POST    /api/command            controllers.TuiController.command
-POST    /api/new-game           controllers.TuiController.newGame
-POST    /api/new-game-ai        controllers.TuiController.newGameAI
-POST    /api/singleAttack   controllers.GameApiController.singleAttack
-POST    /api/double-attack/:idx controllers.TuiController.doubleAttack(idx: Int)
-POST    /api/regular-swap/:idx  controllers.TuiController.regularSwap(idx: Int)
-POST    /api/boost-defender/:idx  controllers.TuiController.boostDefender(idx: Int)
-POST    /api/reverse-swap      controllers.TuiController.reverseSwap()
-POST    /api/boost-goalkeeper  controllers.TuiController.boostGoalkeeper()
-POST    /api/undo              controllers.TuiController.undo()
-POST    /api/redo              controllers.TuiController.redo()
+POST    /api/attack/single           controllers.GameApiController.singleAttack
+POST    /api/attack/double           controllers.GameApiController.doubleAttack
+POST    /api/boost                   controllers.GameApiController.boost
+POST    /api/swap                    controllers.GameApiController.swap
+POST    /api/swap/reverse            controllers.GameApiController.reverseSwap
+POST    /api/undo                    controllers.GameApiController.undo
+POST    /api/redo                    controllers.GameApiController.redo
+POST    /api/ai/execute              controllers.GameApiController.executeAI
 POST    /api/save              controllers.TuiController.save()
 GET     /api/show-saves        controllers.TuiController.showSaves()
 POST    /api/load-select/:idx   controllers.TuiController.loadSelect(idx: Int)

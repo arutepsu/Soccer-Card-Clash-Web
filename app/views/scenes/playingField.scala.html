@@ -2,6 +2,7 @@
 @import helper._
 @import views.html.components.overlay
 @import views.html.sceneComponents.playersBar
+@defining(play.filters.csrf.CSRF.getToken) { csrfOpt =>
 
 <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/playingField.css")'>
 <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/gameCard.css")'>
@@ -9,30 +10,35 @@
 <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/playersBar.css")'>
 <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/fieldCards.css")'>
 <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/handCards.css")'>
+<!-- <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/components/gameAlert.css")'> -->
 
+
+@csrfOpt.map { t =>
+  <meta name="csrf-token" content="@t.value">
+}
 
 <div class="scene scene--playingfield is-active" data-scene="PlayingField" aria-live="polite">
   @views.html.sceneComponents.playersBar()
 
   <main class="board" role="main">
-    <nav id="nav-bar" aria-label="Navigation menu">
+    <!-- Inject server routes so JS doesn't hardcode paths -->
+    <nav id="nav-bar"
+         aria-label="Navigation menu"
+         data-href-defenders='@routes.UiController.attackerDefenders().url'
+         data-href-hand='@routes.UiController.attackerHand().url'>
     </nav>
 
     <section id="field" aria-label="Defender Field">
-      <div class="card-bar-frame" id="field-frame">
-      </div>
+      <div class="card-bar-frame" id="field-frame"></div>
     </section>
 
-
-    <aside id="action-bar" aria-label="Action buttons">
-    </aside>
+    <aside id="action-bar" aria-label="Action buttons"></aside>
   </main>
 
   <footer id="hand-row" aria-label="Attacker Hand and Avatar">
     <section id="hand" aria-label="Attacker Hand"></section>
     <section id="attacker-avatar-box" aria-label="Current Attacker"></section>
   </footer>
-
 
   <div id="input-blocker" class="input-blocker" aria-hidden="true"></div>
 </div>
@@ -41,12 +47,8 @@
   id = "overlay",
   title = "About the Game",
   messageHtml = Html(""),
-  bgImagePath = "images/frames/overlay.png",  // <- your frame image
-  // safe-area for the scroll window inside the frame (match your overlay.css)
-  safeTop = "16%",
-  safeRight = "8%",
-  safeBottom = "16%",
-  safeLeft = "8%"
+  bgImagePath = "images/frames/overlay.png",
+  safeTop = "16%", safeRight = "8%", safeBottom = "16%", safeLeft = "8%"
 )
 
 <button type="button" data-open-overlay hidden aria-hidden="true" tabindex="-1">Open Overlay</button>
@@ -55,10 +57,18 @@
   import { initPlayingFieldScene } from '@routes.Assets.versioned("javascripts/playingFieldScene.js")';
 
   document.addEventListener('DOMContentLoaded', async () => {
-    const apiState = await fetch('/api/state').then(r => r.json());
+    const apiState = await fetch('/api/state').then(r => r.json()); // adjust if your API path differs
     const scene = await initPlayingFieldScene();
-    scene.updateFromServerContext(apiState);
 
+    // hand server routes to the nav bar via the scene API (if exposed)
+    const navRoot = document.getElementById('nav-bar');
+    scene.setNavRoutes?.({
+      defenders: navRoot?.dataset.hrefDefenders,
+      hand:      navRoot?.dataset.hrefHand,
+    });
+
+    scene.updateFromServerContext(apiState);
   });
 </script>
 
+}
