@@ -14,18 +14,19 @@ import { createComparisonHandler } from './utils/comparisonHandler.js';
 import { createGameApi } from './api/gameApi.js';
 import { createPlayingFieldController } from './controllers/playingFieldController.js';
 
+// -------- helpers --------
 function buildSceneViewFromWeb(web, registry) {
   const attacker = {
     id: 'att',
-    name: web.roles.attacker,
-    score: web.scores.attacker,
+    name: web.roles?.attacker,
+    score: web.scores?.attacker,
     playerType: 'Human',
     actionStates: web.allowed?.attacker
   };
   const defender = {
     id: 'def',
-    name: web.roles.defender,
-    score: web.scores.defender,
+    name: web.roles?.defender,
+    score: web.scores?.defender,
     playerType: 'Human',
     actionStates: web.allowed?.defender
   };
@@ -44,36 +45,42 @@ function buildSceneViewFromWeb(web, registry) {
   return {
     players: { attacker, defender },
     cards: {
-      attackerHand: web.cards.attackerHand,
-      defenderHand: web.cards.defenderHand,
-      attackerField: web.cards.attackerField,
-      defenderField: web.cards.defenderField,
-      attackerGoalkeeper: web.cards.attackerGoalkeeper,
-      defenderGoalkeeper: web.cards.defenderGoalkeeper
+      attackerHand: web.cards?.attackerHand,
+      defenderHand: web.cards?.defenderHand,
+      attackerField: web.cards?.attackerField,
+      defenderField: web.cards?.defenderField,
+      attackerGoalkeeper: web.cards?.attackerGoalkeeper,
+      defenderGoalkeeper: web.cards?.defenderGoalkeeper
     },
     gameCards: {
       hands: {
-        att: mapHand(web.cards.attackerHand),
-        def: mapHand(web.cards.defenderHand),
+        att: mapHand(web.cards?.attackerHand),
+        def: mapHand(web.cards?.defenderHand),
       },
       fields: {
-        att: mapField(web.cards.attackerField),
-        def: mapField(web.cards.defenderField),
+        att: mapField(web.cards?.attackerField),
+        def: mapField(web.cards?.defenderField),
       },
       goalkeepers: {
-        att: toImg(web.cards.attackerGoalkeeper?.fileName),
-        def: toImg(web.cards.defenderGoalkeeper?.fileName),
+        att: toImg(web.cards?.attackerGoalkeeper?.fileName),
+        def: toImg(web.cards?.defenderGoalkeeper?.fileName),
       }
     },
     allowed: web.allowed
   };
 }
 
-export async function initPlayingFieldScene() {
-  const overlayHost = document.getElementById('overlay');
-  const overlayInst = overlayHost ? createOverlay({ host: overlayHost }) : null;
+function assignAvatarsFrom(registry, web) {
+  const attackerRef = { id: 'att', name: web.roles?.attacker, playerType: 'Human' };
+  const defenderRef = { id: 'def', name: web.roles?.defender, playerType: 'Human' };
+  registry.assignAvatarsInOrder([attackerRef, defenderRef]);
+}
 
-  if (overlayHost && overlayInst) {
+// -------- scene module (build/destroy) --------
+export async function build({ api, overlay, createGameAlert }) {
+  // overlay helpers (optional)
+  const overlayHost = document.getElementById('overlay');
+  if (overlayHost && overlay) {
     const htmlToNode = (html) => {
       const tpl = document.createElement('template');
       tpl.innerHTML = html.trim();
@@ -81,16 +88,9 @@ export async function initPlayingFieldScene() {
     };
     overlayHost.__showOverlay = (nodeOrHtml, opts) => {
       const node = typeof nodeOrHtml === 'string' ? htmlToNode(nodeOrHtml) : nodeOrHtml;
-      overlayInst.show(node, opts);
+      overlay.show(node, opts);
     };
-    overlayHost.__hideOverlay = () => overlayInst.hide();
-    overlayHost.__openOverlay = (opts) => overlayInst.show(
-      overlayHost.querySelector('.overlay-scroll')?.firstElementChild ?? document.createElement('div'),
-      opts
-    );
-    overlayHost.addEventListener('click', (e) => {
-      if (e.target.closest?.('[data-close-overlay]')) overlayInst.hide();
-    });
+    overlayHost.__hideOverlay = () => overlay.hide();
   }
 
   // 1) registries
@@ -99,7 +99,7 @@ export async function initPlayingFieldScene() {
     fileNames: ['player1.jpg','player2.jpg','ai.jpg','taka.jpg','defendra.jpg','bitstrom.jpg','meta.jpg']
   });
   const cardRegistry = createCardImageRegistry();
-  await Promise.all([avatarRegistry.preloadAvatars(), cardRegistry.preloadAll().catch(() => {})]);
+  await Promise.all([avatarRegistry.preloadAvatars().catch(() => {}), cardRegistry.preloadAll().catch(() => {})]);
 
   // 2) mount bars
   const playersBar = createPlayersBar(avatarRegistry);
@@ -118,13 +118,17 @@ export async function initPlayingFieldScene() {
   // 4) comparison / dialogs
   const comparison = createComparisonHandler();
 
-  // 5) input blocker & attacker avatar box
-  const inputBlocker = document.getElementById('input-blocker');
-  const attackerAvatarBox = document.getElementById('attacker-avatar-box');
-  function setAITurn(active) { inputBlocker?.classList.toggle('is-active', !!active); }
+  // 5) field/hand hosts and helpers
+  const elField = document.getElementById('field');
+  const elHand  = document.getElementById('hand');
 
-  // 6) API + Controller
-  const api = createGameApi();
+  const attackerAvatarBox = document.getElementById('attacker-avatar-box');
+  const inputBlocker      = document.getElementById('input-blocker');
+  const setAITurn = (active) => inputBlocker?.classList.toggle('is-active', !!active);
+
+  // 6) controller (expects api from manager)
+  // lazy import to avoid circular deps if you had any
+  const { createPlayingFieldController } = await import('./controllers/playingFieldController.js');
 
   const controller = createPlayingFieldController({
     api,
@@ -132,111 +136,112 @@ export async function initPlayingFieldScene() {
     handRenderer,
     createPlayersFieldBar,
     createPlayersHandBar,
-    elField: document.getElementById('field'),
-    elHand:  document.getElementById('hand'),
+    elField,
+    elHand,
     mapWebToScene: (web) => buildSceneViewFromWeb(web, cardRegistry),
   });
 
   // 7) action buttons → controller
-  actionBar.onClick((action) => {
+  const onActionClick = (action) => {
     const key = typeof action === 'string' ? action : action?.id || action?.type;
+    switch (key) {
+      case 'attack-regular':
+      case 'attack-defender':
+      case 'attack':
+      case 'single-attack':
+      case 'singleAttack':
+        controller.onSingleAttackDefender?.(); return;
 
-  switch (key) {
-    case 'attack-regular':
-    case 'attack-defender':
-    case 'attack':
-    case 'single-attack':
-    case 'singleAttack':
-      controller.onSingleAttackDefender?.();
-      return;
+      case 'attack-goalkeeper':
+      case 'single-attack-gk':
+      case 'attack-gk':
+        controller.onSingleAttackGoalkeeper?.(); return;
 
-    case 'attack-goalkeeper':
-    case 'single-attack-gk':
-    case 'attack-gk':
-      controller.onSingleAttackGoalkeeper?.();
-      return;
+      case 'attack-double':
+      case 'double-attack':
+        controller.onDoubleAttack?.(); return;
 
-    case 'attack-double':
-    case 'double-attack':
-      controller.onDoubleAttack?.();
-      return;
+      case 'swap':
+      case 'swap-regular':
+        controller.onSwapSelected?.(); return;
 
-    case 'swap':
-    case 'swap-regular':
-      controller.onSwapSelected?.();
-      return;
-    case 'swap-reverse':
-    case 'reverse-swap':
-      controller.onReverseSwap?.();
-      return;
+      case 'swap-reverse':
+      case 'reverse-swap':
+        controller.onReverseSwap?.(); return;
 
-    case 'boost':
-    case 'boost-selected':
-      controller.onBoostSelected?.();
-      return;
+      case 'boost':
+      case 'boost-selected':
+        controller.onBoostSelected?.(); return;
 
-    case 'undo':
-      controller.onUndo?.();
-      return;
-    case 'redo':
-      controller.onRedo?.();
-      return;
+      case 'undo':
+        controller.onUndo?.(); return;
 
-    default:
-      window.dispatchEvent(new CustomEvent('pf:event', { detail: { type: 'GameAction', action: key } }));
-      }
-  });
+      case 'redo':
+        controller.onRedo?.(); return;
 
-  // 8) SSE live updates
-  const evtSrc = new EventSource('/api/stream');
-  evtSrc.addEventListener('message', (e) => {
+      default:
+        window.dispatchEvent(new CustomEvent('pf:event', { detail: { type: 'GameAction', action: key } }));
+    }
+  };
+  actionBar.onClick(onActionClick);
+
+  // 8) streaming updates (SSE)
+  const es = api.openStream?.((web) => {
     try {
-      const web = JSON.parse(e.data);
       applyUiFromWeb(web);
       controller.updateFromServerContext(web);
     } catch (err) {
-      console.error('stream parse failed', err);
+      console.error('stream update failed', err);
     }
   });
 
   function applyUiFromWeb(web) {
-    const attackerRef = { id: 'att', name: web.roles.attacker, playerType: 'Human' };
-    const defenderRef = { id: 'def', name: web.roles.defender, playerType: 'Human' };
-    avatarRegistry.assignAvatarsInOrder([attackerRef, defenderRef]);
-
+    assignAvatarsFrom(avatarRegistry, web);
     playersBar.updateFromWebState(web);
     if (attackerAvatarBox) {
+      const attackerRef = { id: 'att', name: web.roles?.attacker, playerType: 'Human' };
       attackerAvatarBox.innerHTML = `
         <span class="attacker-label">Attacker:</span>
         <img class="attacker-avatar neon-avatar" src="${avatarRegistry.getAvatarUrl(attackerRef)}" alt="">
-        <span class="attacker-name">${attackerRef.name}</span>
+        <span class="attacker-name">${attackerRef.name ?? ''}</span>
       `;
     }
   }
 
-  // 9) initial state (helpful on first load before SSE ticks)
+  // 9) initial state (before stream ticks)
   try {
     const initial = await api.fetchGameState();
     applyUiFromWeb(initial);
     controller.updateFromServerContext(initial);
   } catch (e) {
     console.error('initial state fetch failed', e);
+    if (overlay && createGameAlert) {
+      const alert = createGameAlert({ message: 'Failed to load game state.' });
+      overlay.show(alert, { onHide: () => alert.cleanup?.() });
+    }
   }
 
-  // 10) expose scene API
+  // 10) return the scene API for the manager
   return {
-    setAITurn,
-    updateFromServerContext(web) {
-      applyUiFromWeb(web);
-      window.cardRegistry = cardRegistry;
-      window.lastSt = buildSceneViewFromWeb(web, cardRegistry);
-      controller.updateFromServerContext(web);
+    destroy() {
+      // close stream
+      try { es?.close?.(); } catch {}
+      // unwire action bar listener
+      try { actionBar.onClick(() => {}); } catch {}
+      // (if you add intervals/listeners later, clean them here)
     },
+    // optional refresh if you need manual re-pulls
+    refresh: async () => {
+      const fresh = await api.fetchGameState();
+      applyUiFromWeb(fresh);
+      controller.updateFromServerContext(fresh);
+    },
+    // optional extras if other modules want them
+    setAITurn,
     showComparison: (data) => comparison.openComparison(data),
     showGoal: (name) => comparison.goalScored({ winnerName: name }),
     showGameOver: (name, scoreLine) => comparison.gameOver({ winnerName: name, scoreLine }),
     setActionEnabled: (map) => actionBar.setEnabled(map),
     refreshOnRoleSwitch: () => playersBar.refreshOnRoleSwitch(),
-    destroy() { evtSrc.close(); }
   };
 }

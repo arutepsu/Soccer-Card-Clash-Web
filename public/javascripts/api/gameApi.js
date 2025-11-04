@@ -33,7 +33,7 @@ export function createGameApi() {
     return res.json();
   }
 
-  // optional helper for SSE consumers
+
   function openStream(onMessage) {
     const es = new EventSource('/api/stream', { withCredentials: true });
     es.onmessage = (e) => { if (onMessage) onMessage(JSON.parse(e.data)); };
@@ -42,32 +42,25 @@ export function createGameApi() {
   }
 
   return {
-    // --- state ---
     fetchGameState: () => getJSON('/api/state'),
     openStream,
 
-    // --- attacks ---
     singleAttackDefender(index) {
       const idx = Number(index);
       if (!Number.isInteger(idx)) return Promise.reject(new Error(`singleAttackDefender: invalid index ${index}`));
-      // { target: 'defender', index }
       return postJSON('/api/attack/single', { target: 'defender', index: idx });
     },
     singleAttackGoalkeeper() {
-      // { target: 'goalkeeper' }
       return postJSON('/api/attack/single', { target: 'goalkeeper' });
     },
     doubleAttack(index) {
       const idx = Number(index);
       if (!Number.isInteger(idx)) return Promise.reject(new Error(`doubleAttack: invalid index ${index}`));
-      // { index }
       return postJSON('/api/attack/double', { index: idx });
     },
 
-    // --- boost (unified endpoint) ---
     boost(payload) {
-      // payload must be either:
-      //   { target: 'defender', index: number }  or  { target: 'goalkeeper' }
+
       if (!payload || typeof payload !== 'object') {
         return Promise.reject(new Error('boost: missing payload'));
       }
@@ -78,26 +71,17 @@ export function createGameApi() {
       return postJSON('/api/boost', payload);
     },
 
-    // --- swaps ---
     swap(index) {
       const idx = Number(index);
       if (!Number.isInteger(idx)) return Promise.reject(new Error(`swap: invalid index ${index}`));
-      // { index }
       return postJSON('/api/swap', { index: idx });
     },
     reverseSwap: () => postJSON('/api/swap/reverse', {}),
-
-    // --- undo / redo ---
     undo: () => postJSON('/api/undo', {}),
     redo: () => postJSON('/api/redo', {}),
 
-    // --- AI ---
-    // action must match your AIAction JSON format (with "type" discriminator)
-    // e.g. { type: "SingleAttackAIAction", defenderIndex: 1 }
-    //      { type: "BoostAIAction", cardIndex: 0, zone: "GoalkeeperZone" }
     executeAI: (action) => postJSON('/api/ai/execute', action),
 
-    // expose helpers if needed elsewhere
     postJSON,
     getJSON,
   };

@@ -12,63 +12,51 @@
 <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/handCards.css")'>
 <!-- <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/components/gameAlert.css")'> -->
 
-
 @csrfOpt.map { t =>
   <meta name="csrf-token" content="@t.value">
 }
 
-<div class="scene scene--playingfield is-active" data-scene="PlayingField" aria-live="polite">
-  @views.html.sceneComponents.playersBar()
+<!-- Root for WebSceneManager: it reads data-scene and builds that scene -->
+<div id="app" data-scene="PlayingField">
 
-  <main class="board" role="main">
-    <!-- Inject server routes so JS doesn't hardcode paths -->
-    <nav id="nav-bar"
-         aria-label="Navigation menu"
-         data-href-defenders='@routes.UiController.attackerDefenders().url'
-         data-href-hand='@routes.UiController.attackerHand().url'>
-    </nav>
+  <div class="scene scene--playingfield is-active" aria-live="polite">
+    @views.html.sceneComponents.playersBar()
 
-    <section id="field" aria-label="Defender Field">
-      <div class="card-bar-frame" id="field-frame"></div>
-    </section>
+    <main class="board" role="main">
+      <!-- Server routes for client JS -->
+      <nav id="nav-bar"
+           aria-label="Navigation menu"
+           data-href-defenders='@routes.UiController.attackerDefenders().url'
+           data-href-hand='@routes.UiController.attackerHand().url'>
+      </nav>
 
-    <aside id="action-bar" aria-label="Action buttons"></aside>
-  </main>
+      <section id="field" aria-label="Defender Field">
+        <div class="card-bar-frame" id="field-frame"></div>
+      </section>
 
-  <footer id="hand-row" aria-label="Attacker Hand and Avatar">
-    <section id="hand" aria-label="Attacker Hand"></section>
-    <section id="attacker-avatar-box" aria-label="Current Attacker"></section>
-  </footer>
+      <aside id="action-bar" aria-label="Action buttons"></aside>
+    </main>
 
-  <div id="input-blocker" class="input-blocker" aria-hidden="true"></div>
+    <footer id="hand-row" aria-label="Attacker Hand and Avatar">
+      <section id="hand" aria-label="Attacker Hand"></section>
+      <section id="attacker-avatar-box" aria-label="Current Attacker"></section>
+    </footer>
+
+    <div id="input-blocker" class="input-blocker" aria-hidden="true"></div>
+  </div>
+
+  @overlay(
+    id = "overlay",
+    title = "About the Game",
+    messageHtml = Html(""),
+    bgImagePath = "images/frames/overlay.png",
+    safeTop = "16%", safeRight = "8%", safeBottom = "16%", safeLeft = "8%"
+  )
+
+  <button type="button" data-open-overlay hidden aria-hidden="true" tabindex="-1">Open Overlay</button>
 </div>
 
-@overlay(
-  id = "overlay",
-  title = "About the Game",
-  messageHtml = Html(""),
-  bgImagePath = "images/frames/overlay.png",
-  safeTop = "16%", safeRight = "8%", safeBottom = "16%", safeLeft = "8%"
-)
-
-<button type="button" data-open-overlay hidden aria-hidden="true" tabindex="-1">Open Overlay</button>
-
-<script type="module">
-  import { initPlayingFieldScene } from '@routes.Assets.versioned("javascripts/playingFieldScene.js")';
-
-  document.addEventListener('DOMContentLoaded', async () => {
-    const apiState = await fetch('/api/state').then(r => r.json()); // adjust if your API path differs
-    const scene = await initPlayingFieldScene();
-
-    // hand server routes to the nav bar via the scene API (if exposed)
-    const navRoot = document.getElementById('nav-bar');
-    scene.setNavRoutes?.({
-      defenders: navRoot?.dataset.hrefDefenders,
-      hand:      navRoot?.dataset.hrefHand,
-    });
-
-    scene.updateFromServerContext(apiState);
-  });
-</script>
+<!-- Global runtime bootstrap (creates WebSceneManager, injects API+Overlay, builds current scene) -->
+<script type="module" src='@routes.Assets.versioned("javascripts/app.js")'></script>
 
 }
