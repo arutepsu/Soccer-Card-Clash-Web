@@ -1,7 +1,13 @@
-// navButtonBarWeb.js
-export function createNavButtonBar() {
+// /assets/javascripts/navButtonBar.js
+export function createNavButtonBar({ navigate } = {}) {
   let root;
   let onEvent = () => {};
+
+  // small helper: prefer injected navigate(), else hard redirect
+  function go(path) {
+    if (typeof navigate === 'function') navigate(path);
+    else window.location.href = path;
+  }
 
   function mount(el) {
     root = el;
@@ -20,12 +26,19 @@ export function createNavButtonBar() {
         openPauseDialog();
         return;
       }
+
       if (a === 'show-defenders') {
-        onEvent({ type: 'SceneSwitchEvent', name: 'AttackerDefenderCards' });
+        // emit legacy event (optional)
+        onEvent({ type: 'SceneSwitchEvent' });
+        // clean routing
+        go('/attacker-defenders');
         return;
       }
+
       if (a === 'make-swap') {
-        onEvent({ type: 'SceneSwitchEvent', name: 'AttackerHandCards' });
+        onEvent({ type: 'SceneSwitchEvent'});
+        // adjust this path to your real swap/hand scene route
+        go('/attacker-hand');
         return;
       }
     });

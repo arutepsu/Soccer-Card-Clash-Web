@@ -1,6 +1,6 @@
 // /assets/javascripts/fieldCardFactoryWeb.js
-import { createGameCardView } from './gameCardWeb.js';
-import { createCardAnimations } from './cardAnimationsWeb.js';
+import { createGameCardView } from './card/gameCard.js';
+import { createCardAnimations } from '../utils/cardAnimations.js';
 
 const anim = createCardAnimations();
 
