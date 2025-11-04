@@ -26,29 +26,63 @@ document.addEventListener('DOMContentLoaded', async () => {
     fileNames: ['player1.jpg', 'player2.jpg', 'ai.jpg', 'taka.jpg', 'defendra.jpg', 'bitstrom.jpg', 'meta.jpg']
   });
   await avatarRegistry.preloadAvatars().catch(() => {});
-  
+
+  function assignAvatarsFrom(state) {
+    if (!state) return;
+    const attacker = state.players?.attacker ?? { id: 'att', name: state.roles?.attacker, playerType: 'Human' };
+    const defender = state.players?.defender ?? { id: 'def', name: state.roles?.defender, playerType: 'Human' };
+    avatarRegistry.assignAvatarsInOrder([attacker, defender]);
+  }
+
+  const mapWebToScene = (st) => {
+    if (!st) return st;
+  const m = (c) => {
+    if (!c) return null;
+    const boosted =
+      !!c.isBoosted ||
+      !!c.boosted ||
+      c.kind === 'BoostedCard' ||
+      c.type === 'BoostedCard' ||
+      c.cardType === 'BoostedCard';
+    return { fileName: c.fileName, isBoosted: boosted };
+  };
+    return {
+      ...st,
+      cards: {
+        ...st.cards,
+        attackerField: (st.cards?.attackerField ?? []).map(slot => ({
+          ...slot,
+          card: m(slot?.card),
+        })),
+        defenderField: (st.cards?.defenderField ?? []).map(slot => ({
+          ...slot,
+          card: m(slot?.card),
+        })),
+        attackerGoalkeeper: m(st.cards?.attackerGoalkeeper),
+        defenderGoalkeeper: m(st.cards?.defenderGoalkeeper),
+      },
+    };
+  };
+
   const attackerBar = createAttackerBar(avatarRegistry);
     attackerBar.mount(els.playerBarEl);
 
-    // ✅ fetch state first
     const initial = await api.fetchGameState().catch(() => null);
     if (initial) {
-      // ✅ assign avatars using the SAME ids the UI uses
-      const attackerRef = { id: 'att', name: initial.roles.attacker, playerType: 'Human' };
-      const defenderRef = { id: 'def', name: initial.roles.defender, playerType: 'Human' };
-      avatarRegistry.assignAvatarsInOrder([attackerRef, defenderRef]);
-
-      // optional: push to bar once
+      assignAvatarsFrom(initial);
       attackerBar.updateFromWebState?.(initial);
     }
 
-    // ✅ init controller with the same state so bars/field stay consistent
     const controller = createAttackerDefendersController({
       api,
       els: { ...els, overlay, attackerBar },
       onNavigateBack: () => { window.location.href = '/playing-field'; },
       createGameAlert,
-      // (mapWebToScene optional if your controller expects it)
+      mapWebToScene,
+      onPlayersChange: (state) => {
+      assignAvatarsFrom(state);
+      attackerBar.updateFromWebState?.(state);
+    },
     });
 
     await controller.initWithServerState(initial);
