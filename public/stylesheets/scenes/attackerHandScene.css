@@ -1,0 +1,50 @@
+.scene--attackerhand {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: clamp(8px, 6vw, 14px);
+  padding: clamp(6px, 3vw, 16px);
+  background-image: url("/assets/images/frames/background7.jpg");
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center;
+  font-family: "Rajdhani", Arial, sans-serif;
+  color: #e8eef5;
+  overflow: hidden;
+}
+
+.scene--attackerhand .scene__center {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  align-items: center;
+  justify-items: center;
+  gap: clamp(12px, 2vw, 20px);
+}
+
+.scene--attackerhand .scene-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 72px;
+}
+
+.hand-card.is-selected {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.35);
+  transform: translateY(-6px);
+  z-index: 10;
+}
+
+.scene--attackerhand .scene__buttons {
+  display: flex;
+  gap: clamp(8px, 1.5vw, 18px);
+  align-items: center;
+  justify-content: center;
+}
+.gbtn.is-disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
