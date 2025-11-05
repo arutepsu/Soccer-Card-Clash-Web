@@ -2,16 +2,19 @@
 @import helper._
 
 <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/singleplayer.css")'>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/base/gameButton.css")'>
+
+@views.html.components.navBar()
 
 <div class="scene scene--singleplayer is-active" aria-hidden="false">
   <img class="logo-image"
        src='@routes.Assets.versioned("images/logo/logo0.5k.png")'
        alt="Soccer Card Clash Logo" />
 
- <div class="titles">
-      <h1 class="title">Create Players</h1>
-      <p class="subtitle">Enter Player Names</p>
-    </div>
+  <div class="titles">
+    <h1 class="title">Create Players</h1>
+    <p class="subtitle">Enter Player Names</p>
+  </div>
 
   <input class="inputplayer" type="text" id="p1name" name="player1" placeholder="Player 1" />
 
@@ -20,3 +23,5 @@
     <a class="gbtn btn btn-back" href='@routes.UiController.mainMenu()'>Back</a>
   </div>
 </div>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes">
