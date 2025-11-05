@@ -34,15 +34,17 @@
 
 
 .logo-image {
-  max-width: 320px;
-  width: 70%;
+  max-width: 500px;
+  width: 20vw;
   height: auto;
-  filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
+  margin-bottom: 5px;
+  margin-top: -40px;
 }
 
 .titles {
   text-align: center;
-  margin-top: 4px;
+  margin-top: 0px;
 }
 
 .title {
@@ -90,19 +92,21 @@
 }
 
 .player-text-input:focus {
-  box-shadow: 0 0 0 3px rgba(95, 63, 252, 0.25);
+  outline: none;
+  border-color: #8b6aff;
+  box-shadow: 0 0 10px #8b6aff;
 }
 
 .buttons {
   display: grid;
-  gap: 10px;
+  gap: 0px;
   place-items: center;
-  margin-top: 10px;
+  margin-top: 0px;
 }
 
-/* Optional: secondary style for Back link while reusing .gbtn base */
 .gbtn.gbtn--secondary {
   opacity: 0.9;
+  margin-top: -50px;
 }
 
 /* Minimal overlay styling (optional) */

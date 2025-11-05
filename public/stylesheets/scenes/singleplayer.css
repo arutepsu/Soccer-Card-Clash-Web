@@ -1,8 +1,18 @@
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;700&display=swap');
+
+:root {
+  --gold: #FFD700;
+  --ink: #0F0030;
+  --violet: #5F3FFC;
+  --text: #f0e9fa;
+}
+
 html, body {
   height: 100%;
   margin: 0;
   padding: 0;
   overflow: hidden;
+  font-family: "Rajdhani", Arial, sans-serif;
 }
 
 .scene--singleplayer {
@@ -11,71 +21,102 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start; /* Changed from center to flex-start */
-  padding-top: 50px; /* Add space from top */
-
+  justify-content: flex-start;
+  padding-top: 60px;
   background-image: url('/assets/images/frames/background2.jpg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-
-  font-family: "Rajdhani", Arial, sans-serif;
-  overflow: hidden;
 }
 
-.scene--loadgame .container {
-  background-color: #9a6cb2;
-  color: #9a6cb2;
-  width: 80vw;
-  height: 80vh;
+/* LOGO */
+.scene--singleplayer .logo-image {
+  max-width: 500px;
+  width: 20vw;
+  height: auto;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
+  margin-bottom: 20px;
+  margin-top: -40px;
+}
+
+.titles {
+  text-align: center;
+  margin-top: 0px;
+}
+
+.title {
+  font-size: clamp(38px, 7vw, 68px);
+  font-weight: 700;
+  color: var(--gold);
+  text-shadow: 2px 2px 2px rgba(0,0,0,0.75);
   margin: 0;
-  padding: 10px 1000 10px 0;
+  line-height: 1.05;
 }
 
-.scene--singleplayer .header {
-  color: #f3ca04;
-  font-size: 80px;
-  font-weight: bold;
-  margin-top: -70px;
-  text-shadow: 0 0 10px rgba(243, 202, 4, 0.8), 0 4px 8px rgba(0, 0, 0, 0.6);
+.subtitle {
+  font-size: clamp(16px, 2.4vw, 22px);
+  font-weight: 700;
+  color: var(--gold);
+  margin: 4px 0 0 0;
 }
 
+/* SUBHEADER */
 .scene--singleplayer .playername {
   color: #f3ca04;
-  margin-top: 0px;
+  font-size: 1.8rem;
+  margin-top: 10px;
   text-shadow: 0 0 10px rgba(243, 202, 4, 0.8), 0 4px 8px rgba(0, 0, 0, 0.6);
 }
 
+/* INPUT FIELD */
 .scene--singleplayer .inputplayer {
-  background-color: #0f0030;
-  margin-top: 0px;
-  border: 2px solid #563ed8;
-  width: 20vw;
-  height: 5vh;
-  color: white;
-  font-size: 30px;
+ width: 300px;
+  height: 40px;
+  padding: 10px 12px;
+
+  font-size: 20px;
+  font-family: "Rajdhani", Arial, sans-serif;
+  font-weight: 400;
+  color: var(--text);
+
+  background: var(--ink);
+  border: 2px solid var(--violet);
+  border-radius: 6px;
+  outline: none;
 }
 
+.scene--singleplayer .inputplayer:focus {
+  outline: none;
+  border-color: #8b6aff;
+  box-shadow: 0 0 10px #8b6aff;
+}
+
+/* BUTTONS */
 .buttons {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0;
-  margin-top: 0;
+  gap: 0px;
+}
+
+.gbtn.btn-back {
+  margin-top: -50px;
 }
 
 .gbtn {
-  margin: 0;
-  transform: scale(0.98);
+  background-color: #f3ca04;
+  color: #000;
+  padding: 0.1rem 1rem;
+  border-radius: 1rem;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 1.2rem;
+  transition: transform 0.2s, background-color 0.2s;
 }
 
-.scene--singleplayer .logo-image {
-  max-width: 500px;
-  width: 40vw;
-  height: auto;
-  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
-  margin-bottom: 20px;
-  margin-top: -60px;
+.gbtn:hover {
+  background-color: #ffea6f;
+  transform: scale(1.05);
 }
 
 .info-label {
@@ -88,4 +129,26 @@ html, body {
   text-shadow: 0 0 6px #39FF14, 0 0 12px rgba(57,255,20,0.6);
   pointer-events: none;
   line-height: 1;
+}
+
+/* RESPONSIVE DESIGN */
+@media (max-width: 768px) {
+  .scene--singleplayer .header {
+    font-size: 2.5rem;
+  }
+
+  .scene--singleplayer .playername {
+    
+    font-size: 1.4rem;
+  }
+
+  .scene--singleplayer .inputplayer {
+    width: 70vw;
+    font-size: 1.2rem;
+  }
+
+  .scene--singleplayer .logo-image {
+    width: 70vw;
+    margin-top: -20px;
+  }
 }
