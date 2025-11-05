@@ -67,3 +67,80 @@
 .gbtn--glitch:hover {
   animation: gbtn-glitch 200ms linear infinite !important;
 }
+
+@media (max-width: 1024px) {
+  .gbtn {
+    --btn-w: 280px;
+    --btn-h: 130px;
+    font-size: 19px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .gbtn {
+    --btn-w: 240px;
+    --btn-h: 110px;
+    font-size: 18px !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .gbtn {
+    --btn-w: 160px;
+    --btn-h: 72px;
+    font-size: 14px !important;
+  }
+  .gbtn:hover { transform: translateY(-2px) !important; }
+  .gbtn:active { transform: translateY(4px) !important; }
+}
+
+@media (max-width: 480px) {
+  .gbtn {
+    --btn-w: 140px;
+    --btn-h: 64px;
+    font-size: 13px !important;
+  }
+  .gbtn:hover { transform: translateY(-2px) !important; }
+  .gbtn:active { transform: translateY(4px) !important; }
+}
+
+@media (max-width: 360px) {
+  .gbtn {
+    --btn-w: 120px;
+    --btn-h: 56px; /* >= 44px */
+    font-size: 12px !important;
+  }
+  .gbtn:hover { transform: translateY(-1px) !important; }
+  .gbtn:active { transform: translateY(3px) !important; }
+}
+
+
+@media (max-height: 600px) and (orientation: landscape) {
+  .gbtn {
+    --btn-w: 220px;
+    --btn-h: 96px;
+    font-size: 18px !important;
+  }
+  .gbtn:hover { transform: translateY(-4px) !important; }
+  .gbtn:active { transform: translateY(8px) !important; }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .gbtn {
+    --btn-w: 200px;
+    --btn-h: 84px;
+    font-size: 16px !important;
+  }
+  .gbtn:hover { transform: translateY(-3px) !important; }
+  .gbtn:active { transform: translateY(6px) !important; }
+}
+
+@media (max-height: 400px) and (orientation: landscape) {
+  .gbtn {
+    --btn-w: 180px;
+    --btn-h: 64px;
+    font-size: 14px !important;
+  }
+  .gbtn:hover { transform: translateY(-2px) !important; }
+  .gbtn:active { transform: translateY(4px) !important; }
+}

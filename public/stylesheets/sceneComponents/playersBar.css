@@ -50,7 +50,7 @@
 }
 
 .player__avatar {
-  width: 100px;
+  width: clamp(52px, 8vw, 100px);
   height: auto;
   border-radius: 8px;
   object-fit: contain;
@@ -116,3 +116,294 @@
 .score-row .spacer {
   flex: 1 1 auto;
 }
+
+@media (max-width: 1200px) {
+  :root {
+    --bar-top-margin: 20px;
+    --inner-gap: 8px;
+  }
+
+  .players-bar {
+    padding: 25px 0;
+    background-size: 65% 300%;
+  }
+
+  .player-avatar-box {
+    width: 100px;
+  }
+
+  .player__avatar {
+    width: 85px;
+  }
+
+  .scores-title {
+    font-size: 28px;
+  }
+
+  .player-name {
+    font-size: 36px;
+  }
+
+  .player-score {
+    font-size: 52px;
+  }
+
+  .player-actions {
+    font-size: 16px;
+  }
+
+  .score-box {
+    min-width: 200px;
+  }
+
+  .score-row {
+    gap: 15px;
+  }
+}
+
+@media (max-width: 1024px) {
+  :root {
+    --bar-top-margin: 15px;
+  }
+
+  .players-bar {
+    padding: 20px 0;
+    background-size: 70% 280%;
+  }
+
+  .player-avatar-box {
+    width: 90px;
+  }
+
+  .player__avatar {
+    width: 75px;
+  }
+
+  .scores-title {
+    font-size: 26px;
+  }
+
+  .player-name {
+    font-size: 32px;
+  }
+
+  .player-score {
+    font-size: 48px;
+  }
+
+  .player-actions {
+    font-size: 15px;
+  }
+
+  .score-box {
+    min-width: 180px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --bar-top-margin: 10px;
+    --inner-gap: 6px;
+  }
+
+  .players-bar {
+    padding: 15px 0;
+    background-size: 80% 250%;
+  }
+
+  .players-bar__inner {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .player-avatar-box {
+    width: 80px;
+    gap: 4px;
+  }
+
+  .player__avatar {
+    width: 65px;
+  }
+
+  .scores-title {
+    font-size: 22px;
+  }
+
+  .player-name {
+    font-size: 28px;
+  }
+
+  .player-score {
+    font-size: 42px;
+  }
+
+  .player-actions {
+    font-size: 14px;
+  }
+
+  .score-box {
+    min-width: 160px;
+  }
+
+  .score-row {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --bar-top-margin: 8px;
+  }
+
+  .players-bar {
+    padding: 12px 0;
+    background-size: 90% 220%;
+  }
+
+  .player-avatar-box {
+    width: 70px;
+  }
+
+  .player__avatar {
+    width: 55px;
+  }
+
+  .scores-title {
+    font-size: 20px;
+  }
+
+  .player-name {
+    font-size: 24px;
+  }
+
+  .player-score {
+    font-size: 36px;
+  }
+
+  .player-actions {
+    font-size: 13px;
+  }
+
+  .score-box {
+    min-width: 140px;
+  }
+
+  .score-row {
+    gap: 8px;
+  }
+}
+
+@media (max-height: 600px) and (orientation: landscape) {
+  :root {
+    --bar-top-margin: 5px;
+    --inner-gap: 5px;
+  }
+
+  .players-bar {
+    padding: 8px 0;
+    background-size: 50% 200%;
+  }
+
+  .players-bar__inner {
+    gap: 8px;
+  }
+
+  .player-avatar-box {
+    width: 60px;
+    gap: 3px;
+  }
+
+  .player__avatar {
+    width: 45px;
+  }
+
+  .scores-title {
+    font-size: 18px;
+  }
+
+  .player-name {
+    font-size: 22px;
+  }
+
+  .player-score {
+    font-size: 32px;
+  }
+
+  .player-actions {
+    font-size: 12px;
+  }
+
+  .score-box {
+    min-width: 120px;
+    gap: 3px;
+  }
+
+  .score-row {
+    gap: 8px;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  :root {
+    --bar-top-margin: 3px;
+  }
+
+  .players-bar {
+    padding: 5px 0;
+  }
+
+  .player-avatar-box {
+    width: 50px;
+  }
+
+  .player__avatar {
+    width: 38px;
+  }
+
+  .scores-title {
+    font-size: 16px;
+  }
+
+  .player-name {
+    font-size: 20px;
+  }
+
+  .player-score {
+    font-size: 28px;
+  }
+
+  .player-actions {
+    font-size: 11px;
+  }
+
+  .score-box {
+    min-width: 100px;
+  }
+}
+
+@media (max-height: 400px) and (orientation: landscape) {
+  :root {
+    --bar-top-margin: 2px;
+    --inner-gap: 4px;
+  }
+
+  .players-bar {
+    padding: 4px 0;
+    background-size: 45% 180%;
+  }
+
+  .players-bar__inner { gap: 6px; }
+
+  .player-avatar-box { width: 44px; }
+  .player__avatar { width: 34px; }
+
+  .scores-title { font-size: 14px; }
+  .player-name  { font-size: 18px; }
+  .player-score { font-size: 24px; }
+  .player-actions { font-size: 10px; }
+
+  .score-box { min-width: 92px; gap: 2px; }
+  .score-row { gap: 6px; }
+}
+
