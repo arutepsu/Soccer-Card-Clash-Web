@@ -1,6 +1,47 @@
 @()(implicit request: play.api.mvc.RequestHeader, messages: play.api.i18n.Messages)
 @import helper._
+@import views.html.components.overlay
+@defining(play.filters.csrf.CSRF.getToken) { csrfOpt =>
 
-<div class="scene scene--attackerdefenders">
-  <h2>Attacker Defenders Scene</h2>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/attackerDefendersScene.css")'>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/gameCard.css")'>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/fieldCards.css")'>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/gameAlert.css")'>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/attackerBar.css")'>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/base/gameButton.css")'>
+
+@csrfOpt.map { t =>
+  <meta name="csrf-token" content="@t.value">
+}
+
+<!-- Root for WebSceneManager -->
+<div id="app" data-scene="AttackerDefenderCards">
+
+  <div class="scene scene--attacker-defenders is-active" aria-live="polite">
+    <section id="attacker-bar" aria-label="Current Attacker"></section>
+
+    <div class="scene__center">
+      <div id="attacker-defenders-field"
+           class="players-field players-field--attacker"
+           aria-label="Attacker defenders and goalkeeper"></div>
+
+      <div class="scene__buttons" role="group" aria-label="Actions">
+        <button id="btn-boost" class="gbtn gbtn--lg" type="button">Boost Card</button>
+        <button id="btn-info"  class="gbtn"       type="button">Info</button>
+        <a       id="btn-back"  class="gbtn"       href='@routes.UiController.playingField()'>Back to Game</a>
+      </div>
+    </div>
+  </div>
+
+  @overlay(
+    id = "overlay",
+    title = "About the Game",
+    messageHtml = Html(""),
+    bgImagePath = "images/frames/overlay.png",
+    safeTop = "16%", safeRight = "8%", safeBottom = "16%", safeLeft = "8%"
+  )
 </div>
+
+<!-- Only the global app entry -->
+<script type="module" src='@routes.Assets.versioned("javascripts/app.js")'></script>
+}

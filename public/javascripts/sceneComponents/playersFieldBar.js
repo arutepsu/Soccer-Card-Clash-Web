@@ -1,36 +1,22 @@
-// playersFieldBarWeb.js
-
 export function createPlayersFieldBar(player, getGameState, renderer) {
   let root;
   let defenderRow, goalieRow;
 
-  function mount(el) {
-    root = el;
-    root.classList.add('players-field-bar');
-    const label = document.createElement('div');
-    label.className = 'player-label';
-    label.textContent = `${player.name}'s Field`;
+  let selectedIndex = null; 
+  let goalkeeperSelected = false;
 
-    defenderRow = renderer.createDefenderRow(player, getGameState);
-    goalieRow   = renderer.createGoalkeeperRow(player, getGameState);
+  let prevSig = null;
 
-    root.replaceChildren(label, defenderRow, goalieRow);
-  }
+  function fieldSig(gs, pid) {
+    const def = (pid === 'att' ? gs?.cards?.attackerField : gs?.cards?.defenderField) ?? [];
+    const gk  = (pid === 'att' ? gs?.cards?.attackerGoalkeeper : gs?.cards?.defenderGoalkeeper) ?? null;
 
-  function updateBar(gameState) {
-    const gsGetter = () => gameState;
+    const three = [...def].slice(0,3);
+    while (three.length < 3) three.push({ card: null });
 
-    const newDef = renderer.createDefenderRow(player, gsGetter);
-    const newGk  = renderer.createGoalkeeperRow(player, gsGetter);
-
-
-    root.replaceChildren(
-      root.querySelector('.player-label') || labelElement(player.name),
-      newDef,
-      newGk
-    );
-    defenderRow = newDef;
-    goalieRow   = newGk;
+    const defPart = three.map(s => s?.card?.fileName ?? '').join('|');
+    const gkPart  = gk?.fileName ?? '';
+    return `${defPart}#${gkPart}`;
   }
 
   function labelElement(name) {
@@ -40,9 +26,130 @@ export function createPlayersFieldBar(player, getGameState, renderer) {
     return el;
   }
 
-  function selectedDefenderIndex() { return null; }      // for selectable later
-  function isGoalkeeperSelected() { return false; }      // for selectable later
-  function resetSelectedDefender() { /* noop for now */ }
+  function setSelection(index) {
+    if (selectedIndex === index) {
+      selectedIndex = null;
+      goalkeeperSelected = false;
+    } else {
+      selectedIndex = index;
+      goalkeeperSelected = (index === -1);
+    }
+    applySelectionClasses(defenderRow, false);
+    applySelectionClasses(goalieRow, true);
+  }
+
+  function selectionOpts() {
+    return {
+      selectedIndex,
+      onSelect: (idx) => setSelection(idx),
+      selectable: true,
+      isGoalkeeperSelected: goalkeeperSelected
+    };
+  }
+
+  function buildDefenderRow(gs) {
+    if (renderer.createDefenderRow.length >= 3) {
+      return renderer.createDefenderRow(player, () => gs, selectionOpts());
+    }
+    const row = renderer.createDefenderRow(player, () => gs);
+    wireSelectable(row, false);
+    applySelectionClasses(row, false);
+    return row;
+  }
+
+  function buildGoalkeeperRow(gs) {
+    if (renderer.createGoalkeeperRow.length >= 3) {
+      return renderer.createGoalkeeperRow(player, () => gs, selectionOpts());
+    }
+    const row = renderer.createGoalkeeperRow(player, () => gs);
+    wireSelectable(row, true);
+    applySelectionClasses(row, true);
+    return row;
+  }
+
+  function wireSelectable(rowEl, isGKRow) {
+    rowEl.querySelectorAll('[data-index]').forEach((el) => {
+      const idx = Number(el.getAttribute('data-index'));
+      if (Number.isNaN(idx)) return;
+      el.style.cursor = 'pointer';
+      el.replaceWith(el.cloneNode(true));
+    });
+    rowEl.querySelectorAll('[data-index]').forEach((el) => {
+      const idx = Number(el.getAttribute('data-index'));
+      if (Number.isNaN(idx)) return;
+      el.addEventListener('click', () => setSelection(idx));
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelection(idx); }
+      });
+      el.setAttribute('role', 'button');
+      el.setAttribute('tabindex', '0');
+      el.setAttribute('aria-pressed', String(selectedIndex === idx));
+    });
+  }
+
+  function applySelectionClasses(rowEl, isGKRow) {
+    if (!rowEl) return;
+    rowEl.querySelectorAll('[data-index]').forEach((el) => {
+      const idx = Number(el.getAttribute('data-index'));
+      if (Number.isNaN(idx)) return;
+      if (selectedIndex === idx) {
+        el.classList.add('is-selected');
+        el.setAttribute('aria-pressed', 'true');
+      } else {
+        el.classList.remove('is-selected');
+        el.setAttribute('aria-pressed', 'false');
+      }
+    });
+  }
+
+  function updateRows(gameState) {
+    const newDef = buildDefenderRow(gameState);
+    const newGk  = buildGoalkeeperRow(gameState);
+
+    const label = root.querySelector('.player-label') || labelElement(player.name);
+    root.replaceChildren(label, newDef, newGk);
+
+    defenderRow = newDef;
+    goalieRow   = newGk;
+
+    applySelectionClasses(defenderRow, false);
+    applySelectionClasses(goalieRow, true);
+  }
+
+  function mount(el) {
+    root = el;
+    root.classList.add('players-field-bar');
+    const label = labelElement(player.name);
+
+    const gs = getGameState();
+    defenderRow = buildDefenderRow(gs);
+    goalieRow   = buildGoalkeeperRow(gs);
+
+    root.replaceChildren(label, defenderRow, goalieRow);
+
+    prevSig = fieldSig(gs, player.id);
+  }
+
+  function updateBar(gameState) {
+    const next = fieldSig(gameState, player.id);
+    if (prevSig === next) {
+      applySelectionClasses(defenderRow, false);
+      applySelectionClasses(goalieRow, true);
+      return;
+    }
+    prevSig = next;
+
+    updateRows(gameState);
+  }
+
+  function selectedDefenderIndex() { return selectedIndex; }
+  function isGoalkeeperSelected() { return goalkeeperSelected; }
+  function resetSelectedDefender() {
+    selectedIndex = null;
+    goalkeeperSelected = false;
+    applySelectionClasses(defenderRow, false);
+    applySelectionClasses(goalieRow, true);
+  }
 
   return { mount, updateBar, selectedDefenderIndex, isGoalkeeperSelected, resetSelectedDefender };
 }
