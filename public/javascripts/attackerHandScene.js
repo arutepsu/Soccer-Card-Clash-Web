@@ -1,70 +1,72 @@
-// /assets/javascripts/scenes/scene.attackerHand.js
+import { createAttackerHandController } from './controllers/attackerHandController.js';
+import { createPlayerAvatarRegistry } from './utils/playersAvatarRegistry.js';
+import { createAttackerBar } from './sceneComponents/attackerBar.js';
+
+function assignAvatarsFrom(registry, state) {
+  if (!state) return;
+  const attacker = state.players?.attacker ?? { id: 'att', name: state.roles?.attacker, playerType: 'Human' };
+  const defender = state.players?.defender ?? { id: 'def', name: state.roles?.defender, playerType: 'Human' };
+  registry.assignAvatarsInOrder([attacker, defender]);
+}
+
 export async function build({ api, overlay, createGameAlert }) {
-  const root = document.querySelector('.scene--attackerhand');
-  if (!root) return { destroy() {}, refresh: async () => {} };
+  const els = {
+    playerBarEl:     document.getElementById('attacker-bar'),
+    handEl:          document.getElementById('attacker-hand'),
+    btnRegularSwap:  document.getElementById('btn-regular-swap'),
+    btnReverseSwap:  document.getElementById('btn-reverse-swap'),
+    btnInfo:         document.getElementById('btn-info'),
+    btnBack:         document.getElementById('btn-back'),
+  };
 
-  let host = root.querySelector('#attacker-hand-root');
-  if (!host) {
-    host = document.createElement('div');
-    host.id = 'attacker-hand-root';
-    host.className = 'hand-row';
-    root.appendChild(host);
+  if (!els.handEl || !els.playerBarEl) {
+    console.error('[AttackerHandScene] Missing #attacker-hand or #attacker-bar');
+    return { destroy() {}, refresh: async () => {} };
   }
 
-  const base = '/assets/images/cards/';
+  const avatarRegistry = createPlayerAvatarRegistry({
+    avatarsPath: '/assets/images/players/',
+    fileNames: ['player1.jpg', 'player2.jpg', 'ai.jpg', 'taka.jpg', 'defendra.jpg', 'bitstrom.jpg', 'meta.jpg']
+  });
+  await avatarRegistry.preloadAvatars().catch(() => {});
 
-  function showAlert(msg) {
-    if (overlay && createGameAlert) {
-      const el = createGameAlert({ message: msg });
-      overlay.show(el, { onHide: () => el.cleanup?.() });
-    } else alert(msg);
+  const attackerBar = createAttackerBar(avatarRegistry);
+  attackerBar.mount(els.playerBarEl);
+
+  const initial = await api.fetchGameState().catch(() => null);
+  if (initial) {
+    assignAvatarsFrom(avatarRegistry, initial);
+    attackerBar.updateFromWebState?.(initial);
   }
 
-  function renderHand(hand = []) {
-    host.innerHTML = '';
-    if (!hand.length) {
-      const p = document.createElement('p');
-      p.className = 'empty-note';
-      p.textContent = 'No cards in hand.';
-      host.appendChild(p);
-      return;
-    }
+  const controller = createAttackerHandController({
+    api,
+    els: {
+      elHand:        els.handEl,
+      btnRegularSwap: els.btnRegularSwap,
+      btnReverseSwap: els.btnReverseSwap,
+      btnInfo:        els.btnInfo,
+      btnBack:        els.btnBack,
+      overlay,
+      attackerBar  
+    },
+    createGameAlert,
+  });
 
-    const row = document.createElement('div');
-    row.className = 'hand-row-inner';
+  await controller.initWithServerState(initial);
 
-    hand.forEach((c, i) => {
-      const wrap = document.createElement('div');
-      wrap.className = 'hand-card';
-
-      const img = document.createElement('img');
-      img.alt = c?.fileName ?? `Card ${i+1}`;
-      img.src = c?.fileName ? `${base}${c.fileName}.png` : `${base}flippedCard.png`;
-      img.decoding = 'async';
-      img.loading = 'lazy';
-
-      wrap.appendChild(img);
-      row.appendChild(wrap);
+  function destroy() {
+    ['btnRegularSwap', 'btnReverseSwap', 'btnInfo', 'btnBack'].forEach(key => {
+      const el = els[key];
+      if (el && el.parentNode) {
+        const clone = el.cloneNode(true);
+        el.parentNode.replaceChild(clone, el);
+      }
     });
-
-    host.appendChild(row);
   }
-
-  async function fetchAndRender() {
-    try {
-      const st = await api.fetchGameState();
-      renderHand(st?.cards?.attackerHand ?? []);
-    } catch (e) {
-      console.error(e);
-      showAlert('Failed to load the attacker’s hand.');
-      renderHand([]);
-    }
-  }
-
-  await fetchAndRender();
 
   return {
-    destroy() { host.innerHTML = ''; },
-    refresh: fetchAndRender,
+    destroy,
+    refresh: controller.refresh,
   };
 }
