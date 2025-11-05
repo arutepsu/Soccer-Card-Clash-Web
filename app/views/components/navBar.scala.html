@@ -1,0 +1,46 @@
+@()(implicit request: play.api.mvc.RequestHeader, messages: play.api.i18n.Messages)
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@@5.3.0/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/navbar.css")'>
+
+<div class="navbar-trigger"></div>
+
+<nav class="navbar navbar-expand-lg game-navbar">
+  <div class="container-fluid">
+    <a class="navbar-brand" href='@routes.UiController.mainMenu()'>
+      <img src='@routes.Assets.versioned("images/logo/logo0.5k.png")' 
+           alt="Soccer Card Clash" 
+           class="navbar-logo-img" />
+    </a>
+    
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
+            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav ms-auto">
+        <li class="nav-item">
+          <a class="nav-link navbar-link" href='@routes.UiController.singleplayer()'>Singleplayer</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link navbar-link" href='@routes.UiController.multiplayer()'>Multiplayer</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link navbar-link" href='@routes.UiController.loadGame()'>Load Game</a>
+        </li>
+        <li class="nav-item">
+          <button class="nav-link navbar-link navbar-btn" type="button" data-open-overlay>About</button>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link navbar-link" href="/rules">Game Information</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link navbar-link navbar-link--quit" href='@routes.UiController.mainMenu()'>Quit</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

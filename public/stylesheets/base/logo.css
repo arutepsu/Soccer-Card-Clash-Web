@@ -11,3 +11,32 @@
 .logo-image:hover {
   transform: scale(1.03);
 }
+
+
+@media (max-width: 1024px) {
+  .logo-image { width: 260px; }
+}
+
+@media (max-width: 768px) {
+  .logo-image { width: 220px; }
+}
+
+@media (max-width: 600px) {
+  .logo-image { width: 200px; }
+}
+
+@media (max-width: 420px) {
+  .logo-image { width: 180px; }
+}
+
+@media (max-height: 600px) and (orientation: landscape) {
+  .logo-image { width: 200px; max-height: 16vh; }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .logo-image { width: 180px; max-height: 14vh; }
+}
+
+@media (max-height: 400px) and (orientation: landscape) {
+  .logo-image { width: 160px; max-height: 12vh; }
+}

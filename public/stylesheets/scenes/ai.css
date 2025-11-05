@@ -100,7 +100,6 @@ html, body {
     align-items: center;
 }
 
-/* Responsive Breakpoints */
 @media (max-width: 992px) {
     .scene--ai .header {
         font-size: 3rem;

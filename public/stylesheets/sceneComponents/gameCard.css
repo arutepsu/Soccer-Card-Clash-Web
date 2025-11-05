@@ -49,6 +49,77 @@
   filter: grayscale(0.95) contrast(0.9) brightness(0.9);
   opacity: 0.9;
 }
-@media (max-width: 1200px) { :root { --card-scale: 0.40; } }
-@media (max-width: 900px)  { :root { --card-scale: 0.36; } }
-@media (max-width: 700px)  { :root { --card-scale: 0.32; } }
+@media (max-width: 1400px) { :root { --card-scale: 0.38; } }
+@media (max-width: 1200px) { :root { --card-scale: 0.35; } }
+@media (max-width: 1024px) { :root { --card-scale: 0.32; } }
+@media (max-width: 900px)  { :root { --card-scale: 0.30; } }
+@media (max-width: 768px)  { :root { --card-scale: 0.05; } }
+@media (max-width: 600px)  { :root { --card-scale: 0.05; } }
+@media (max-width: 480px)  { :root { --card-scale: 0.05; } }
+@media (max-width: 360px)  { :root { --card-scale: 0.16; } }
+
+/* Landscape mode for mobile devices */
+@media (max-height: 600px) and (orientation: landscape) { 
+  :root { --card-scale: 0.05; } 
+}
+
+@media (max-height: 500px) and (orientation: landscape) { 
+  :root { --card-scale: 0.05; } 
+}
+
+@media (max-height: 400px) and (orientation: landscape) { 
+  :root { --card-scale: 0.18; } 
+}
+
+@media (max-width: 600px) {
+  .game-card {
+    width: clamp(28px, 9vw, 48px);
+    height: auto;
+    aspect-ratio: 7 / 10; /* 350:500 */
+    box-shadow: 3px 3px 8px rgba(0,0,0,0.5);
+  }
+  .game-card:hover { transform: translateY(-1px); }
+}
+
+@media (max-width: 480px) {
+  .game-card {
+    width: clamp(24px, 8vw, 42px);
+    box-shadow: 2px 2px 7px rgba(0,0,0,0.5);
+  }
+  .game-card:hover { transform: translateY(-1px); }
+}
+
+@media (max-width: 360px) {
+  .game-card {
+    width: clamp(20px, 7vw, 36px);
+    box-shadow: 2px 2px 6px rgba(0,0,0,0.45);
+  }
+  .game-card:hover { transform: translateY(-1px); }
+}
+
+@media (max-height: 600px) and (orientation: landscape) {
+  .game-card {
+    width: clamp(28px, 9vw, 48px);
+    height: auto;
+    aspect-ratio: 7 / 10;
+    box-shadow: 3px 3px 8px rgba(0,0,0,0.5);
+  }
+  .game-card:hover { transform: translateY(-1px); }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .game-card {
+    width: clamp(24px, 8vw, 42px);
+    box-shadow: 2px 2px 7px rgba(0,0,0,0.5);
+  }
+  .game-card:hover { transform: translateY(-1px); }
+}
+
+@media (max-height: 400px) and (orientation: landscape) {
+  .game-card {
+    width: clamp(20px, 7vw, 36px);
+    box-shadow: 2px 2px 6px rgba(0,0,0,0.45);
+  }
+  .game-card:hover { transform: translateY(-1px); }
+}
+

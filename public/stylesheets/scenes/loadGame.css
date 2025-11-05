@@ -80,7 +80,6 @@ html, body {
   line-height: 1;
 }
 
-/* Responsive design */
 @media (max-width: 768px) {
   .scene--loadgame .header {
     font-size: 2.5rem;

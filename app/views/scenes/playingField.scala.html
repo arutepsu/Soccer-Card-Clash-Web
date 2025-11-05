@@ -16,6 +16,8 @@
   <meta name="csrf-token" content="@t.value">
 }
 
+@views.html.components.navBar()
+
 <!-- Root for WebSceneManager: it reads data-scene and builds that scene -->
 <div id="app" data-scene="PlayingField">
 
@@ -58,5 +60,18 @@
 
 <!-- Global runtime bootstrap (creates WebSceneManager, injects API+Overlay, builds current scene) -->
 <script type="module" src='@routes.Assets.versioned("javascripts/app.js")'></script>
+
+<head>
+  <!-- ... -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, minimum-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!-- ... -->
+</head>
+
+<div id="rotate-notice" class="rotate-notice" style="display:none;">
+  Please rotate screen.
+</div>
 
 }
