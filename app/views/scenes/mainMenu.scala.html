@@ -1,23 +1,35 @@
 @()(implicit request: play.api.mvc.RequestHeader, messages: play.api.i18n.Messages)
 @import views.html.components.overlay
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@@5.3.0/dist/css/bootstrap.min.css">
 <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/mainMenu.css")'>
 <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/base/gameButton.css")'>
+@views.html.components.navBar()
 
 <div class="scene scene--mainmenu is-active" aria-hidden="false">
-  <div class="menu-stack">
-    <img class="logo-image"
-         src='@routes.Assets.versioned("images/logo/logo0.5k.png")'
-         alt="Soccer Card Clash Logo" />
+  <div class="container-fluid h-100">
+    <div class="row h-100 align-items-center justify-content-center">
+      <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
+        <div class="menu-stack">
+          <div class="text-center mb-3">
+            <img class="logo-image img-fluid"
+                 src='@routes.Assets.versioned("images/logo/logo0.5k.png")'
+                 alt="Soccer Card Clash Logo" />
+          </div>
 
-    <nav class="buttons" aria-label="Main menu">
-      <a class="gbtn" href='@routes.UiController.singleplayer()'>Singleplayer</a>
-      <a class="gbtn" href='@routes.UiController.multiplayer()'>Multiplayer</a>
-      <a class="gbtn" href='@routes.UiController.loadGame()'>Load Game</a>
-      <button class="gbtn" type="button" data-open-overlay>About</button>
-      <a class="gbtn" href="/rules">Game Information</a>
-      <a class="gbtn" href='@routes.UiController.mainMenu()'>Quit</a>
-    </nav>
+          <nav class="buttons" aria-label="Main menu">
+            <div class="d-grid gap-2">
+              <a class="gbtn" href='@routes.UiController.singleplayer()'>Singleplayer</a>
+              <a class="gbtn" href='@routes.UiController.multiplayer()'>Multiplayer</a>
+              <a class="gbtn" href='@routes.UiController.loadGame()'>Load Game</a>
+              <button class="gbtn" type="button" data-open-overlay>About</button>
+              <a class="gbtn" href="/rules">Game Information</a>
+              <a class="gbtn" href='@routes.UiController.mainMenu()'>Quit</a>
+            </div>
+          </nav>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="info-label">Developed by Arutepsu</div>
@@ -28,9 +40,12 @@
   messageHtml = Html("""
     <p><strong>Soccer Card Clash</strong> is a fast-paced, strategic 2-player card game where soccer meets tactical mind games!</p>
     <p>Each player takes turns attacking and defending using a hand of soccer-themed cards. Every card represents a player with unique strengths. You must outmaneuver your opponent by choosing the right card at the right moment!</p>
-    <p>Roles switch after each round: today’s attacker becomes tomorrow’s defender. Strategic use of boosts and goalkeeper plays can shift the tide in your favor.</p>
+    <p>Roles switch after each round: today's attacker becomes tomorrow's defender. Strategic use of boosts and goalkeeper plays can shift the tide in your favor.</p>
     <p>Victory goes to the player who scores the most successful attacks by the end of the match. Are you ready to kick off and clash?</p>
   """),
   bgImagePath = "images/frames/overlay.png",
   safeTop = "8%", safeRight = "6%", safeBottom = "12%", safeLeft = "6%"
 )
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">

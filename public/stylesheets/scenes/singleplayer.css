@@ -131,7 +131,6 @@ html, body {
   line-height: 1;
 }
 
-/* RESPONSIVE DESIGN */
 @media (max-width: 768px) {
   .scene--singleplayer .header {
     font-size: 2.5rem;
@@ -150,5 +149,9 @@ html, body {
   .scene--singleplayer .logo-image {
     width: 70vw;
     margin-top: -20px;
+  }
+
+  .buttons {
+    gap: 18px;
   }
 }

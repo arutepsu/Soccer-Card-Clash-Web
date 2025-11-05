@@ -19,6 +19,7 @@
   place-items: center;
 
   font-family: "Rajdhani", Arial, sans-serif;
+  overflow-y: auto;
 }
 
 .panel.create-player-panel {
@@ -109,7 +110,6 @@
   margin-top: -50px;
 }
 
-/* Minimal overlay styling (optional) */
 .overlay.hidden { display: none; }
 .overlay {
   position: fixed; inset: 0;
@@ -130,4 +130,110 @@
   margin: 0 0 16px 0;
   font-family: "Rajdhani", Arial, sans-serif;
   font-size: 18px;
+}
+
+@media (max-width: 576px) {
+  .scene--create-multiplayer {
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+
+  .panel.create-player-panel {
+    width: min(96vw, 560px);
+    min-height: unset;
+    padding: 16px 12px;
+    border-radius: 20px;
+    gap: 14px;
+  }
+
+  .logo-image {
+    width: min(70vw, 360px);
+    max-width: 360px;
+    margin-top: -20px;
+  }
+
+  .inputs {
+    gap: 12px;
+    margin-top: 4px;
+  }
+
+  .player-text-input {
+    width: min(88vw, 320px);
+    height: 38px;
+    font-size: 16px; 
+    line-height: 1.2;
+    padding: 6px 10px;
+  }
+
+  .buttons {
+    gap: 14px;
+    margin-top: 4px;
+  }
+
+
+  .gbtn {
+    --btn-w: 320px !important;
+    --btn-h: 96px !important;
+    font-size: 1.8rem !important;
+  }
+
+  .gbtn.gbtn--secondary {
+    margin-top: -20px;
+  }
+
+  .overlay__content {
+    width: min(94vw, 420px);
+    padding: 20px;
+  }
+
+  .overlay__content p {
+    font-size: 16px;
+  }
+}
+
+
+@media (min-width: 577px) and (max-width: 768px) {
+  .panel.create-player-panel {
+    width: min(94vw, 600px);
+    padding: 20px 16px;
+    border-radius: 28px;
+    gap: 16px;
+  }
+
+  .logo-image {
+    width: min(40vw, 420px);
+    max-width: 420px;
+    margin-top: -28px;
+  }
+
+  .player-text-input {
+    width: min(76vw, 360px);
+    height: 40px;
+    font-size: 16px;
+    line-height: 1.2;
+    padding: 8px 10px;
+  }
+
+  .buttons {
+    gap: 12px;
+  }
+
+  .gbtn {
+    --btn-w: 320px !important;
+    --btn-h: 88px !important;
+    font-size: 1.6rem !important;
+  }
+
+  .gbtn.gbtn--secondary {
+    margin-top: -36px;
+  }
+}
+
+
+@media (min-width: 1200px) {
+  .panel.create-player-panel {
+    width: 560px;
+  }
+  .logo-image {
+    max-width: 500px;
+  }
 }

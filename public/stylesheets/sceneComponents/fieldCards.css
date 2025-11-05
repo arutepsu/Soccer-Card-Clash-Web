@@ -44,3 +44,78 @@
     0 0 8px var(--neon);
   margin: 4px 0 8px;
 }
+
+@media (max-width: 1024px) {
+  .defender-row,
+  .goalkeeper-row {
+    gap: 8px;
+  }
+
+  .player-label {
+    font-size: 22px;
+  }
+}
+
+@media (max-width: 768px) {
+  .card-bar-frame {
+    padding: 4px;
+  }
+
+  .defender-row,
+  .goalkeeper-row {
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .defender-row { padding: 4px; }
+  .goalkeeper-row { padding: 8px; }
+
+  .player-label {
+    font-size: 20px;
+    margin: 3px 0 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .card-bar-frame {
+    padding: 3px;
+    border-width: 1px;
+  }
+
+  .defender-row,
+  .goalkeeper-row {
+    gap: 4px;
+  }
+
+  .defender-row { padding: 3px; }
+  .goalkeeper-row { padding: 6px; }
+
+  .player-label {
+    font-size: 18px;
+    margin: 2px 0 4px;
+  }
+}
+
+@media (max-height: 600px) and (orientation: landscape) {
+  .card-bar-frame {
+    padding: 3px;
+    border-width: 1px;
+  }
+
+  .defender-row,
+  .goalkeeper-row {
+    gap: 4px;
+  }
+
+  .defender-row { padding: 2px; }
+  .goalkeeper-row { padding: 4px; }
+
+  .player-label {
+    font-size: 16px;
+    margin: 2px 0 3px;
+  }
+}
+
+@media (max-height: 400px) and (orientation: landscape) {
+  .player-label { font-size: 14px; }
+}

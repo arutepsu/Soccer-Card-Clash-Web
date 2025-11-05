@@ -1,6 +1,4 @@
-/* --------------------------
-   Playing Field Scene Layout
-   -------------------------- */
+
 .scene--playingfield {
   position: fixed;
   inset: 0;
@@ -13,6 +11,9 @@
   font-family: "Rajdhani", Arial, sans-serif;
   color: #e8eef5;
   overflow: hidden;
+
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 .board {
   display: grid;
@@ -61,7 +62,20 @@
 
 @media (max-width: 1024px) {
   .board {
-    grid-template-columns: 160px 1fr 160px;
+    grid-template-columns: 150px 1fr 150px;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .board {
+    grid-template-columns: 140px 1fr 140px;
+    gap: 8px;
+  }
+
+  #nav-bar,
+  #action-bar {
+    transform: translateX(0);
   }
 }
 
@@ -74,11 +88,148 @@
   .board {
     grid-template-columns: 1fr;
     grid-template-rows: auto auto auto;
-    gap: 12px;
+    gap: 8px;
+    padding: clamp(4px, 1vw, 8px);
   }
 
   #nav-bar {
+    order: 1;
     flex-direction: row;
+    flex-wrap: wrap;
     justify-content: center;
+    justify-self: center;
+    align-items: center;
+    gap: 6px;
   }
+
+  #field {
+    order: 2;
+    width: 100%;
+  }
+
+  #action-bar {
+    order: 3;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    justify-self: center;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .scene--playingfield {
+    grid-template-rows: auto 1fr auto;
+  }
+
+  .board {
+    gap: 6px;
+    padding: 4px;
+  }
+
+  #nav-bar,
+  #action-bar {
+    gap: 3px;
+  }
+}
+
+@media (max-width: 360px) {
+  #nav-bar,
+  #action-bar {
+    gap: 2px;
+  }
+}
+
+@media (max-height: 600px) and (orientation: landscape) {
+  .scene--playingfield {
+    grid-template-rows: auto 1fr;
+    font-size: 90%;
+  }
+
+  .board {
+    grid-template-columns: 120px 1fr 120px;
+    grid-template-rows: 1fr;
+    gap: 6px;
+    padding: 4px;
+    overflow: hidden;
+  }
+
+  #nav-bar {
+    order: 1;
+    flex-direction: column;
+    justify-self: start;
+    align-self: center;
+    transform: translateX(0);
+  }
+
+  #field {
+    order: 2;
+    align-self: center;
+  }
+
+  #action-bar {
+    order: 3;
+    flex-direction: column;
+    justify-self: end;
+    align-self: center;
+    transform: translateX(0);
+  }
+  #nav-bar,
+  #action-bar { gap: 4px; }
+
+  #hand-row {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+    padding: 4px 0;
+    z-index: 100;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .board {
+    grid-template-columns: 100px 1fr 100px;
+    gap: 4px;
+    padding: 2px;
+  }
+
+  #nav-bar,
+  #action-bar {
+    gap: 3px;
+  }
+  .scene--playingfield { font-size: 85%; }
+}
+
+@media (max-height: 400px) and (orientation: landscape) {
+  .scene--playingfield { font-size: 80%; }
+  #nav-bar,
+  #action-bar { gap: 2px; }
+
+}
+
+@media (orientation: portrait) {
+  .rotate-notice {
+    display: flex !important;
+    position: fixed;
+    z-index: 2000;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.85);
+    color: #fff;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5em;
+    text-align: center;
+  }
+}
+@media (orientation: landscape) {
+  .rotate-notice {
+    display: none !important;
+  }
+}
+
+.rotate-notice {
+  background: rgb(0, 0, 0);
 }
