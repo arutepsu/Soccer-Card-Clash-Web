@@ -1,21 +1,19 @@
-// actionButtonBarWeb.js
 export function createActionButtonBar() {
   let root, onAction = () => {};
 
   function mount(el) {
     root = el;
     root.innerHTML = `
-      <button class="gbtn" data-action="attack-regular">Attack</button>
-      <button class="gbtn" data-action="attack-double">Double Attack</button>
-      <button class="gbtn" data-action="info">Info</button>
+      <button type="button" class="gbtn" data-action="attack-regular">Attack</button>
+      <button type="button" class="gbtn" data-action="attack-double">Double Attack</button>
+      <button type="button" class="gbtn" data-action="info">Info</button>
     `;
     root.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-action]'); if (!btn) return;
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      e.preventDefault();
       const action = btn.dataset.action;
-      if (action === 'info') {
-        openInfoDialog('GAME_INFO');
-        return;
-      }
+      if (action === 'info') { openInfoDialog('GAME_INFO'); return; }
       onAction(action);
     });
   }
@@ -32,14 +30,31 @@ export function createActionButtonBar() {
 
   function openInfoDialog(key = 'GAME_INFO') {
     const overlay = document.getElementById('overlay');
-    if (!overlay?.__openOverlay) return;
+    if (!overlay) return;
+
     const html = `
-      <h2 class="dialog-title">Game Instructions</h2>
-      <p class="dialog-message">(${key}) — put localized content here.</p>
-      <div class="overlay-actions"><button class="gbtn" data-close-overlay>Close</button></div>
+      <div class="overlay-textflow">
+        <div class="dialog-title">Game Instructions</div>
+        <div class="dialog-message">
+          (${key}) — put localized content here.
+        </div>
+        <div class="overlay-actions">
+          <button class="gbtn" data-close-overlay>Close</button>
+        </div>
+      </div>
     `;
-    overlay.querySelector('.overlay-scroll').innerHTML = html;
-    overlay.__openOverlay({ autoHide: false });
+
+    // Prefer the proper API
+    if (overlay.__showOverlay) {
+      overlay.__showOverlay(html, { autoHide: false });
+      return;
+    }
+
+    // Fallback (in case the bridge isn’t there yet)
+    const scroll = overlay.querySelector('.overlay-scroll');
+    if (scroll) scroll.innerHTML = html;
+    overlay.classList.remove('hidden');
+    overlay.setAttribute('aria-hidden', 'false');
   }
 
   return { mount, setEnabled, onClick };
