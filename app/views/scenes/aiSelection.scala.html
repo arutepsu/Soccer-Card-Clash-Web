@@ -1,42 +1,77 @@
 @()(implicit request: play.api.mvc.RequestHeader, messages: play.api.i18n.Messages)
 @import helper._
 
-<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/ai.css")'>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Selection - Soccer Card Clash</title>
 
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/base/gameButton.css")'>
+    <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/ai.css")'>
+</head>
+
+<body>
 <div class="scene scene--ai">
-  <h class ="header">Choose Your AI Opponent</h>
-  <div class="opponents">
-    <div class="card">
-      <img src="/assets/images/players/taka.jpg" alt="Taka">
-      <h2>Taka</h2>
-      <p>Balanced and smart attacker.</p>
-    </div>
+  <h1 class="header">Choose Your AI Opponent</h1>
 
-    <div class="card">
-      <img src="/assets/images/players/bitstrom.jpg" alt="Bitstorm">
-      <h2>Bitstorm</h2>
-      <p>Aggressive, double-hitting striker.</p>
-    </div>
+  <div class="container-fluid">
+    <div class="row justify-content-center g-3 opponents">
 
-    <div class="card">
-      <img src="/assets/images/players/defendra.jpg" alt="Defendra">
-      <h2>Defendra</h2>
-      <p>Specialist in boosting defense.</p>
-    </div>
+      <div class="col-3">
+        <div class="card h-100">
+          <img src="/assets/images/players/taka.jpg" class="card-img-top" alt="Taka">
+          <div class="card-body text-center">
+            <h5 class="card-title">Taka</h5>
+            <p class="card-text">Balanced and smart attacker.</p>
+          </div>
+        </div>
+      </div>
 
-    <div class="card">
-      <img src="/assets/images/players/meta.jpg" alt="MetaAI">
-      <h2>MetaAI</h2>
-      <p>Adaptive, unpredictable decision-maker.</p>
+      <div class="col-3">
+        <div class="card h-100">
+          <img src="/assets/images/players/bitstrom.jpg" class="card-img-top" alt="Bitstorm">
+          <div class="card-body text-center">
+            <h5 class="card-title">Bitstorm</h5>
+            <p class="card-text">Aggressive, double-hitting striker.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-3">
+        <div class="card h-100">
+          <img src="/assets/images/players/defendra.jpg" class="card-img-top" alt="Defendra">
+          <div class="card-body text-center">
+            <h5 class="card-title">Defendra</h5>
+            <p class="card-text">Specialist in boosting defense.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-3">
+        <div class="card h-100">
+          <img src="/assets/images/players/meta.jpg" class="card-img-top" alt="MetaAI">
+          <div class="card-body text-center">
+            <h5 class="card-title">MetaAI</h5>
+            <p class="card-text">Adaptive, unpredictable decision-maker.</p>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
-  
-  <div class="buttons">
-    <a class="gbtn" href='@routes.UiController.ai()'> Start </a>
-    <a class="gbtn" href='@routes.UiController.multiplayer()'> Back </a>
+
+  <div class="buttons mt-4">
+    <a class="btn btn-success btn-lg gbtn gbtn--lg" href='@routes.UiController.ai()'>Start</a>
+    <a class="btn btn-secondary btn-lg gbtn gbtn--lg" href='@routes.UiController.multiplayer()'>Back</a>
   </div>
 </div>
 
-<!--<div class="scene scene--loadgame">
-  <h2>Load Game Scene</h2>
-</div>>
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
