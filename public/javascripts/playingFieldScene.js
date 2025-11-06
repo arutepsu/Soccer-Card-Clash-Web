@@ -105,7 +105,38 @@ export async function build({ api, overlay, createGameAlert }) {
   const playersBar = createPlayersBar(avatarRegistry);
   playersBar.mount(document.getElementById('players-bar'));
 
-  const navBar = createNavButtonBar();
+  const navBar = createNavButtonBar({ api });
+  navBar.onSceneEvent((ev) => {
+  if (!ev) return;
+
+  // coming from the nav bar pause dialog
+  if (ev.type === 'PauseDialogAction') {
+    switch (ev.action) {
+      case 'resume':
+        overlayHost.__hideOverlay = () => overlay.hide();  
+        return;
+
+      case 'undo':
+        controller.onUndo?.();
+        return;
+
+      case 'redo':
+        controller.onRedo?.();
+        return;
+
+      case 'restart':
+        // requested: skip for now (placeholder)
+        // You could later call a controller.resetGame?.() or navigate to a "new game" flow here.
+        return;
+
+      case 'mainmenu':
+        return;
+
+      default:
+        return;
+    }
+  }
+});
   navBar.mount(document.getElementById('nav-bar'));
 
   const actionBar = createActionButtonBar();
@@ -185,9 +216,11 @@ export async function build({ api, overlay, createGameAlert }) {
   };
   actionBar.onClick(onActionClick);
 
+  let lastRoles = { attacker: '', defender: '' };
   // 8) streaming updates (SSE)
-  const es = api.openStream?.((web) => {
+  let es = api.openStream?.((web) => {
     try {
+
       applyUiFromWeb(web);
       controller.updateFromServerContext(web);
     } catch (err) {
@@ -198,6 +231,11 @@ export async function build({ api, overlay, createGameAlert }) {
   function applyUiFromWeb(web) {
     assignAvatarsFrom(avatarRegistry, web);
     playersBar.updateFromWebState(web);
+    
+    if (web?.roles) {
+      lastRoles.attacker = web.roles.attacker || '';
+      lastRoles.defender = web.roles.defender || '';
+    }
     if (attackerAvatarBox) {
       const attackerRef = { id: 'att', name: web.roles?.attacker, playerType: 'Human' };
       attackerAvatarBox.innerHTML = `
