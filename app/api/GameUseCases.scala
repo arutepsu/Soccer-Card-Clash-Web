@@ -24,7 +24,7 @@ final class GameUseCases @Inject()(
   controller: IController,
   repo: GameContextRepository,
   actionMgr: IPlayerActionManager,
-  holder: IGameContextHolder,
+  val holder: IGameContextHolder,
 ) extends IGameUseCases {
 
   private def noGame: Left[AppError, Nothing] = Left(AppError("No active game"))

@@ -2,6 +2,7 @@ package app.api
 import app.models.AppError
 import app.models.WebGameState 
 import de.htwg.se.soccercardclash.util.AIAction
+import de.htwg.se.soccercardclash.controller.contextHolder.IGameContextHolder
 
 trait IGameUseCases {
   def createGame(p1: String, p2: String, sid: String): Either[AppError, WebGameState]
@@ -22,4 +23,5 @@ trait IGameUseCases {
   def redo(sid: String): Either[AppError, WebGameState]
 
   def executeAI(action: AIAction, sid: String): Either[AppError, WebGameState]
+  def holder: IGameContextHolder
 }
