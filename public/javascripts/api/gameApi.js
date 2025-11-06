@@ -33,6 +33,11 @@ export function createGameApi() {
     return res.json();
   }
 
+  async function fetchJson(url, options = {}) {
+    const res = await fetch(url, options);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  }
 
   function openStream(onMessage) {
     const es = new EventSource('/api/stream', { withCredentials: true });
@@ -44,6 +49,12 @@ export function createGameApi() {
   return {
     fetchGameState: () => getJSON('/api/state'),
     openStream,
+    restart: async (attackerName, defenderName) => {
+      const body = {};
+      if (attackerName) body.attackerName = attackerName;
+      if (defenderName) body.defenderName = defenderName;
+      return postJSON(`/api/restart`, body);
+    },
 
     singleAttackDefender(index) {
       const idx = Number(index);

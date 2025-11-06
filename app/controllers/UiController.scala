@@ -9,6 +9,10 @@ import app.api.IGameUseCases
 import java.util.UUID
 import app.models.AppError
 import play.filters.csrf.CSRFAddToken
+import play.api.libs.json._
+import de.htwg.se.soccercardclash.model.gameComponent.context.GameContext
+import scala.util.Try
+import app.models.WebGameState
 
 @Singleton
 class UiController @Inject()(
@@ -123,4 +127,40 @@ class UiController @Inject()(
   }
 
 
+  def restart: Action[AnyContent] = Action { implicit req =>
+    val bodyNames: Option[(String, String)] = for {
+      json <- req.body.asJson
+      att  <- (json \ "attackerName").asOpt[String].filter(_.nonEmpty)
+      defn <- (json \ "defenderName").asOpt[String].filter(_.nonEmpty)
+    } yield (att, defn)
+
+    val prevNames: Option[(String, String)] =
+      Try {
+        val ctx = gameUseCases.holder.get
+        (ctx.state.getRoles.attacker.name, ctx.state.getRoles.defender.name)
+      }.toOption
+
+    val (attackerName, defenderName) =
+      bodyNames.orElse(prevNames).getOrElse(("Player 1", "Player 2"))
+
+    gameUseCases.holder.clear()
+    val sid0 = getOrCreateSid(req)
+
+    val createdWeb: Either[AppError, WebGameState] =
+      gameUseCases.createGame(attackerName, defenderName, sid0)
+
+    createdWeb.fold(
+      err => InternalServerError(Json.obj("error" -> err.message)),
+      web => {
+        Ok(
+          Json.obj(
+            "status" -> "restarted",
+            "attackerName" -> attackerName,
+            "defenderName" -> defenderName,
+            "state" -> Json.toJson(web)
+          )
+        )
+      }
+    )
+  }
 }

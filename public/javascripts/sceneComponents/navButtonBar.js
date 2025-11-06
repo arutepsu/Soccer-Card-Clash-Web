@@ -1,5 +1,5 @@
 // /assets/javascripts/navButtonBar.js
-export function createNavButtonBar({ navigate } = {}) {
+export function createNavButtonBar({ navigate, api } = {}) {
   let root;
   let onEvent = () => {};
 
@@ -7,7 +7,26 @@ export function createNavButtonBar({ navigate } = {}) {
     if (typeof navigate === 'function') navigate(path);
     else window.location.href = path;
   }
-
+  async function doRestart() {
+    const btns = root?.querySelectorAll('[data-pause-action]');
+    btns?.forEach(b => b.setAttribute('disabled', 'true'));
+    try {
+      if (api?.restart) {
+        await api.restart();
+      } else {
+        await fetch('/api/game/restart', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      go('/playing-field');
+    } catch (e) {
+      console.error('Restart failed', e);
+      alert('Restart failed. Please try again.');
+    } finally {
+      btns?.forEach(b => b.removeAttribute('disabled'));
+    }
+  }
   function mount(el) {
     root = el;
     root.innerHTML = `
@@ -65,10 +84,20 @@ export function createNavButtonBar({ navigate } = {}) {
       }
     }
 
-    overlay.__closeOverlay?.();
+    // Call whichever the overlay provided
+    try {
+      if (typeof overlay.__hideOverlay === 'function') {
+        overlay.__hideOverlay();
+      } else if (typeof overlay.__closeOverlay === 'function') {
+        overlay.__closeOverlay();
+      }
+    } catch {}
+
+    // Also toggle the host classes/attrs for good measure
     overlay.classList.add('hidden');
     overlay.setAttribute('aria-hidden', 'true');
   }
+
 
   function openPauseDialog() {
     const overlay = document.getElementById('overlay');
@@ -79,7 +108,8 @@ export function createNavButtonBar({ navigate } = {}) {
     const html = `
       <div class="overlay-textflow" role="dialog" aria-label="Paused">
         <h2 class="dialog-title" style="text-align:center;">Paused</h2>
-        <div class="overlay-actions" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center;">
+        <div class="overlay-actions"
+            style="display:flex; flex-direction:column; gap:12px; align-items:center; justify-content:center;">
           <button class="gbtn" data-pause-action="resume">Resume</button>
           <button class="gbtn" data-pause-action="undo">Undo</button>
           <button class="gbtn" data-pause-action="redo">Redo</button>
@@ -107,6 +137,30 @@ export function createNavButtonBar({ navigate } = {}) {
       if (!el) return;
       const act = el.dataset.pauseAction;
 
+      if (act === 'resume') {
+        // just close overlay — no navigation
+        finishAndClose('resume');
+        return;
+      }
+
+      if (act === 'undo') {
+        finishAndClose('undo');
+        return;
+      }
+
+      if (act === 'redo') {
+        finishAndClose('redo');
+        return;
+      }
+
+      if (act === 'restart') {
+        onEvent({ type: 'PauseDialogAction', action: 'restart' });
+        cleanup();
+        closeOverlay(overlay, { restoreTo: previouslyFocused });
+        doRestart();
+        return;
+      }
+
       if (act === 'mainmenu') {
         onEvent({ type: 'PauseDialogAction', action: 'mainmenu' });
         cleanup();
@@ -114,7 +168,6 @@ export function createNavButtonBar({ navigate } = {}) {
         go('/main-menu');
         return;
       }
-      finishAndClose(act);
     };
 
     const onKey = (e) => {
