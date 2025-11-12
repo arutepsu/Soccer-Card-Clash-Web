@@ -5,6 +5,7 @@ import { createCardAnimations } from '../utils/cardAnimations.js';
 const anim = createCardAnimations();
 
 export function createFieldCardFactory(registry) {
+
   function createDefaultFieldCard(cardOpt) {
     const cardFile = cardOpt?.fileName;
     const view = createGameCardView({
@@ -13,10 +14,13 @@ export function createFieldCardFactory(registry) {
       isSelectable: false,
       card: cardFile ? { fileName: cardFile } : null
     });
-    view.el.classList.add('field-card');
-    // boosted?
-    if (cardOpt?.isBoosted) anim.applyBoostEffect(view.el);
-    return view.el;
+
+    const $el = $(view.el);
+    $el.addClass('field-card');
+
+    if (cardOpt?.isBoosted) anim.applyBoostEffect($el[0]);
+
+    return $el[0];
   }
 
   function createSelectableFieldCard({ cardOpt, index, selectedIndexAccessor, isGoalkeeper = false, onSelected }) {
@@ -26,46 +30,55 @@ export function createFieldCardFactory(registry) {
       isSelectable: true,
       card: cardOpt?.fileName ? { fileName: cardOpt.fileName } : null
     });
-    view.el.classList.add('field-card');
-    view.el.dataset.index = String(index);
-    if (isGoalkeeper) view.el.classList.add('is-goalkeeper');
-    if (cardOpt?.isBoosted) anim.applyBoostEffect(view.el);
 
-    view.el.addEventListener('mouseenter', () => anim.applyHoverEffect(view.el, selectedIndexAccessor(), index));
-    view.el.addEventListener('mouseleave', () => anim.removeHoverEffect(view.el, selectedIndexAccessor(), index));
-    view.el.addEventListener('click', () => {
-      const currentlySelected = selectedIndexAccessor();
-      if (currentlySelected === index) {
-        view.setSelected(false);
-        onSelected(-1);
-      } else {
-        onSelected(index);
-        view.setSelected(true);
-      }
-    });
+    const $el = $(view.el)
+      .addClass('field-card')
+      .attr('data-index', String(index));
 
-    return view.el;
+    if (isGoalkeeper) $el.addClass('is-goalkeeper');
+    if (cardOpt?.isBoosted) anim.applyBoostEffect($el[0]);
+
+    // Event-Handling mit jQuery
+    $el
+      .on('mouseenter', () => anim.applyHoverEffect($el[0], selectedIndexAccessor(), index))
+      .on('mouseleave', () => anim.removeHoverEffect($el[0], selectedIndexAccessor(), index))
+      .on('click', () => {
+        const current = selectedIndexAccessor();
+        if (current === index) {
+          view.setSelected(false);
+          onSelected(-1);
+        } else {
+          onSelected(index);
+          view.setSelected(true);
+        }
+      });
+
+    return $el[0];
   }
 
   function createStaticImageCard(imageUrl, index) {
-    const wrap = document.createElement('div');
-    wrap.className = 'static-card';
-    wrap.dataset.index = String(index);
+    const $wrap = $('<div></div>')
+      .addClass('static-card')
+      .attr('data-index', String(index));
 
-    const im = document.createElement('img');
-    im.src = imageUrl;
-    im.alt = 'Defeated';
-    im.style.width = '160px';
-    im.style.height = '150px';
-    im.style.objectFit = 'contain';
+    const $img = $('<img>')
+      .attr({
+        src: imageUrl,
+        alt: 'Defeated'
+      })
+      .css({
+        width: '160px',
+        height: '150px',
+        objectFit: 'contain'
+      });
 
-    wrap.appendChild(im);
-    return wrap;
+    $wrap.append($img);
+    return $wrap[0];
   }
 
   return {
     createDefaultFieldCard,
     createSelectableFieldCard,
-    createStaticImageCard,
+    createStaticImageCard
   };
 }

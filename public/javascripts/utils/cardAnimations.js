@@ -76,6 +76,27 @@ export function createCardAnimations({
     removeBadge(el);
   }
 
+  /* ---------- defeated (burst + shake) ---------- */
+  function applyDefeatedEffect(el) {
+    // Cancel any boost pulse so effects don't clash
+    const map = running.get(el);
+    map?.pulse?.cancel?.();
+    if (map) { delete map.pulse; running.set(el, map); }
+
+    // Small burst + shake + fade to defeated look
+    try {
+      el.animate(
+        [
+          { transform: 'scale(1) rotate(0deg)', filter: 'none', boxShadow: 'var(--shadow)' },
+          { transform: 'scale(0.92) rotate(-3deg)', filter: 'brightness(1.1) saturate(1.2)', boxShadow: '0 0 18px rgba(255,0,0,0.45)' },
+          { transform: 'scale(1.06) rotate(2deg)',  filter: 'brightness(1.2) saturate(1.3)', boxShadow: '0 0 22px rgba(255,0,0,0.55)' },
+          { transform: 'scale(1) rotate(0deg)',     filter: 'grayscale(0.95) contrast(0.9) brightness(0.9)', boxShadow: 'var(--shadow)' },
+        ],
+        { duration: 520, easing: 'cubic-bezier(.2,.9,.2,1)', iterations: 1, fill: 'forwards' }
+      );
+    } catch {}
+  }
+
   /* ---------- optional nicety you already had ---------- */
   function highlightLastHandCard(playerId, gameState, root) {
     const hand = gameState?.gameCards?.hands?.[playerId] ?? [];
@@ -95,6 +116,7 @@ export function createCardAnimations({
     removeHoverEffect,
     applyBoostEffect,
     removeBoostEffect,
+    applyDefeatedEffect,
     highlightLastHandCard,
   };
 }

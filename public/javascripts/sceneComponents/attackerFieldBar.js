@@ -1,72 +1,72 @@
-// Wraps createDefaultFieldCardRenderer to add click selection.
 export function createAttackerFieldBar(getCurrentAttacker, getGameState, fieldRenderer) {
-  let root = null;
+  let $root = null;
   let mounted = false;
   let selected = null;
   let lastAttackerName = null;
-  const cssSelect = (el) => el.classList.add('is-selected');
+
+  const cssSelect = ($el) => $el.addClass('is-selected');
   const cssUnselectAll = () => {
-    if (!root) return;
-    root.querySelectorAll('.field-card.is-selected')
-        .forEach(el => el.classList.remove('is-selected'));
+    if (!$root) return;
+    $root.find('.field-card.is-selected').removeClass('is-selected');
   };
 
-  const canPick = (el) => !el.classList.contains('is-defeated');
+  const canPick = ($el) => !$el.hasClass('is-defeated');
 
   function render() {
-    if (!root) return;
-    root.innerHTML = '';
+    if (!$root) return;
+    $root.empty();
 
-       const attackerPlayer = typeof getCurrentAttacker === 'function'
-     ? getCurrentAttacker()
-     : { id: 'att', name: getGameState()?.roles?.attacker };
+    const attackerPlayer = typeof getCurrentAttacker === 'function'
+      ? getCurrentAttacker()
+      : { id: 'att', name: getGameState()?.roles?.attacker };
 
-   const attName = attackerPlayer?.name ?? null;
-   if (attName !== lastAttackerName) {
-     lastAttackerName = attName;
-     selected = null;
-   }
+    const attName = attackerPlayer?.name ?? null;
+    if (attName !== lastAttackerName) {
+      lastAttackerName = attName;
+      selected = null;
+    }
 
-    const defRow = fieldRenderer.createDefenderRow(attackerPlayer, getGameState);
-    const gkRow  = fieldRenderer.createGoalkeeperRow(attackerPlayer, getGameState);
+    const defRow = $(fieldRenderer.createDefenderRow(attackerPlayer, getGameState));
+    const gkRow  = $(fieldRenderer.createGoalkeeperRow(attackerPlayer, getGameState));
 
-    defRow.querySelectorAll('.field-card').forEach(card => {
-      card.addEventListener('click', () => {
-        if (!canPick(card)) return;
-        const idx = Number(card.dataset.index);
+    // --- Verteidiger-Karten ---
+    defRow.find('.field-card').each(function() {
+      const $card = $(this);
+      $card.on('click', function() {
+        if (!canPick($card)) return;
+        const idx = Number($card.data('index'));
         selected = { kind: 'defender', index: idx };
         cssUnselectAll();
-        cssSelect(card);
+        cssSelect($card);
       });
     });
 
-    const gkEl = gkRow.querySelector('.field-card.goalkeeper');
-    if (gkEl) {
-      gkEl.addEventListener('click', () => {
-        if (!canPick(gkEl)) return;
+    // --- Torwart-Karte ---
+    const $gkEl = gkRow.find('.field-card.goalkeeper');
+    if ($gkEl.length) {
+      $gkEl.on('click', function() {
+        if (!canPick($gkEl)) return;
         selected = { kind: 'goalkeeper' };
         cssUnselectAll();
-        cssSelect(gkEl);
+        cssSelect($gkEl);
       });
     }
 
     if (selected?.kind === 'defender') {
-      const el = defRow.querySelector(`.field-card[data-index="${selected.index}"]`);
-      if (el && canPick(el)) cssSelect(el); else selected = null;
+      const $el = defRow.find(`.field-card[data-index="${selected.index}"]`);
+      if ($el.length && canPick($el)) cssSelect($el); else selected = null;
     } else if (selected?.kind === 'goalkeeper') {
-      if (gkEl && canPick(gkEl)) cssSelect(gkEl); else selected = null;
+      if ($gkEl.length && canPick($gkEl)) cssSelect($gkEl); else selected = null;
     }
 
-    root.appendChild(defRow);
-    root.appendChild(gkRow);
+    $root.append(defRow, gkRow);
   }
 
   return {
     mount(container) {
       if (mounted) return;
-      root = document.createElement('div');
-      root.className = 'attacker-field-bar';
-      container.appendChild(root);
+      $root = $('<div class="attacker-field-bar"></div>');
+      $(container).append($root);
       mounted = true;
       render();
     },

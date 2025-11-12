@@ -30,6 +30,8 @@ export function createDefaultFieldCardRenderer(assets = {}) {
     } else {
       el.style.backgroundImage = `url("${defeatedImg}")`;
       el.classList.add('is-defeated');
+      // defeated animation burst
+      anim.applyDefeatedEffect?.(el);
     }
 
     el.style.backgroundSize = 'cover';

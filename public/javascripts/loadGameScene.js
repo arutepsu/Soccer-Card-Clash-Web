@@ -1,4 +1,11 @@
+import { createSoundManager } from './utils/soundManager.js';
+
 export async function build({ api, overlay, createGameAlert }) {
+  // Sound Manager 
+  const soundManager = createSoundManager({ basePath: '/assets/sounds/' });
+  soundManager.preload('hover', 'hover.wav');
+  soundManager.preload('click', 'attack.wav');
+  
   const root = document.querySelector('.scene--loadgame');
   const container = root?.querySelector('.container');
   if (!root || !container) return { destroy() {}, refresh: async () => {} };
@@ -60,7 +67,13 @@ export async function build({ api, overlay, createGameAlert }) {
       btnLoad.type = 'button';
       btnLoad.className = 'gbtn';
       btnLoad.textContent = 'Load';
+      
+      btnLoad.addEventListener('mouseenter', () => {
+        soundManager.play('hover', { volume: 0.3 });
+      });
+      
       btnLoad.addEventListener('click', async () => {
+        soundManager.play('click', { volume: 0.6 });
         try {
           // POST { id } to load the save, then go to playing field
           await api.postJSON(loadUrl, { id });

@@ -163,6 +163,16 @@
     transform: translateX(0);
   }
 
+  @keyframes cameraZoom {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+.scene--playingfield.goal {
+  animation: cameraZoom 0.6s ease;
+}
+
+
   #field {
     order: 2;
     align-self: center;
@@ -188,6 +198,8 @@
     z-index: 100;
   }
 }
+
+
 
 @media (max-height: 500px) and (orientation: landscape) {
   .board {
