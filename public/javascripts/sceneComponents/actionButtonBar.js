@@ -1,36 +1,60 @@
 export function createActionButtonBar() {
-  let root, onAction = () => {};
+  let $root = null;
+  let onAction = () => {};
+  let onHover = null; // Callback für Hover-Events
 
   function mount(el) {
-    root = el;
-    root.innerHTML = `
+    $root = $(el);
+    $root.html(`
       <button type="button" class="gbtn" data-action="attack-regular">Attack</button>
       <button type="button" class="gbtn" data-action="attack-double">Double Attack</button>
       <button type="button" class="gbtn" data-action="info">Info</button>
-    `;
-    root.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-action]');
-      if (!btn) return;
+    `);
+
+    $root.on('click', '[data-action]', function (e) {
       e.preventDefault();
-      const action = btn.dataset.action;
-      if (action === 'info') { openInfoDialog('GAME_INFO'); return; }
+      const action = $(this).data('action');
+
+      if (action === 'info') {
+        openInfoDialog('GAME_INFO');
+        return;
+      }
+
       onAction(action);
+    });
+
+    // Hover-Event für Sound-Effekte
+    $root.on('mouseenter', '[data-action]', function (e) {
+      if (onHover && !$(this).prop('disabled')) {
+        const action = $(this).data('action');
+        onHover({ type: 'hover', action });
+      }
     });
   }
 
   function setEnabled(map) {
-    if (!root) return;
-    Object.entries(map).forEach(([action, enabled]) => {
-      const btn = root.querySelector(`[data-action="${action}"]`);
-      if (btn) btn.disabled = !enabled;
+    if (!$root) return;
+    $.each(map, (action, enabled) => {
+      const $btn = $root.find(`[data-action="${action}"]`);
+      $btn.prop('disabled', !enabled);
     });
   }
 
-  function onClick(fn) { onAction = fn || onAction; }
+  function onClick(fn) {
+    if (typeof fn === 'function') {
+      onAction = fn;
+    }
+  }
+
+  function onHoverEvent(fn) {
+    if (typeof fn === 'function') {
+      onHover = fn;
+    }
+  }
 
   function openInfoDialog(key = 'GAME_INFO') {
-    const overlay = document.getElementById('overlay');
-    if (!overlay) return;
+    const $overlay = $('#overlay');
+    if (!$overlay.length) return;
 
     const html = `
       <div class="overlay-textflow">
@@ -44,18 +68,19 @@ export function createActionButtonBar() {
       </div>
     `;
 
-    // Prefer the proper API
-    if (overlay.__showOverlay) {
-      overlay.__showOverlay(html, { autoHide: false });
+    // Wenn das Overlay ein eigenes API hat
+    const overlayEl = $overlay.get(0);
+    if (overlayEl && typeof overlayEl.__showOverlay === 'function') {
+      overlayEl.__showOverlay(html, { autoHide: false });
       return;
     }
 
-    // Fallback (in case the bridge isn’t there yet)
-    const scroll = overlay.querySelector('.overlay-scroll');
-    if (scroll) scroll.innerHTML = html;
-    overlay.classList.remove('hidden');
-    overlay.setAttribute('aria-hidden', 'false');
+    // Fallback: direkter jQuery-Zugriff
+    const $scroll = $overlay.find('.overlay-scroll');
+    if ($scroll.length) $scroll.html(html);
+
+    $overlay.removeClass('hidden').attr('aria-hidden', 'false');
   }
 
-  return { mount, setEnabled, onClick };
+  return { mount, setEnabled, onClick, onHoverEvent };
 }

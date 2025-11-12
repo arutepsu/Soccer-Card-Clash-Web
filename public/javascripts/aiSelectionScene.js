@@ -1,20 +1,21 @@
 export async function build({ api, overlay, createGameAlert }) {
-  const root = document.querySelector('.scene--ai');
-  if (!root) return { destroy() {}, refresh: async () => {} };
+  const $root = $('.scene--ai');
+  if (!$root || $root.length === 0) return { destroy() {}, refresh: async () => {} };
 
-  const cards = Array.from(root.querySelectorAll('.card[data-ai]'));
-  const startBtn = root.querySelector('#btn-start');
+  const $cards = $root.find('.card[data-ai]');
+  const $startBtn = $root.find('#btn-start');
 
   let selectedAI = null;
 
-  function selectCard(card) {
-    cards.forEach(c => c.classList.remove('is-selected'));
-    card.classList.add('is-selected');
-    selectedAI = card.dataset.ai;
+  function selectCard($card) {
+    $cards.removeClass('is-selected');
+    $card.addClass('is-selected');
+    selectedAI = $card.data('ai');
   }
 
-  cards.forEach(card => {
-    card.addEventListener('click', () => selectCard(card));
+  // attach handlers
+  $cards.on('click.aiSelect', function () {
+    selectCard($(this));
   });
 
   function showAlert(msg) {
@@ -24,7 +25,7 @@ export async function build({ api, overlay, createGameAlert }) {
     } else alert(msg);
   }
 
-  startBtn?.addEventListener('click', async () => {
+  $startBtn.on('click.aiStart', async function () {
     if (!selectedAI) {
       showAlert('Please select an AI opponent first!');
       return;
@@ -53,8 +54,8 @@ export async function build({ api, overlay, createGameAlert }) {
 
   return {
     destroy() {
-      cards.forEach(c => c.removeEventListener('click', selectCard));
-      startBtn?.removeEventListener('click', () => {});
+      $cards.off('.aiSelect');
+      $startBtn.off('.aiStart');
     },
     refresh: async () => {}
   };

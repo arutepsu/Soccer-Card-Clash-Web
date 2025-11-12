@@ -1,12 +1,29 @@
 // /assets/javascripts/multiplayerScene.js
+import { createSoundManager } from './utils/soundManager.js';
 
 export async function build({ api, overlay, createGameAlert }) {
+  // Sound Manager
+  const soundManager = createSoundManager({ basePath: '/assets/sounds/' });
+  soundManager.preload('hover', 'hover.wav');
+  soundManager.preload('click', 'attack.wav');
+  
   const root   = document.querySelector('.scene--create-multiplayer');
   const form   = root?.querySelector('form');
   const p1     = root?.querySelector('input[name="player1"]');
   const p2     = root?.querySelector('input[name="player2"]');
   const btnOk  = root?.querySelector('button[type="submit"]');
   const btnBack = root?.querySelector('a.gbtn.gbtn--secondary');
+
+
+  const buttons = [btnOk, btnBack].filter(Boolean);
+  buttons.forEach(btn => {
+    btn.addEventListener('mouseenter', () => {
+      if (!btn.disabled) soundManager.play('hover', { volume: 0.3 });
+    });
+    btn.addEventListener('click', () => {
+      if (!btn.disabled) soundManager.play('click', { volume: 0.6 });
+    });
+  });
 
   const trim = (el) => (el?.value ?? '').trim();
   const setBusy = (busy) => {

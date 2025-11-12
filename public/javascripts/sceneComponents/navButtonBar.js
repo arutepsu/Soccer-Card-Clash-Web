@@ -1,5 +1,5 @@
 // /assets/javascripts/navButtonBar.js
-export function createNavButtonBar({ navigate, api } = {}) {
+export function createNavButtonBar({ navigate, api, soundManager } = {}) {
   let root;
   let onEvent = () => {};
 
@@ -38,6 +38,11 @@ export function createNavButtonBar({ navigate, api } = {}) {
     root.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
+      
+      if (soundManager && !btn.disabled) {
+        soundManager.play('click', { volume: 0.6 });
+      }
+      
       const a = btn.dataset.action;
 
       if (a === 'pause') { openPauseDialog(); return; }
@@ -54,6 +59,13 @@ export function createNavButtonBar({ navigate, api } = {}) {
         return;
       }
     });
+    
+    root.addEventListener('mouseenter', (e) => {
+      const btn = e.target.closest('[data-action]');
+      if (btn && soundManager && !btn.disabled) {
+        soundManager.play('hover', { volume: 0.3 });
+      }
+    }, true);
   }
 
   function showOverlay(overlay, html, opts = { autoHide: false }) {
@@ -135,6 +147,11 @@ export function createNavButtonBar({ navigate, api } = {}) {
     const onClick = (e) => {
       const el = e.target.closest('[data-pause-action]');
       if (!el) return;
+      
+      if (soundManager && !el.disabled) {
+        soundManager.play('click', { volume: 0.6 });
+      }
+      
       const act = el.dataset.pauseAction;
 
       if (act === 'resume') {
@@ -176,10 +193,19 @@ export function createNavButtonBar({ navigate, api } = {}) {
 
     function cleanup() {
       scroll?.removeEventListener('click', onClick);
+      scroll?.removeEventListener('mouseenter', onHover, true);
       document.removeEventListener('keydown', onKey);
     }
+    
+    const onHover = (e) => {
+      const el = e.target.closest('[data-pause-action]');
+      if (el && soundManager && !el.disabled) {
+        soundManager.play('hover', { volume: 0.3 });
+      }
+    };
 
     scroll?.addEventListener('click', onClick);
+    scroll?.addEventListener('mouseenter', onHover, true);
     document.addEventListener('keydown', onKey);
   }
 

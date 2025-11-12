@@ -13,6 +13,7 @@ import { createComparisonHandler } from './utils/comparisonHandler.js';
 
 import { createGameApi } from './api/gameApi.js';
 import { createPlayingFieldController } from './controllers/playingFieldController.js';
+import { createSoundManager } from './utils/soundManager.js';
 
 // -------- helpers --------
 function buildSceneViewFromWeb(web, registry) {
@@ -99,13 +100,19 @@ export async function build({ api, overlay, createGameAlert }) {
     fileNames: ['player1.jpg','player2.jpg','ai.jpg','taka.jpg','defendra.jpg','bitstrom.jpg','meta.jpg']
   });
   const cardRegistry = createCardImageRegistry();
+  
+  // Sound manager
+  const soundManager = createSoundManager({ basePath: '/assets/sounds/' });
+  soundManager.preload('attack', 'attack.wav'); 
+  soundManager.preload('hover', 'hover.wav');
+  
   await Promise.all([avatarRegistry.preloadAvatars().catch(() => {}), cardRegistry.preloadAll().catch(() => {})]);
 
   // 2) mount bars
   const playersBar = createPlayersBar(avatarRegistry);
   playersBar.mount(document.getElementById('players-bar'));
 
-  const navBar = createNavButtonBar({ api });
+  const navBar = createNavButtonBar({ api, soundManager });
   navBar.onSceneEvent((ev) => {
   if (!ev) return;
 
@@ -181,15 +188,27 @@ export async function build({ api, overlay, createGameAlert }) {
       case 'attack':
       case 'single-attack':
       case 'singleAttack':
+        soundManager.play('attack', { volume: 0.7 });
+        // Flip animation auf die erste Karte im Angreifer-Feld anwenden
+        const field = document.getElementById('field');
+        if (field) {
+          const firstCard = field.querySelector('.game-card');
+          if (firstCard) {
+            firstCard.classList.add('flip');
+            setTimeout(() => firstCard.classList.remove('flip'), 700);
+          }
+        }
         controller.onSingleAttackDefender?.(); return;
 
       case 'attack-goalkeeper':
       case 'single-attack-gk':
       case 'attack-gk':
+        soundManager.play('attack', { volume: 0.7 });
         controller.onSingleAttackGoalkeeper?.(); return;
 
       case 'attack-double':
       case 'double-attack':
+        soundManager.play('attack', { volume: 0.7 });
         controller.onDoubleAttack?.(); return;
 
       case 'swap':
@@ -215,6 +234,12 @@ export async function build({ api, overlay, createGameAlert }) {
     }
   };
   actionBar.onClick(onActionClick);
+
+  actionBar.onHoverEvent?.((event) => {
+    if (event?.type === 'hover') {
+      soundManager.play('hover', { volume: 0.5 });
+    }
+  });
 
   let lastRoles = { attacker: '', defender: '' };
   // 8) streaming updates (SSE)
