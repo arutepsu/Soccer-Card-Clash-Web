@@ -10,6 +10,7 @@ export function createComparisonOrchestrator({
   applyUiFromWeb,           // (web) => void
   updateFromServerContext,  // (web) => void
   generator,                // ComparisonDialogGenerator
+  soundManager,  
 }) {
     let pendingActionType = null;
     let isOverlayActive   = false;
@@ -141,6 +142,7 @@ let currentComparison = null; // { atkCard, defCard, success }
       delay: 3000 + delay + 150,
       block: async () => {
         try {
+          soundManager.play('attack', { volume: 0.7 });
           const fresh = latestStreamWeb || await api.fetchGameState();
           latestStreamWeb = null;
           applyUiFromWeb(fresh);
