@@ -1,5 +1,5 @@
-// /assets/javascripts/navButtonBar.js
-export function createNavButtonBar({ navigate, api } = {}) {
+// navButtonBar.js
+export function createNavButtonBar({ navigate, api, overlay } = {}) {
   let root;
   let onEvent = () => {};
 
@@ -7,6 +7,7 @@ export function createNavButtonBar({ navigate, api } = {}) {
     if (typeof navigate === 'function') navigate(path);
     else window.location.href = path;
   }
+
   async function doRestart() {
     const btns = root?.querySelectorAll('[data-pause-action]');
     btns?.forEach(b => b.setAttribute('disabled', 'true'));
@@ -27,6 +28,7 @@ export function createNavButtonBar({ navigate, api } = {}) {
       btns?.forEach(b => b.removeAttribute('disabled'));
     }
   }
+
   function mount(el) {
     root = el;
     root.innerHTML = `
@@ -40,7 +42,10 @@ export function createNavButtonBar({ navigate, api } = {}) {
       if (!btn) return;
       const a = btn.dataset.action;
 
-      if (a === 'pause') { openPauseDialog(); return; }
+      if (a === 'pause') {
+        openPauseDialog();
+        return;
+      }
 
       if (a === 'show-defenders') {
         onEvent({ type: 'SceneSwitchEvent' });
@@ -56,80 +61,35 @@ export function createNavButtonBar({ navigate, api } = {}) {
     });
   }
 
-  function showOverlay(overlay, html, opts = { autoHide: false }) {
-    overlay.setAttribute('aria-hidden', 'false');
-    overlay.classList.remove('hidden');
-
-    if (overlay.__showOverlay) {
-      overlay.__showOverlay(html, opts);
-      return true;
-    }
-
-    const scroll = overlay.querySelector('.overlay-scroll');
-    if (scroll) scroll.innerHTML = html;
-
-    if (overlay.__openOverlay) {
-      overlay.__openOverlay(opts);
-    }
-
-    return true;
-  }
-
-  function closeOverlay(overlay, { restoreTo } = {}) {
-    if (restoreTo && restoreTo.focus) {
-      try { restoreTo.focus(); } catch {}
-    } else {
-      if (document.activeElement && document.activeElement !== document.body) {
-        try { document.activeElement.blur(); } catch {}
-      }
-    }
-
-    // Call whichever the overlay provided
-    try {
-      if (typeof overlay.__hideOverlay === 'function') {
-        overlay.__hideOverlay();
-      } else if (typeof overlay.__closeOverlay === 'function') {
-        overlay.__closeOverlay();
-      }
-    } catch {}
-
-    // Also toggle the host classes/attrs for good measure
-    overlay.classList.add('hidden');
-    overlay.setAttribute('aria-hidden', 'true');
-  }
-
-
   function openPauseDialog() {
-    const overlay = document.getElementById('overlay');
-    if (!overlay) return;
+    if (!overlay || !overlay.show) return;
 
     const previouslyFocused = document.activeElement;
 
-    const html = `
-      <div class="overlay-textflow" role="dialog" aria-label="Paused">
-        <h2 class="dialog-title" style="text-align:center;">Paused</h2>
-        <div class="overlay-actions"
-            style="display:flex; flex-direction:column; gap:12px; align-items:center; justify-content:center;">
-          <button class="gbtn" data-pause-action="resume">Resume</button>
-          <button class="gbtn" data-pause-action="undo">Undo</button>
-          <button class="gbtn" data-pause-action="redo">Redo</button>
-          <button class="gbtn" data-pause-action="restart">Restart</button>
-          <button class="gbtn" data-pause-action="mainmenu">Main Menu</button>
-        </div>
+    const node = document.createElement('div');
+    node.className = 'overlay-textflow';
+    node.setAttribute('role', 'dialog');
+    node.setAttribute('aria-label', 'Paused');
+    node.innerHTML = `
+      <h2 class="dialog-title" style="text-align:center;">Paused</h2>
+      <div class="overlay-actions"
+           style="display:flex; flex-direction:column; gap:12px; align-items:center; justify-content:center;">
+        <button class="gbtn" data-pause-action="resume">Resume</button>
+        <button class="gbtn" data-pause-action="undo">Undo</button>
+        <button class="gbtn" data-pause-action="redo">Redo</button>
+        <button class="gbtn" data-pause-action="restart">Restart</button>
+        <button class="gbtn" data-pause-action="mainmenu">Main Menu</button>
       </div>
     `;
-
-    showOverlay(overlay, html, { autoHide: false });
-
-    const firstBtn = overlay.querySelector('[data-pause-action]');
-    if (firstBtn) firstBtn.focus();
-
-    const scroll = overlay.querySelector('.overlay-scroll');
 
     const finishAndClose = (action) => {
       onEvent({ type: 'PauseDialogAction', action });
       cleanup();
-      closeOverlay(overlay, { restoreTo: previouslyFocused });
+      overlay.hide();
+
+      if (previouslyFocused && document.contains(previouslyFocused)) {
+        try { previouslyFocused.focus(); } catch {}
+      }
     };
 
     const onClick = (e) => {
@@ -138,7 +98,6 @@ export function createNavButtonBar({ navigate, api } = {}) {
       const act = el.dataset.pauseAction;
 
       if (act === 'resume') {
-        // just close overlay — no navigation
         finishAndClose('resume');
         return;
       }
@@ -154,9 +113,10 @@ export function createNavButtonBar({ navigate, api } = {}) {
       }
 
       if (act === 'restart') {
+        // we want the scene to know about restart, but also actually restart
         onEvent({ type: 'PauseDialogAction', action: 'restart' });
         cleanup();
-        closeOverlay(overlay, { restoreTo: previouslyFocused });
+        overlay.hide();
         doRestart();
         return;
       }
@@ -164,23 +124,31 @@ export function createNavButtonBar({ navigate, api } = {}) {
       if (act === 'mainmenu') {
         onEvent({ type: 'PauseDialogAction', action: 'mainmenu' });
         cleanup();
-        closeOverlay(overlay, { restoreTo: previouslyFocused });
+        overlay.hide();
         go('/main-menu');
         return;
       }
     };
 
     const onKey = (e) => {
-      if (e.key === 'Escape') finishAndClose('resume');
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        finishAndClose('resume');
+      }
     };
 
     function cleanup() {
-      scroll?.removeEventListener('click', onClick);
+      node.removeEventListener('click', onClick);
       document.removeEventListener('keydown', onKey);
     }
 
-    scroll?.addEventListener('click', onClick);
+    node.addEventListener('click', onClick);
     document.addEventListener('keydown', onKey);
+
+    overlay.show(node, { autoHide: false });
+
+    const firstBtn = node.querySelector('[data-pause-action]');
+    if (firstBtn) firstBtn.focus();
   }
 
   function onSceneEvent(fn) { onEvent = fn || onEvent; }
