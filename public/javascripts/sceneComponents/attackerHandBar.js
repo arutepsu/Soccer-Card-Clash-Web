@@ -1,21 +1,20 @@
-// sceneComponents/attackerHandBar.js
 export function createAttackerHandBar(getCurrentAttacker, getGameState, handRenderer) {
-  let root = null;
+  let $root = null;
   let mounted = false;
   let selectedIndex = -1;
   let lastAttackerName = null;
 
-  const safeState = () => (typeof getGameState === 'function' ? getGameState() : null);
+  const safeState = () =>
+    (typeof getGameState === 'function' ? getGameState() : null);
 
   const handsOf = (gs, pid) =>
     gs?.cards?.hands?.[pid] ??
     gs?.gameCards?.hands?.[pid] ??
     [];
 
-  const clearCssSelection = (row) => {
-    if (!row) return;
-    row.querySelectorAll('.hand-card.is-selected')
-       .forEach(el => el.classList.remove('is-selected'));
+  const clearCssSelection = ($row) => {
+    if (!$row) return;
+    $row.find('.hand-card.is-selected').removeClass('is-selected').attr('aria-selected', 'false');
   };
 
   const currentAttacker = () => {
@@ -26,39 +25,44 @@ export function createAttackerHandBar(getCurrentAttacker, getGameState, handRend
   };
 
   function createSelectableHandCard({ card, index, isLast, onSelected }) {
-    const el = document.createElement('div');
-    el.className = 'hand-card game-card';
-    el.dataset.index = String(index);
-    el.setAttribute('tabindex', '0');
-    el.setAttribute('role', 'option');
+    const $el = $('<div></div>')
+      .addClass('hand-card game-card')
+      .attr({
+        'data-index': index,
+        'tabindex': 0,
+        'role': 'option',
+      });
 
     const url = isLast
       ? (card?.imgFront || card?.img)
-      : (card?.imgBack  || card?.img);
+      : (card?.imgBack || card?.img);
 
     if (url) {
-      el.style.backgroundImage = `url("${url}")`;
-      el.style.backgroundSize = 'cover';
-      el.style.backgroundPosition = 'center';
-      el.style.backgroundRepeat = 'no-repeat';
+      $el.css({
+        'background-image': `url("${url}")`,
+        'background-size': 'cover',
+        'background-position': 'center',
+        'background-repeat': 'no-repeat',
+      });
     } else {
-      el.textContent = isLast ? (card?.fileName ?? 'card') : '🂠';
+      $el.text(isLast ? (card?.fileName ?? 'card') : '🂠');
     }
 
-    el.addEventListener('click', () => onSelected(index));
-    el.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelected(index); }
+    // Klick + Tastatursteuerung
+    $el.on('click', () => onSelected(index));
+    $el.on('keydown', (e) => {
+      if (['Enter', ' '].includes(e.key)) { e.preventDefault(); onSelected(index); }
       if (e.key === 'ArrowLeft')  { e.preventDefault(); onSelected(Math.max(0, index - 1)); }
-      if (e.key === 'ArrowRight') { e.preventDefault(); onSelected(Math.min(index + 1, (el.parentElement?.children.length ?? 1) - 1)); }
+      if (e.key === 'ArrowRight') { e.preventDefault(); onSelected(Math.min(index + 1, ($el.parent().children().length ?? 1) - 1)); }
       if (e.key === 'Escape')     { e.preventDefault(); if (selectedIndex !== -1) onSelected(selectedIndex); }
     });
 
-    return el;
+    return $el;
   }
 
   function render() {
-    if (!root) return;
-    root.innerHTML = '';
+    if (!$root) return;
+    $root.empty();
 
     const gs = safeState();
     const attacker = currentAttacker();
@@ -71,38 +75,40 @@ export function createAttackerHandBar(getCurrentAttacker, getGameState, handRend
 
     const list = handsOf(gs, attacker.id);
 
-    const row = document.createElement('div');
-    row.className = 'hand-row hand-row-inner';
-    row.setAttribute('role', 'listbox');
-    row.setAttribute('aria-label', `${attName ?? 'Attacker'} hand`);
+    const $row = $('<div></div>')
+      .addClass('hand-row hand-row-inner')
+      .attr({
+        'role': 'listbox',
+        'aria-label': `${attName ?? 'Attacker'} hand`
+      });
 
     const onSelected = (next) => {
       selectedIndex = (selectedIndex === next) ? -1 : next;
-      clearCssSelection(row);
-      row.querySelectorAll('.hand-card').forEach((el, i) => {
+      clearCssSelection($row);
+
+      $row.find('.hand-card').each(function(i) {
+        const $card = $(this);
         const isSel = i === selectedIndex;
-        el.classList.toggle('is-selected', isSel);
-        el.setAttribute('aria-selected', String(isSel));
-        if (isSel) el.focus();
+        $card.toggleClass('is-selected', isSel);
+        $card.attr('aria-selected', String(isSel));
+        if (isSel) $card.focus();
       });
     };
 
     list.forEach((card, index) => {
       const isLast = index === list.length - 1;
-      const el = createSelectableHandCard({ card, index, isLast, onSelected });
-      el.setAttribute('aria-selected', String(selectedIndex === index));
-      row.appendChild(el);
+      const $el = createSelectableHandCard({ card, index, isLast, onSelected });
+      $el.attr('aria-selected', String(selectedIndex === index));
+      $row.append($el);
     });
 
-    root.appendChild(row);
-    handRenderer?.applyOverlapSpacing?.(row, list.length);
+    $root.append($row);
+    handRenderer?.applyOverlapSpacing?.($row[0], list.length);
 
     if (selectedIndex >= 0 && selectedIndex < list.length) {
-      const selEl = row.querySelector(`.hand-card[data-index="${selectedIndex}"]`) ||
-                    row.children[selectedIndex];
-      if (selEl) {
-        selEl.classList.add('is-selected');
-        selEl.setAttribute('aria-selected', 'true');
+      const $selEl = $row.find(`.hand-card[data-index="${selectedIndex}"]`);
+      if ($selEl.length) {
+        $selEl.addClass('is-selected').attr('aria-selected', 'true');
       }
     } else {
       selectedIndex = -1;
@@ -112,9 +118,8 @@ export function createAttackerHandBar(getCurrentAttacker, getGameState, handRend
   return {
     mount(container) {
       if (mounted) return;
-      root = document.createElement('div');
-      root.className = 'attacker-hand-bar';
-      container.appendChild(root);
+      $root = $('<div class="attacker-hand-bar"></div>');
+      $(container).append($root);
       mounted = true;
       render();
     },
@@ -123,17 +128,18 @@ export function createAttackerHandBar(getCurrentAttacker, getGameState, handRend
     selectedHandIndex: () => selectedIndex,
     resetSelectedHand() {
       selectedIndex = -1;
-      if (!root) return;
-      root.querySelectorAll('.hand-card.is-selected')
-          .forEach(el => el.classList.remove('is-selected'));
-      root.querySelectorAll('.hand-card[aria-selected="true"]')
-          .forEach(el => el.setAttribute('aria-selected', 'false'));
+      if (!$root) return;
+      $root.find('.hand-card.is-selected')
+        .removeClass('is-selected')
+        .attr('aria-selected', 'false');
     },
     getSelectedCard() {
       const gs = safeState();
       const attacker = currentAttacker();
       const list = handsOf(gs, attacker.id);
-      return (selectedIndex >= 0 && selectedIndex < list.length) ? list[selectedIndex] : null;
+      return (selectedIndex >= 0 && selectedIndex < list.length)
+        ? list[selectedIndex]
+        : null;
     }
   };
 }

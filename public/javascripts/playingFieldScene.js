@@ -16,6 +16,7 @@ import { buildSceneViewFromWeb, assignAvatarsFrom } from './utils/playingField/s
 import { createComparisonOrchestrator } from './utils/playingField/comparisonOrchestrator.js';
 import { createGameApi } from './api/gameApi.js';
 import { createPlayingFieldController } from './controllers/playingFieldController.js';
+import { createSoundManager } from './utils/soundManager.js';
 
 export async function build({ api, overlay, createGameAlert }) {
   // 1) registries
@@ -35,12 +36,19 @@ export async function build({ api, overlay, createGameAlert }) {
   });
 
   let lastRoles = { attacker: '', defender: '' };
+  
+  // Sound manager
+  const soundManager = createSoundManager({ basePath: '/assets/sounds/' });
+  soundManager.preload('attack', 'attack.wav'); 
+  soundManager.preload('hover', 'hover.wav');
+  
+  await Promise.all([avatarRegistry.preloadAvatars().catch(() => {}), cardRegistry.preloadAll().catch(() => {})]);
 
   // 2) mount bars
   const playersBar = createPlayersBar(avatarRegistry);
   playersBar.mount(document.getElementById('players-bar'));
 
-  const navBar = createNavButtonBar({ api, overlay });
+  const navBar = createNavButtonBar({ api, overlay. soundManager });
   navBar.mount(document.getElementById('nav-bar'));
 
   const actionBar = createActionButtonBar({ overlay });
@@ -172,6 +180,17 @@ export async function build({ api, overlay, createGameAlert }) {
         orchestrator.setPendingAction(ActionNames.RegularAttack);
         controller.onSingleAttackDefender?.();
         return;
+        soundManager.play('attack', { volume: 0.7 });
+        // Flip animation auf die erste Karte im Angreifer-Feld anwenden
+        const field = document.getElementById('field');
+        if (field) {
+          const firstCard = field.querySelector('.game-card');
+          if (firstCard) {
+            firstCard.classList.add('flip');
+            setTimeout(() => firstCard.classList.remove('flip'), 700);
+          }
+        }
+        controller.onSingleAttackDefender?.(); return;
 
       case 'attack-goalkeeper':
       case 'single-attack-gk':
@@ -185,6 +204,13 @@ export async function build({ api, overlay, createGameAlert }) {
         orchestrator.setPendingAction(ActionNames.DoubleAttack);
         controller.onDoubleAttack?.();
         return;
+        soundManager.play('attack', { volume: 0.7 });
+        controller.onSingleAttackGoalkeeper?.(); return;
+
+      case 'attack-double':
+      case 'double-attack':
+        soundManager.play('attack', { volume: 0.7 });
+        controller.onDoubleAttack?.(); return;
 
       case 'swap':
       case 'swap-regular':
@@ -221,6 +247,14 @@ export async function build({ api, overlay, createGameAlert }) {
   actionBar.onClick(onActionClick);
 
   // 8) streaming updates (SSE) → orchestrator
+  actionBar.onHoverEvent?.((event) => {
+    if (event?.type === 'hover') {
+      soundManager.play('hover', { volume: 0.5 });
+    }
+  });
+
+  let lastRoles = { attacker: '', defender: '' };
+  // 8) streaming updates (SSE)
   let es = api.openStream?.((web) => {
     try {
       orchestrator.handleStreamWeb(web);
