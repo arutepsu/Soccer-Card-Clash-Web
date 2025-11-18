@@ -1,3 +1,6 @@
+// actionButtonBar.js
+export function createActionButtonBar({ overlay } = {}) {
+  let root, onAction = () => {};
 export function createActionButtonBar() {
   let $root = null;
   let onAction = () => {};
@@ -9,6 +12,13 @@ export function createActionButtonBar() {
       <button type="button" class="gbtn" data-action="attack-regular">Attack</button>
       <button type="button" class="gbtn" data-action="attack-double">Double Attack</button>
       <button type="button" class="gbtn" data-action="info">Info</button>
+    `;
+
+    root.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      e.preventDefault();
+      const action = btn.dataset.action;
     `);
 
     $root.on('click', '[data-action]', function (e) {
@@ -41,6 +51,7 @@ export function createActionButtonBar() {
   }
 
   function onClick(fn) {
+    onAction = fn || onAction;
     if (typeof fn === 'function') {
       onAction = fn;
     }
@@ -52,34 +63,27 @@ export function createActionButtonBar() {
     }
   }
 
+  // 👇 uses the shared overlay instance
   function openInfoDialog(key = 'GAME_INFO') {
-    const $overlay = $('#overlay');
-    if (!$overlay.length) return;
+    if (!overlay || !overlay.show) return;
 
-    const html = `
-      <div class="overlay-textflow">
-        <div class="dialog-title">Game Instructions</div>
-        <div class="dialog-message">
-          (${key}) — put localized content here.
-        </div>
-        <div class="overlay-actions">
-          <button class="gbtn" data-close-overlay>Close</button>
-        </div>
+    const node = document.createElement('div');
+    node.className = 'overlay-textflow';
+    node.innerHTML = `
+      <div class="dialog-title">Game Instructions</div>
+      <div class="dialog-message">
+        (${key}) — put localized content here.
+      </div>
+      <div class="overlay-actions">
+        <button class="gbtn" data-close-overlay>Close</button>
       </div>
     `;
 
-    // Wenn das Overlay ein eigenes API hat
-    const overlayEl = $overlay.get(0);
-    if (overlayEl && typeof overlayEl.__showOverlay === 'function') {
-      overlayEl.__showOverlay(html, { autoHide: false });
-      return;
-    }
+    node.querySelector('[data-close-overlay]')?.addEventListener('click', () => {
+      overlay.hide();
+    });
 
-    // Fallback: direkter jQuery-Zugriff
-    const $scroll = $overlay.find('.overlay-scroll');
-    if ($scroll.length) $scroll.html(html);
-
-    $overlay.removeClass('hidden').attr('aria-hidden', 'false');
+    overlay.show(node, { autoHide: false });
   }
 
   return { mount, setEnabled, onClick, onHoverEvent };

@@ -8,9 +8,11 @@ export function createPlayingFieldController({
   elField,
   elHand,
   mapWebToScene,
+  afterServerApply, 
 }) {
   let gameState = null;
   const getGS = () => gameState;
+  let lastUsedDefenderIndex = null; // NEW
 
   let defenderFieldBar = null;
   let attackerHandBar  = null;
@@ -53,15 +55,20 @@ export function createPlayingFieldController({
     if (busy || !defenderFieldBar) return;
     const idx = defenderFieldBar.selectedDefenderIndex?.();
     if (idx == null) return;
+    lastUsedDefenderIndex = idx; // NEW
     try {
       busy = true;
       const web = await api.singleAttackDefender(idx);
-      applyWeb(web);
+      // const mapped = applyWeb(web);
+      // NEW: notify scene
+      afterServerApply?.(web, { action: 'RegularAttack', defenderIndex: idx});
+      // runOverlayForPendingAction?.();
     } finally {
       defenderFieldBar.resetSelectedDefender?.();
       busy = false;
     }
   }
+
 
   async function onSingleAttackGoalkeeper() {
     if (busy) return;
@@ -69,6 +76,7 @@ export function createPlayingFieldController({
       busy = true;
       const web = await api.singleAttackGoalkeeper();
       applyWeb(web);
+      runOverlayForPendingAction(); 
     } finally {
       busy = false;
     }
@@ -82,6 +90,7 @@ export function createPlayingFieldController({
       busy = true;
       const web = await api.doubleAttack(idx);
       applyWeb(web);
+      runOverlayForPendingAction(); 
     } finally {
       defenderFieldBar.resetSelectedDefender?.();
       busy = false;

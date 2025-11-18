@@ -9,97 +9,33 @@ import { createDefaultFieldCardRenderer } from './sceneComponents/fieldCardRende
 import { createPlayersFieldBar }          from './sceneComponents/playersFieldBar.js';
 import { createDefaultHandCardRenderer }  from './sceneComponents/handCardRenderer.js';
 import { createPlayersHandBar }           from './sceneComponents/playersHandBar.js';
-import { createComparisonHandler } from './utils/comparisonHandler.js';
-
+import { UIActionScheduler, delayed } from './utils/uiActionScheduler.js';
+import { createComparisonDialogHandler } from './utils/comparisonDialogHandler.js';
+import * as ComparisonDialogGenerator from './utils/comparisonDialogGenerator.js';
+import { buildSceneViewFromWeb, assignAvatarsFrom } from './utils/playingField/sceneMapping.js';
+import { createComparisonOrchestrator } from './utils/playingField/comparisonOrchestrator.js';
 import { createGameApi } from './api/gameApi.js';
 import { createPlayingFieldController } from './controllers/playingFieldController.js';
 import { createSoundManager } from './utils/soundManager.js';
 
-// -------- helpers --------
-function buildSceneViewFromWeb(web, registry) {
-  const attacker = {
-    id: 'att',
-    name: web.roles?.attacker,
-    score: web.scores?.attacker,
-    playerType: 'Human',
-    actionStates: web.allowed?.attacker
-  };
-  const defender = {
-    id: 'def',
-    name: web.roles?.defender,
-    score: web.scores?.defender,
-    playerType: 'Human',
-    actionStates: web.allowed?.defender
-  };
-
-  const toImg = (f) => registry.getImageForCard(f);
-  const back  = registry.getImageUrl('flippedCard.png');
-
-  const mapHand = (list = []) => list.map((c, i, arr) => {
-    const isLast = i === arr.length - 1;
-    const front  = toImg(c?.fileName);
-    return { imgFront: front, imgBack: back, img: isLast ? front : back };
-  });
-
-  const mapField = (list = []) => list.map(slot => ({ img: toImg(slot?.card?.fileName) }));
-
-  return {
-    players: { attacker, defender },
-    cards: {
-      attackerHand: web.cards?.attackerHand,
-      defenderHand: web.cards?.defenderHand,
-      attackerField: web.cards?.attackerField,
-      defenderField: web.cards?.defenderField,
-      attackerGoalkeeper: web.cards?.attackerGoalkeeper,
-      defenderGoalkeeper: web.cards?.defenderGoalkeeper
-    },
-    gameCards: {
-      hands: {
-        att: mapHand(web.cards?.attackerHand),
-        def: mapHand(web.cards?.defenderHand),
-      },
-      fields: {
-        att: mapField(web.cards?.attackerField),
-        def: mapField(web.cards?.defenderField),
-      },
-      goalkeepers: {
-        att: toImg(web.cards?.attackerGoalkeeper?.fileName),
-        def: toImg(web.cards?.defenderGoalkeeper?.fileName),
-      }
-    },
-    allowed: web.allowed
-  };
-}
-
-function assignAvatarsFrom(registry, web) {
-  const attackerRef = { id: 'att', name: web.roles?.attacker, playerType: 'Human' };
-  const defenderRef = { id: 'def', name: web.roles?.defender, playerType: 'Human' };
-  registry.assignAvatarsInOrder([attackerRef, defenderRef]);
-}
-
-// -------- scene module (build/destroy) --------
 export async function build({ api, overlay, createGameAlert }) {
-  // overlay helpers (optional)
-  const overlayHost = document.getElementById('overlay');
-  if (overlayHost && overlay) {
-    const htmlToNode = (html) => {
-      const tpl = document.createElement('template');
-      tpl.innerHTML = html.trim();
-      return tpl.content.firstElementChild || document.createTextNode('');
-    };
-    overlayHost.__showOverlay = (nodeOrHtml, opts) => {
-      const node = typeof nodeOrHtml === 'string' ? htmlToNode(nodeOrHtml) : nodeOrHtml;
-      overlay.show(node, opts);
-    };
-    overlayHost.__hideOverlay = () => overlay.hide();
-  }
-
   // 1) registries
   const avatarRegistry = createPlayerAvatarRegistry({
     avatarsPath: '/assets/images/players/',
     fileNames: ['player1.jpg','player2.jpg','ai.jpg','taka.jpg','defendra.jpg','bitstrom.jpg','meta.jpg']
   });
   const cardRegistry = createCardImageRegistry();
+  await Promise.all([
+    avatarRegistry.preloadAvatars().catch(() => {}),
+    cardRegistry.preloadAll().catch(() => {})
+  ]);
+
+  ComparisonDialogGenerator.configure({
+    avatarRegistry,
+    cardRegistry,
+  });
+
+  let lastRoles = { attacker: '', defender: '' };
   
   // Sound manager
   const soundManager = createSoundManager({ basePath: '/assets/sounds/' });
@@ -112,51 +48,28 @@ export async function build({ api, overlay, createGameAlert }) {
   const playersBar = createPlayersBar(avatarRegistry);
   playersBar.mount(document.getElementById('players-bar'));
 
-  const navBar = createNavButtonBar({ api, soundManager });
-  navBar.onSceneEvent((ev) => {
-  if (!ev) return;
-
-  // coming from the nav bar pause dialog
-  if (ev.type === 'PauseDialogAction') {
-    switch (ev.action) {
-      case 'resume':
-        overlayHost.__hideOverlay = () => overlay.hide();  
-        return;
-
-      case 'undo':
-        controller.onUndo?.();
-        return;
-
-      case 'redo':
-        controller.onRedo?.();
-        return;
-
-      case 'restart':
-        // requested: skip for now (placeholder)
-        // You could later call a controller.resetGame?.() or navigate to a "new game" flow here.
-        return;
-
-      case 'mainmenu':
-        return;
-
-      default:
-        return;
-    }
-  }
-});
+  const navBar = createNavButtonBar({ api, overlay. soundManager });
   navBar.mount(document.getElementById('nav-bar'));
 
-  const actionBar = createActionButtonBar();
+  const actionBar = createActionButtonBar({ overlay });
   actionBar.mount(document.getElementById('action-bar'));
 
   // 3) renderers
   const fieldRenderer = createDefaultFieldCardRenderer({ defeatedImg: cardRegistry.getDefeatedImage() });
   const handRenderer  = createDefaultHandCardRenderer();
 
-  // 4) comparison / dialogs
-  const comparison = createComparisonHandler();
+  const ActionNames = {
+    RegularAttack:    'RegularAttack',
+    DoubleAttack:     'DoubleAttack',
+    Undo:             'Undo',
+    Redo:             'Redo',
+    BoostDefender:    'BoostDefender',
+    BoostGoalkeeper:  'BoostGoalkeeper',
+    RegularSwap:      'RegularSwap',
+    ReverseSwap:      'ReverseSwap'
+  };
 
-  // 5) field/hand hosts and helpers
+  // 4) field/hand hosts and helpers
   const elField = document.getElementById('field');
   const elHand  = document.getElementById('hand');
 
@@ -164,11 +77,62 @@ export async function build({ api, overlay, createGameAlert }) {
   const inputBlocker      = document.getElementById('input-blocker');
   const setAITurn = (active) => inputBlocker?.classList.toggle('is-active', !!active);
 
-  // 6) controller (expects api from manager)
-  // lazy import to avoid circular deps if you had any
-  const { createPlayingFieldController } = await import('./controllers/playingFieldController.js');
+  let controller;
+  const scheduler = new UIActionScheduler();
 
-  const controller = createPlayingFieldController({
+  function applyUiFromWeb(web) {
+    assignAvatarsFrom(avatarRegistry, web);
+    playersBar.updateFromWebState(web);
+
+    if (web?.roles) {
+      lastRoles.attacker = web.roles.attacker || '';
+      lastRoles.defender = web.roles.defender || '';
+    }
+
+    if (attackerAvatarBox) {
+      const attackerRef = { id: 'att', name: web.roles?.attacker, playerType: 'Human' };
+      attackerAvatarBox.innerHTML = `
+        <span class="attacker-label">Attacker:</span>
+        <img class="attacker-avatar neon-avatar" src="${avatarRegistry.getAvatarUrl(attackerRef)}" alt="">
+        <span class="attacker-name">${attackerRef.name ?? ''}</span>
+      `;
+    }
+  }
+
+  const comparisonHandler = createComparisonDialogHandler({
+    controller, // will be filled after controller is created
+    contextHolder: {
+      get: () => ({
+        state: { roles: { attacker: lastRoles.attacker, defender: lastRoles.defender } }
+      })
+    },
+    overlay,
+    onAutoClose: async () => {
+      try {
+        const fresh = await api.fetchGameState();
+        applyUiFromWeb(fresh);
+        controller.updateFromServerContext(fresh);
+      } catch (e) {
+        console.warn('[CMP] refresh after auto-close failed', e);
+      }
+    },
+    generator: ComparisonDialogGenerator,
+  });
+
+  const orchestrator = createComparisonOrchestrator({
+    api,
+    overlay,
+    scheduler,
+    comparisonHandler,
+    ActionNames,
+    getRoles: () => lastRoles,
+    applyUiFromWeb,
+    updateFromServerContext: (web) => controller.updateFromServerContext(web),
+    generator: ComparisonDialogGenerator, 
+  });
+
+
+  controller = createPlayingFieldController({
     api,
     fieldRenderer,
     handRenderer,
@@ -177,9 +141,34 @@ export async function build({ api, overlay, createGameAlert }) {
     elField,
     elHand,
     mapWebToScene: (web) => buildSceneViewFromWeb(web, cardRegistry),
+    afterServerApply: orchestrator.afterServerApply,
   });
 
-  // 7) action buttons → controller
+
+
+  // now that controller exists, let handler know (if it uses it directly)
+  comparisonHandler.controller = controller;
+
+  // nav bar callbacks (needs controller now)
+  navBar.onSceneEvent((ev) => {
+    if (!ev) return;
+
+    if (ev.type === 'PauseDialogAction') {
+      switch (ev.action) {
+        case 'undo':
+          controller.onUndo?.();   return;
+        case 'redo':
+          controller.onRedo?.();   return;
+        case 'restart':
+        case 'mainmenu':
+        case 'resume':
+        default:
+          return;
+      }
+    }
+  });
+
+  // 7) action buttons → controller via orchestrator
   const onActionClick = (action) => {
     const key = typeof action === 'string' ? action : action?.id || action?.type;
     switch (key) {
@@ -188,6 +177,9 @@ export async function build({ api, overlay, createGameAlert }) {
       case 'attack':
       case 'single-attack':
       case 'singleAttack':
+        orchestrator.setPendingAction(ActionNames.RegularAttack);
+        controller.onSingleAttackDefender?.();
+        return;
         soundManager.play('attack', { volume: 0.7 });
         // Flip animation auf die erste Karte im Angreifer-Feld anwenden
         const field = document.getElementById('field');
@@ -203,6 +195,15 @@ export async function build({ api, overlay, createGameAlert }) {
       case 'attack-goalkeeper':
       case 'single-attack-gk':
       case 'attack-gk':
+        orchestrator.setPendingAction(ActionNames.RegularAttack);
+        controller.onSingleAttackGoalkeeper?.();
+        return;
+
+      case 'attack-double':
+      case 'double-attack':
+        orchestrator.setPendingAction(ActionNames.DoubleAttack);
+        controller.onDoubleAttack?.();
+        return;
         soundManager.play('attack', { volume: 0.7 });
         controller.onSingleAttackGoalkeeper?.(); return;
 
@@ -213,21 +214,31 @@ export async function build({ api, overlay, createGameAlert }) {
 
       case 'swap':
       case 'swap-regular':
-        controller.onSwapSelected?.(); return;
+        orchestrator.setPendingAction(ActionNames.RegularSwap);
+        controller.onSwapSelected?.();
+        return;
 
       case 'swap-reverse':
       case 'reverse-swap':
-        controller.onReverseSwap?.(); return;
+        orchestrator.setPendingAction(ActionNames.ReverseSwap);
+        controller.onReverseSwap?.();
+        return;
 
       case 'boost':
       case 'boost-selected':
-        controller.onBoostSelected?.(); return;
+        orchestrator.setPendingAction(ActionNames.BoostDefender);
+        controller.onBoostSelected?.();
+        return;
 
       case 'undo':
-        controller.onUndo?.(); return;
+        orchestrator.setPendingAction(ActionNames.Undo);
+        controller.onUndo?.();
+        return;
 
       case 'redo':
-        controller.onRedo?.(); return;
+        orchestrator.setPendingAction(ActionNames.Redo);
+        controller.onRedo?.();
+        return;
 
       default:
         window.dispatchEvent(new CustomEvent('pf:event', { detail: { type: 'GameAction', action: key } }));
@@ -235,6 +246,7 @@ export async function build({ api, overlay, createGameAlert }) {
   };
   actionBar.onClick(onActionClick);
 
+  // 8) streaming updates (SSE) → orchestrator
   actionBar.onHoverEvent?.((event) => {
     if (event?.type === 'hover') {
       soundManager.play('hover', { volume: 0.5 });
@@ -245,31 +257,11 @@ export async function build({ api, overlay, createGameAlert }) {
   // 8) streaming updates (SSE)
   let es = api.openStream?.((web) => {
     try {
-
-      applyUiFromWeb(web);
-      controller.updateFromServerContext(web);
+      orchestrator.handleStreamWeb(web);
     } catch (err) {
       console.error('stream update failed', err);
     }
   });
-
-  function applyUiFromWeb(web) {
-    assignAvatarsFrom(avatarRegistry, web);
-    playersBar.updateFromWebState(web);
-    
-    if (web?.roles) {
-      lastRoles.attacker = web.roles.attacker || '';
-      lastRoles.defender = web.roles.defender || '';
-    }
-    if (attackerAvatarBox) {
-      const attackerRef = { id: 'att', name: web.roles?.attacker, playerType: 'Human' };
-      attackerAvatarBox.innerHTML = `
-        <span class="attacker-label">Attacker:</span>
-        <img class="attacker-avatar neon-avatar" src="${avatarRegistry.getAvatarUrl(attackerRef)}" alt="">
-        <span class="attacker-name">${attackerRef.name ?? ''}</span>
-      `;
-    }
-  }
 
   // 9) initial state (before stream ticks)
   try {
@@ -287,23 +279,19 @@ export async function build({ api, overlay, createGameAlert }) {
   // 10) return the scene API for the manager
   return {
     destroy() {
-      // close stream
       try { es?.close?.(); } catch {}
-      // unwire action bar listener
       try { actionBar.onClick(() => {}); } catch {}
-      // (if you add intervals/listeners later, clean them here)
     },
-    // optional refresh if you need manual re-pulls
     refresh: async () => {
       const fresh = await api.fetchGameState();
       applyUiFromWeb(fresh);
       controller.updateFromServerContext(fresh);
     },
-    // optional extras if other modules want them
     setAITurn,
-    showComparison: (data) => comparison.openComparison(data),
-    showGoal: (name) => comparison.goalScored({ winnerName: name }),
-    showGameOver: (name, scoreLine) => comparison.gameOver({ winnerName: name, scoreLine }),
+    // keep these if you still have a `comparison` helper somewhere:
+    // showComparison: (data) => comparison.openComparison(data),
+    // showGoal: (name) => comparison.goalScored({ winnerName: name }),
+    // showGameOver: (name, scoreLine) => comparison.gameOver({ winnerName: name, scoreLine }),
     setActionEnabled: (map) => actionBar.setEnabled(map),
     refreshOnRoleSwitch: () => playersBar.refreshOnRoleSwitch(),
   };
