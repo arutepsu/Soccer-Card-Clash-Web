@@ -1,4 +1,5 @@
 // /assets/javascripts/navButtonBar.js
+// navButtonBar.js
 export function createNavButtonBar({ navigate, api, overlay, soundManager } = {}) {
   let root;
   let onEvent = () => {};
@@ -40,11 +41,11 @@ export function createNavButtonBar({ navigate, api, overlay, soundManager } = {}
     root.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
-      
+
       if (soundManager && !btn.disabled) {
         soundManager.play('click', { volume: 0.6 });
       }
-      
+
       const a = btn.dataset.action;
 
       if (a === 'pause') {
@@ -64,7 +65,7 @@ export function createNavButtonBar({ navigate, api, overlay, soundManager } = {}
         return;
       }
     });
-    
+
     root.addEventListener('mouseenter', (e) => {
       const btn = e.target.closest('[data-action]');
       if (btn && soundManager && !btn.disabled) {
@@ -97,7 +98,7 @@ export function createNavButtonBar({ navigate, api, overlay, soundManager } = {}
     const finishAndClose = (action) => {
       onEvent({ type: 'PauseDialogAction', action });
       cleanup();
-      overlay.hide();
+      overlay.hide?.();
 
       if (previouslyFocused && document.contains(previouslyFocused)) {
         try { previouslyFocused.focus(); } catch {}
@@ -107,11 +108,11 @@ export function createNavButtonBar({ navigate, api, overlay, soundManager } = {}
     const onClick = (e) => {
       const el = e.target.closest('[data-pause-action]');
       if (!el) return;
-      
+
       if (soundManager && !el.disabled) {
         soundManager.play('click', { volume: 0.6 });
       }
-      
+
       const act = el.dataset.pauseAction;
 
       if (act === 'resume') {
@@ -130,10 +131,10 @@ export function createNavButtonBar({ navigate, api, overlay, soundManager } = {}
       }
 
       if (act === 'restart') {
-        // we want the scene to know about restart, but also actually restart
+        // let scene know + actually restart
         onEvent({ type: 'PauseDialogAction', action: 'restart' });
         cleanup();
-        overlay.hide();
+        overlay.hide?.();
         doRestart();
         return;
       }
@@ -141,7 +142,7 @@ export function createNavButtonBar({ navigate, api, overlay, soundManager } = {}
       if (act === 'mainmenu') {
         onEvent({ type: 'PauseDialogAction', action: 'mainmenu' });
         cleanup();
-        overlay.hide();
+        overlay.hide?.();
         go('/main-menu');
         return;
       }
@@ -154,12 +155,6 @@ export function createNavButtonBar({ navigate, api, overlay, soundManager } = {}
       }
     };
 
-    function cleanup() {
-      scroll?.removeEventListener('click', onClick);
-      scroll?.removeEventListener('mouseenter', onHover, true);
-      document.removeEventListener('keydown', onKey);
-    }
-    
     const onHover = (e) => {
       const el = e.target.closest('[data-pause-action]');
       if (el && soundManager && !el.disabled) {
@@ -167,17 +162,29 @@ export function createNavButtonBar({ navigate, api, overlay, soundManager } = {}
       }
     };
 
-    scroll?.addEventListener('click', onClick);
-    scroll?.addEventListener('mouseenter', onHover, true);
+    function cleanup() {
+      node.removeEventListener('click', onClick);
+      node.removeEventListener('mouseenter', onHover, true);
+      document.removeEventListener('keydown', onKey);
+    }
+
+    // attach listeners directly to the dialog node
+    node.addEventListener('click', onClick);
+    node.addEventListener('mouseenter', onHover, true);
     document.addEventListener('keydown', onKey);
 
+    // 👇 this actually opens the overlay
     overlay.show(node, { autoHide: false });
 
     const firstBtn = node.querySelector('[data-pause-action]');
     if (firstBtn) firstBtn.focus();
   }
 
-  function onSceneEvent(fn) { onEvent = fn || onEvent; }
+  function onSceneEvent(fn) {
+    if (typeof fn === 'function') {
+      onEvent = fn;
+    }
+  }
 
   return { mount, onSceneEvent };
 }
