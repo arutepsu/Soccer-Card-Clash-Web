@@ -24,8 +24,6 @@ class GameApiController @Inject()(
   gameUseCases: IGameUseCases
 )(implicit ec: ExecutionContext) extends AbstractController(cc) {
 
-  /* ---------- Attack Target Helper ---------- */
-
   sealed trait AttackTarget
   object AttackTarget {
     final case class DefenderAt(index: Int) extends AttackTarget
@@ -49,7 +47,7 @@ class GameApiController @Inject()(
       case other => Left(s"Unknown target: $other")
     }
 
-  /* ---------- Endpoints ---------- */
+
 
   def state: Action[AnyContent] = Action { implicit req =>
     withSid { sid =>
