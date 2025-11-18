@@ -1,5 +1,5 @@
-// navButtonBar.js
-export function createNavButtonBar({ navigate, api, overlay } = {}) {
+// /assets/javascripts/navButtonBar.js
+export function createNavButtonBar({ navigate, api, overlay, soundManager } = {}) {
   let root;
   let onEvent = () => {};
 
@@ -40,6 +40,11 @@ export function createNavButtonBar({ navigate, api, overlay } = {}) {
     root.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
+      
+      if (soundManager && !btn.disabled) {
+        soundManager.play('click', { volume: 0.6 });
+      }
+      
       const a = btn.dataset.action;
 
       if (a === 'pause') {
@@ -59,6 +64,13 @@ export function createNavButtonBar({ navigate, api, overlay } = {}) {
         return;
       }
     });
+    
+    root.addEventListener('mouseenter', (e) => {
+      const btn = e.target.closest('[data-action]');
+      if (btn && soundManager && !btn.disabled) {
+        soundManager.play('hover', { volume: 0.3 });
+      }
+    }, true);
   }
 
   function openPauseDialog() {
@@ -95,6 +107,11 @@ export function createNavButtonBar({ navigate, api, overlay } = {}) {
     const onClick = (e) => {
       const el = e.target.closest('[data-pause-action]');
       if (!el) return;
+      
+      if (soundManager && !el.disabled) {
+        soundManager.play('click', { volume: 0.6 });
+      }
+      
       const act = el.dataset.pauseAction;
 
       if (act === 'resume') {
@@ -138,11 +155,20 @@ export function createNavButtonBar({ navigate, api, overlay } = {}) {
     };
 
     function cleanup() {
-      node.removeEventListener('click', onClick);
+      scroll?.removeEventListener('click', onClick);
+      scroll?.removeEventListener('mouseenter', onHover, true);
       document.removeEventListener('keydown', onKey);
     }
+    
+    const onHover = (e) => {
+      const el = e.target.closest('[data-pause-action]');
+      if (el && soundManager && !el.disabled) {
+        soundManager.play('hover', { volume: 0.3 });
+      }
+    };
 
-    node.addEventListener('click', onClick);
+    scroll?.addEventListener('click', onClick);
+    scroll?.addEventListener('mouseenter', onHover, true);
     document.addEventListener('keydown', onKey);
 
     overlay.show(node, { autoHide: false });
