@@ -48,7 +48,7 @@ export async function build({ api, overlay, createGameAlert }) {
   const playersBar = createPlayersBar(avatarRegistry);
   playersBar.mount(document.getElementById('players-bar'));
 
-  const navBar = createNavButtonBar({ api, overlay. soundManager });
+  const navBar = createNavButtonBar({ api, overlay, soundManager });
   navBar.mount(document.getElementById('nav-bar'));
 
   const actionBar = createActionButtonBar({ overlay });
@@ -129,6 +129,7 @@ export async function build({ api, overlay, createGameAlert }) {
     applyUiFromWeb,
     updateFromServerContext: (web) => controller.updateFromServerContext(web),
     generator: ComparisonDialogGenerator, 
+    soundManager
   });
 
 
@@ -170,6 +171,10 @@ export async function build({ api, overlay, createGameAlert }) {
 
   // 7) action buttons → controller via orchestrator
   const onActionClick = (action) => {
+    if (soundManager?.unlock) {
+      soundManager.unlock();
+    }
+
     const key = typeof action === 'string' ? action : action?.id || action?.type;
     switch (key) {
       case 'attack-regular':
@@ -179,9 +184,6 @@ export async function build({ api, overlay, createGameAlert }) {
       case 'singleAttack':
         orchestrator.setPendingAction(ActionNames.RegularAttack);
         controller.onSingleAttackDefender?.();
-        return;
-        soundManager.play('attack', { volume: 0.7 });
-        // Flip animation auf die erste Karte im Angreifer-Feld anwenden
         const field = document.getElementById('field');
         if (field) {
           const firstCard = field.querySelector('.game-card');
@@ -203,13 +205,10 @@ export async function build({ api, overlay, createGameAlert }) {
       case 'double-attack':
         orchestrator.setPendingAction(ActionNames.DoubleAttack);
         controller.onDoubleAttack?.();
-        return;
-        soundManager.play('attack', { volume: 0.7 });
         controller.onSingleAttackGoalkeeper?.(); return;
 
       case 'attack-double':
       case 'double-attack':
-        soundManager.play('attack', { volume: 0.7 });
         controller.onDoubleAttack?.(); return;
 
       case 'swap':
@@ -253,7 +252,6 @@ export async function build({ api, overlay, createGameAlert }) {
     }
   });
 
-  let lastRoles = { attacker: '', defender: '' };
   // 8) streaming updates (SSE)
   let es = api.openStream?.((web) => {
     try {
