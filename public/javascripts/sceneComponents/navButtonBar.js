@@ -9,6 +9,7 @@ export function createNavButtonBar({ navigate, api, soundManager } = {}) {
     if (typeof navigate === 'function') navigate(path);
     else window.location.href = path;
   }
+
   async function doRestart() {
     const btns = root?.querySelectorAll('[data-pause-action]');
     btns?.forEach(b => b.setAttribute('disabled', 'true'));
@@ -29,6 +30,7 @@ export function createNavButtonBar({ navigate, api, soundManager } = {}) {
       btns?.forEach(b => b.removeAttribute('disabled'));
     }
   }
+
   function mount(el) {
     root = el;
     root.innerHTML = `
@@ -40,14 +42,17 @@ export function createNavButtonBar({ navigate, api, soundManager } = {}) {
     root.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-action]');
       if (!btn) return;
-      
+
       if (soundManager && !btn.disabled) {
         soundManager.play('click', { volume: 0.6 });
       }
-      
+
       const a = btn.dataset.action;
 
-      if (a === 'pause') { openPauseDialog(); return; }
+      if (a === 'pause') {
+        openPauseDialog();
+        return;
+      }
 
       if (a === 'show-defenders') {
         onEvent({ type: 'SceneSwitchEvent' });
@@ -61,7 +66,7 @@ export function createNavButtonBar({ navigate, api, soundManager } = {}) {
         return;
       }
     });
-    
+
     root.addEventListener('mouseenter', (e) => {
       const btn = e.target.closest('[data-action]');
       if (btn && soundManager && !btn.disabled) {
@@ -70,95 +75,48 @@ export function createNavButtonBar({ navigate, api, soundManager } = {}) {
     }, true);
   }
 
-  function showOverlay(overlay, html, opts = { autoHide: false }) {
-    overlay.setAttribute('aria-hidden', 'false');
-    overlay.classList.remove('hidden');
-
-    if (overlay.__showOverlay) {
-      overlay.__showOverlay(html, opts);
-      return true;
-    }
-
-    const scroll = overlay.querySelector('.overlay-scroll');
-    if (scroll) scroll.innerHTML = html;
-
-    if (overlay.__openOverlay) {
-      overlay.__openOverlay(opts);
-    }
-
-    return true;
-  }
-
-  function closeOverlay(overlay, { restoreTo } = {}) {
-    if (restoreTo && restoreTo.focus) {
-      try { restoreTo.focus(); } catch {}
-    } else {
-      if (document.activeElement && document.activeElement !== document.body) {
-        try { document.activeElement.blur(); } catch {}
-      }
-    }
-
-    // Call whichever the overlay provided
-    try {
-      if (typeof overlay.__hideOverlay === 'function') {
-        overlay.__hideOverlay();
-      } else if (typeof overlay.__closeOverlay === 'function') {
-        overlay.__closeOverlay();
-      }
-    } catch {}
-
-    // Also toggle the host classes/attrs for good measure
-    overlay.classList.add('hidden');
-    overlay.setAttribute('aria-hidden', 'true');
-  }
-
-
   function openPauseDialog() {
-    const overlay = document.getElementById('overlay');
-    if (!overlay) return;
+    if (!overlay || !overlay.show) return;
 
     const previouslyFocused = document.activeElement;
 
-    const html = `
-      <div class="overlay-textflow" role="dialog" aria-label="Paused">
-        <h2 class="dialog-title" style="text-align:center;">Paused</h2>
-        <div class="overlay-actions"
-            style="display:flex; flex-direction:column; gap:12px; align-items:center; justify-content:center;">
-          <button class="gbtn" data-pause-action="resume">Resume</button>
-          <button class="gbtn" data-pause-action="undo">Undo</button>
-          <button class="gbtn" data-pause-action="redo">Redo</button>
-          <button class="gbtn" data-pause-action="restart">Restart</button>
-          <button class="gbtn" data-pause-action="save">Save</button>
-          <button class="gbtn" data-pause-action="mainmenu">Main Menu</button>
-        </div>
+    const node = document.createElement('div');
+    node.className = 'overlay-textflow';
+    node.setAttribute('role', 'dialog');
+    node.setAttribute('aria-label', 'Paused');
+    node.innerHTML = `
+      <h2 class="dialog-title" style="text-align:center;">Paused</h2>
+      <div class="overlay-actions"
+           style="display:flex; flex-direction:column; gap:12px; align-items:center; justify-content:center;">
+        <button class="gbtn" data-pause-action="resume">Resume</button>
+        <button class="gbtn" data-pause-action="undo">Undo</button>
+        <button class="gbtn" data-pause-action="redo">Redo</button>
+        <button class="gbtn" data-pause-action="restart">Restart</button>
+        <button class="gbtn" data-pause-action="mainmenu">Main Menu</button>
       </div>
     `;
-
-    showOverlay(overlay, html, { autoHide: false });
-
-    const firstBtn = overlay.querySelector('[data-pause-action]');
-    if (firstBtn) firstBtn.focus();
-
-    const scroll = overlay.querySelector('.overlay-scroll');
 
     const finishAndClose = (action) => {
       onEvent({ type: 'PauseDialogAction', action });
       cleanup();
-      closeOverlay(overlay, { restoreTo: previouslyFocused });
+      overlay.hide?.();
+
+      if (previouslyFocused && document.contains(previouslyFocused)) {
+        try { previouslyFocused.focus(); } catch {}
+      }
     };
 
     const onClick = (e) => {
       const el = e.target.closest('[data-pause-action]');
       if (!el) return;
-      
+
       if (soundManager && !el.disabled) {
         soundManager.play('click', { volume: 0.6 });
       }
-      
+
       const act = el.dataset.pauseAction;
 
       if (act === 'resume') {
-        // just close overlay — no navigation
         finishAndClose('resume');
         return;
       }
@@ -174,9 +132,10 @@ export function createNavButtonBar({ navigate, api, soundManager } = {}) {
       }
 
       if (act === 'restart') {
+        // let scene know + actually restart
         onEvent({ type: 'PauseDialogAction', action: 'restart' });
         cleanup();
-        closeOverlay(overlay, { restoreTo: previouslyFocused });
+        overlay.hide?.();
         doRestart();
         return;
       }
@@ -184,7 +143,7 @@ export function createNavButtonBar({ navigate, api, soundManager } = {}) {
       if (act === 'mainmenu') {
         onEvent({ type: 'PauseDialogAction', action: 'mainmenu' });
         cleanup();
-        closeOverlay(overlay, { restoreTo: previouslyFocused });
+        overlay.hide?.();
         go('/main-menu');
         return;
       }
@@ -238,15 +197,12 @@ export function createNavButtonBar({ navigate, api, soundManager } = {}) {
     };
 
     const onKey = (e) => {
-      if (e.key === 'Escape') finishAndClose('resume');
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        finishAndClose('resume');
+      }
     };
 
-    function cleanup() {
-      scroll?.removeEventListener('click', onClick);
-      scroll?.removeEventListener('mouseenter', onHover, true);
-      document.removeEventListener('keydown', onKey);
-    }
-    
     const onHover = (e) => {
       const el = e.target.closest('[data-pause-action]');
       if (el && soundManager && !el.disabled) {
@@ -254,12 +210,29 @@ export function createNavButtonBar({ navigate, api, soundManager } = {}) {
       }
     };
 
-    scroll?.addEventListener('click', onClick);
-    scroll?.addEventListener('mouseenter', onHover, true);
+    function cleanup() {
+      node.removeEventListener('click', onClick);
+      node.removeEventListener('mouseenter', onHover, true);
+      document.removeEventListener('keydown', onKey);
+    }
+
+    // attach listeners directly to the dialog node
+    node.addEventListener('click', onClick);
+    node.addEventListener('mouseenter', onHover, true);
     document.addEventListener('keydown', onKey);
+
+    // 👇 this actually opens the overlay
+    overlay.show(node, { autoHide: false });
+
+    const firstBtn = node.querySelector('[data-pause-action]');
+    if (firstBtn) firstBtn.focus();
   }
 
-  function onSceneEvent(fn) { onEvent = fn || onEvent; }
+  function onSceneEvent(fn) {
+    if (typeof fn === 'function') {
+      onEvent = fn;
+    }
+  }
 
   return { mount, onSceneEvent };
 }
