@@ -19,7 +19,6 @@ import { createPlayingFieldController } from './controllers/playingFieldControll
 import { createSoundManager } from './utils/soundManager.js';
 
 export async function build({ api, overlay, createGameAlert }) {
-  // 1) registries
   const avatarRegistry = createPlayerAvatarRegistry({
     avatarsPath: '/assets/images/players/',
     fileNames: ['player1.jpg','player2.jpg','ai.jpg','taka.jpg','defendra.jpg','bitstrom.jpg','meta.jpg']
@@ -37,14 +36,12 @@ export async function build({ api, overlay, createGameAlert }) {
 
   let lastRoles = { attacker: '', defender: '' };
   
-  // Sound manager
   const soundManager = createSoundManager({ basePath: '/assets/sounds/' });
   soundManager.preload('attack', 'attack.wav'); 
   soundManager.preload('hover', 'hover.wav');
   
   await Promise.all([avatarRegistry.preloadAvatars().catch(() => {}), cardRegistry.preloadAll().catch(() => {})]);
 
-  // 2) mount bars
   const playersBar = createPlayersBar(avatarRegistry);
   playersBar.mount(document.getElementById('players-bar'));
 
@@ -54,7 +51,6 @@ export async function build({ api, overlay, createGameAlert }) {
   const actionBar = createActionButtonBar({ overlay });
   actionBar.mount(document.getElementById('action-bar'));
 
-  // 3) renderers
   const fieldRenderer = createDefaultFieldCardRenderer({ defeatedImg: cardRegistry.getDefeatedImage() });
   const handRenderer  = createDefaultHandCardRenderer();
 
@@ -69,7 +65,6 @@ export async function build({ api, overlay, createGameAlert }) {
     ReverseSwap:      'ReverseSwap'
   };
 
-  // 4) field/hand hosts and helpers
   const elField = document.getElementById('field');
   const elHand  = document.getElementById('hand');
 
@@ -100,7 +95,7 @@ export async function build({ api, overlay, createGameAlert }) {
   }
 
   const comparisonHandler = createComparisonDialogHandler({
-    controller, // will be filled after controller is created
+    controller,
     contextHolder: {
       get: () => ({
         state: { roles: { attacker: lastRoles.attacker, defender: lastRoles.defender } }
@@ -145,12 +140,8 @@ export async function build({ api, overlay, createGameAlert }) {
     afterServerApply: orchestrator.afterServerApply,
   });
 
-
-
-  // now that controller exists, let handler know (if it uses it directly)
   comparisonHandler.controller = controller;
 
-  // nav bar callbacks (needs controller now)
   navBar.onSceneEvent((ev) => {
     if (!ev) return;
 
@@ -169,21 +160,23 @@ export async function build({ api, overlay, createGameAlert }) {
     }
   });
 
-  // 7) action buttons → controller via orchestrator
   const onActionClick = (action) => {
     if (soundManager?.unlock) {
       soundManager.unlock();
     }
 
     const key = typeof action === 'string' ? action : action?.id || action?.type;
+
     switch (key) {
+      // ---- SINGLE ATTACK (defender) ----
       case 'attack-regular':
       case 'attack-defender':
       case 'attack':
       case 'single-attack':
-      case 'singleAttack':
+      case 'singleAttack': {
         orchestrator.setPendingAction(ActionNames.RegularAttack);
         controller.onSingleAttackDefender?.();
+
         const field = document.getElementById('field');
         if (field) {
           const firstCard = field.querySelector('.game-card');
@@ -192,67 +185,82 @@ export async function build({ api, overlay, createGameAlert }) {
             setTimeout(() => firstCard.classList.remove('flip'), 700);
           }
         }
-        controller.onSingleAttackDefender?.(); return;
+        return;
+      }
 
+      // ---- SINGLE ATTACK (goalkeeper) ----
       case 'attack-goalkeeper':
       case 'single-attack-gk':
-      case 'attack-gk':
+      case 'attack-gk': {
         orchestrator.setPendingAction(ActionNames.RegularAttack);
         controller.onSingleAttackGoalkeeper?.();
         return;
+      }
 
+      // ---- DOUBLE ATTACK ----
       case 'attack-double':
-      case 'double-attack':
+      case 'double-attack': {
         orchestrator.setPendingAction(ActionNames.DoubleAttack);
         controller.onDoubleAttack?.();
-        controller.onSingleAttackGoalkeeper?.(); return;
+        return;
+      }
 
-      case 'attack-double':
-      case 'double-attack':
-        controller.onDoubleAttack?.(); return;
-
+      // ---- SWAP (regular) ----
       case 'swap':
-      case 'swap-regular':
+      case 'swap-regular': {
         orchestrator.setPendingAction(ActionNames.RegularSwap);
         controller.onSwapSelected?.();
         return;
+      }
 
+      // ---- SWAP (reverse) ----
       case 'swap-reverse':
-      case 'reverse-swap':
+      case 'reverse-swap': {
         orchestrator.setPendingAction(ActionNames.ReverseSwap);
         controller.onReverseSwap?.();
         return;
+      }
 
+      // ---- BOOST ----
       case 'boost':
-      case 'boost-selected':
+      case 'boost-selected': {
         orchestrator.setPendingAction(ActionNames.BoostDefender);
         controller.onBoostSelected?.();
         return;
+      }
 
-      case 'undo':
+      // ---- UNDO / REDO ----
+      case 'undo': {
         orchestrator.setPendingAction(ActionNames.Undo);
         controller.onUndo?.();
         return;
+      }
 
-      case 'redo':
+      case 'redo': {
         orchestrator.setPendingAction(ActionNames.Redo);
         controller.onRedo?.();
         return;
+      }
 
+      // ---- DEFAULT ----
       default:
-        window.dispatchEvent(new CustomEvent('pf:event', { detail: { type: 'GameAction', action: key } }));
+        window.dispatchEvent(
+          new CustomEvent('pf:event', {
+            detail: { type: 'GameAction', action: key },
+          })
+        );
     }
   };
+
   actionBar.onClick(onActionClick);
 
-  // 8) streaming updates (SSE) → orchestrator
+
   actionBar.onHoverEvent?.((event) => {
     if (event?.type === 'hover') {
       soundManager.play('hover', { volume: 0.5 });
     }
   });
 
-  // 8) streaming updates (SSE)
   let es = api.openStream?.((web) => {
     try {
       orchestrator.handleStreamWeb(web);
@@ -261,7 +269,6 @@ export async function build({ api, overlay, createGameAlert }) {
     }
   });
 
-  // 9) initial state (before stream ticks)
   try {
     const initial = await api.fetchGameState();
     applyUiFromWeb(initial);
@@ -274,7 +281,6 @@ export async function build({ api, overlay, createGameAlert }) {
     }
   }
 
-  // 10) return the scene API for the manager
   return {
     destroy() {
       try { es?.close?.(); } catch {}
@@ -286,10 +292,9 @@ export async function build({ api, overlay, createGameAlert }) {
       controller.updateFromServerContext(fresh);
     },
     setAITurn,
-    // keep these if you still have a `comparison` helper somewhere:
-    // showComparison: (data) => comparison.openComparison(data),
-    // showGoal: (name) => comparison.goalScored({ winnerName: name }),
-    // showGameOver: (name, scoreLine) => comparison.gameOver({ winnerName: name, scoreLine }),
+    showComparison: (data) => comparison.openComparison(data),
+    showGoal: (name) => comparison.goalScored({ winnerName: name }),
+    showGameOver: (name, scoreLine) => comparison.gameOver({ winnerName: name, scoreLine }),
     setActionEnabled: (map) => actionBar.setEnabled(map),
     refreshOnRoleSwitch: () => playersBar.refreshOnRoleSwitch(),
   };
