@@ -1,21 +1,12 @@
-// ComparisonDialogGenerator.js
-//
-// Mirrors the Scala `object ComparisonDialogGenerator`.
-// Usage:
-//   import { configure, showSingleComparison, showDoubleComparison, showTieComparison, showDoubleTieComparison } from './ComparisonDialogGenerator.js';
-//   configure({ avatarRegistry, cardRegistry, assets: { overlayBg: '/assets/images/data/frames/overlay.png' } });
-
 import { UIActionScheduler, delayed } from './uiActionScheduler.js';
 
 let avatarRegistry = null;
 let cardRegistry   = null;
-let assets = { overlayBg: '/assets/images/frames/overlay.png' };
 
 /** Call once to inject registries/paths */
 export function configure(opts = {}) {
   avatarRegistry = opts.avatarRegistry ?? avatarRegistry;
   cardRegistry   = opts.cardRegistry   ?? cardRegistry;
-  assets         = { ...assets, ...(opts.assets || {}) };
 }
 
 /** helpers */
@@ -63,18 +54,49 @@ function toPlayerName(p) {
   return typeof p === 'string' ? p : (p?.name ?? 'Player');
 }
 
-function getAvatarView(player, scale) {
-  if (!avatarRegistry?.getAvatarView) {
-    // fallback placeholder
+function getAvatarView(player, scale = 1) {
+  if (!avatarRegistry) {
     const ph = document.createElement('div');
     ph.textContent = toPlayerName(player);
     ph.style.padding = '6px 10px';
-    ph.style.borderRadius = '8px';
-    ph.style.background = 'rgba(255,255,255,0.1)';
+    ph.style.borderRadius = '999px';
+    ph.style.background = 'rgba(255,255,255,0.15)';
     return ph;
   }
-  return avatarRegistry.getAvatarView({ player, scale });
+
+  try {
+    if (typeof avatarRegistry.getAvatarImg === 'function') {
+      return avatarRegistry.getAvatarImg(player, { scale });
+    }
+
+    // Fallback: build <img> using getAvatarUrl
+    if (typeof avatarRegistry.getAvatarUrl === 'function') {
+      const img = document.createElement('img');
+      img.src = avatarRegistry.getAvatarUrl(player);
+      img.alt = toPlayerName(player);
+      img.draggable = false;
+      img.className = 'cmp-avatar neon-avatar';
+
+      const baseSize = 500; // px
+      img.style.width  = `${baseSize * scale}px`;
+      img.style.height = `${baseSize * scale}px`;
+      img.style.objectFit = 'cover';
+      img.style.borderRadius = '999px';
+      return img;
+    }
+  } catch (e) {
+    console.warn('[CDG] failed to resolve avatar', player, e);
+  }
+
+  // Final fallback: text pill
+  const ph = document.createElement('div');
+  ph.textContent = toPlayerName(player);
+  ph.style.padding = '6px 10px';
+  ph.style.borderRadius = '999px';
+  ph.style.background = 'rgba(255,255,255,0.15)';
+  return ph;
 }
+
 
 function getCardUrlFromFileName(fileName) {
   if (cardRegistry?.getImageUrl) return cardRegistry.getImageUrl(`${fileName}.png`);
@@ -165,8 +187,8 @@ function showComparisonUI({
   const resultText = createText(resultMessage, { fontSize: 16 * scaleFactor, weight: 'bold', color: 'white' });
 
   // Avatars
-  const leftAvatar  = getAvatarView(attacker, 0.1 * scaleFactor);
-  const rightAvatar = getAvatarView(defender, 0.1 * scaleFactor);
+  const leftAvatar  = getAvatarView(attacker, 0.7 * scaleFactor);
+  const rightAvatar = getAvatarView(defender, 0.7 * scaleFactor);
 
   // Card images
   const atkImg1 = attackingCard1 ? createCardImageView(attackingCard1, 0.7 * scaleFactor) : null;
@@ -225,7 +247,6 @@ function showComparisonUI({
   root.style.padding = '15px';
   root.style.borderRadius = '10px';
   root.style.backgroundColor = 'transparent';
-  root.style.backgroundImage = `url("${assets.overlayBg}")`;
   root.style.backgroundSize = '100% 100%';
   root.style.backgroundRepeat = 'no-repeat';
   root.style.backgroundPosition = 'center';

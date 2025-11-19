@@ -32,13 +32,7 @@ export function createGameApi() {
     if (!res.ok) throw new Error(`${url} failed: ${res.status} — ${await res.text()}`);
     return res.json();
   }
-
-  async function fetchJson(url, options = {}) {
-    const res = await fetch(url, options);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
-  }
-
+  
   function openStream(onMessage) {
     const es = new EventSource('/api/stream', { withCredentials: true });
     es.onmessage = (e) => { if (onMessage) onMessage(JSON.parse(e.data)); };

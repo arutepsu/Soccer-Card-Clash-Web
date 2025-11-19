@@ -16,16 +16,20 @@ export function createOverlay({
   let autoTimer  = null;
   let onHideCb   = null;
 
-  function setSizeMultiplier(isAuto) {
+  function setSizeMultiplier(isAuto, customMult) {
     if (!frame) return;
-    frame.style.setProperty('--size-mult', String(isAuto ? sizeMultAuto : sizeMultManual));
+    const mult = (typeof customMult === 'number' && !Number.isNaN(customMult))
+      ? customMult
+      : (isAuto ? sizeMultAuto : sizeMultManual);
+
+    frame.style.setProperty('--size-mult', String(mult));
   }
 
-  function open({ autoHide = autoHideDefault, onHide } = {}) {
+  function open({ autoHide = autoHideDefault, onHide, sizeMult } = {}) {
     onHideCb = typeof onHide === 'function' ? onHide : null;
 
     lastActive = document.activeElement;
-    setSizeMultiplier(autoHide);
+    setSizeMultiplier(autoHide, sizeMult);
 
     host.classList.remove('hidden', 'is-closing');
     host.inert = false;
@@ -73,12 +77,10 @@ export function createOverlay({
     host.addEventListener('transitionend', onEnd);
   }
 
-  // backdrop click (your backdrop is the host itself)
   host.addEventListener('mousedown', (e) => {
     if (e.target === host) close();
   });
 
-  // ESC to close
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && host.classList.contains('visible')) {
       e.preventDefault();
@@ -86,7 +88,6 @@ export function createOverlay({
     }
   });
 
-  // focus trap
   host.addEventListener('keydown', (e) => {
     if (e.key !== 'Tab' || !host.classList.contains('visible')) return;
     const focusables = Array.from(host.querySelectorAll(
@@ -102,18 +103,17 @@ export function createOverlay({
     }
   });
 
-  // close button
   closeBtn?.addEventListener('click', close);
 
-  function show(node, { autoHide = autoHideDefault, onHide } = {}) {
+  function show(node, { autoHide = autoHideDefault, onHide, sizeMult } = {}) {
     if (!(node instanceof Node)) throw new Error('overlay.show expects a DOM Node');
     scrollContainer?.replaceChildren(node);
-    open({ autoHide, onHide });
+    open({ autoHide, onHide, sizeMult });
   }
+
 
   function hide() { close(); }
 
-  // initial hidden state (matches your Twirl)
   host.inert = true;
   host.setAttribute('aria-hidden', 'true');
   host.classList.add('hidden');
