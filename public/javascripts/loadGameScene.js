@@ -1,4 +1,5 @@
 import { createSoundManager } from './utils/soundManager.js';
+import { fileIOApi } from './api/FileIOApi.js';
 
 export async function build({ api, overlay, createGameAlert }) {
   // Sound Manager 
@@ -6,16 +7,18 @@ export async function build({ api, overlay, createGameAlert }) {
   soundManager.preload('hover', 'hover.wav');
   soundManager.preload('click', 'attack.wav');
   
-  const root = document.querySelector('.scene--loadgame');
-  const container = root?.querySelector('.container');
-  if (!root || !container) return { destroy() {}, refresh: async () => {} };
+  const $root = $('.scene--loadgame');
+  const $container = $root.find('.container');
+  if (!$root.length || !$container.length) return { destroy() {}, refresh: async () => {} };
 
-  // Optional data attributes on the root (nice to have)
-  // <div class="scene scene--loadgame"
-  //      data-list-url="/api/saves" data-load-url="/api/load" data-redirect="/playing-field">
-  const listUrl = root.dataset.listUrl || '/api/saves';
-  const loadUrl = root.dataset.loadUrl || '/api/load';
-  const redirectTo = root.dataset.redirect || '/playing-field';
+  // Data attributes from the root element
+  const listUrl = $root.data('list-url') || '/api/files/list';
+  const loadUrl = $root.data('load-url') || '/api/files/load';
+  const redirectTo = $root.data('redirect') || '/playing-field';
+  const $messagesEl = $root.find('.loadgame-messages');
+  const $globalLoadBtn = $root.find('.load-game-btn');
+
+  let selectedGameId = null;
 
   function showAlert(msg) {
     if (overlay && createGameAlert) {
@@ -30,86 +33,206 @@ export async function build({ api, overlay, createGameAlert }) {
     try { return new Date(iso).toLocaleString(); } catch { return iso || ''; }
   }
 
+  function announce(msg, type = 'info') {
+    if (!$messagesEl.length) return;
+    const $div = $('<div>')
+      .addClass(`msg msg--${type}`)
+      .text(msg);
+    $messagesEl.empty().append($div);
+    setTimeout(() => {
+      $div.fadeOut(400, function() { $(this).remove(); });
+    }, 4000);
+  }
+
   function renderList(items = []) {
-    container.innerHTML = '';
+    $container.empty();
+    selectedGameId = null;
+    
+    // Disable global load button initially
+    if ($globalLoadBtn.length) {
+      $globalLoadBtn
+        .addClass('disabled')
+        .css({ 'pointer-events': 'none', 'opacity': '0.5' });
+    }
+
     if (!items.length) {
-      const empty = document.createElement('p');
-      empty.className = 'empty-note';
-      empty.textContent = 'No saved games found.';
-      container.appendChild(empty);
+      const $empty = $('<p>')
+        .addClass('empty-note')
+        .text('No saved games found.');
+      $container.append($empty);
       return;
     }
 
-    const list = document.createElement('div');
-    list.className = 'save-list';
+    const $list = $('<div>').addClass('save-list');
 
-    items.forEach((it) => {
-      // expect shape like { id, name, updatedAt } – tolerate variations
-      const id   = it.id ?? it.saveId ?? it.name ?? String(Math.random());
-      const name = it.name ?? it.title ?? `Save ${id}`;
-      const when = it.updatedAt ?? it.createdAt ?? it.timestamp ?? null;
+    $.each(items, function(index, fileName) {
+      const name = fileName;
+      const id = fileName;
+      const when = null;
 
-      const card = document.createElement('div');
-      card.className = 'save-card';
+      const $card = $('<div>')
+        .addClass('save-card')
+        .css('cursor', 'pointer')
+        .data('game-id', id);
 
-      const header = document.createElement('div');
-      header.className = 'save-card__header';
-      header.innerHTML = `<strong class="save-title">${name}</strong>`;
+      const $header = $('<div>')
+        .addClass('save-card__header')
+        .html(`<strong class="save-title">${name}</strong>`);
 
-      const meta = document.createElement('div');
-      meta.className = 'save-card__meta';
-      meta.textContent = when ? `Updated: ${fmtDate(when)}` : '';
-
-      const actions = document.createElement('div');
-      actions.className = 'save-card__actions';
-
-      const btnLoad = document.createElement('button');
-      btnLoad.type = 'button';
-      btnLoad.className = 'gbtn';
-      btnLoad.textContent = 'Load';
-      
-      btnLoad.addEventListener('mouseenter', () => {
+      const $meta = $('<div>')
+        .addClass('save-card__meta')
+        .text(when ? `Updated: ${fmtDate(when)}` : '');
+/
+      $card.on('mouseenter', function() {
         soundManager.play('hover', { volume: 0.3 });
       });
-      
-      btnLoad.addEventListener('click', async () => {
+
+
+      $card.on('click', function() {
         soundManager.play('click', { volume: 0.6 });
-        try {
-          // POST { id } to load the save, then go to playing field
-          await api.postJSON(loadUrl, { id });
-          window.location.href = redirectTo;
-        } catch (e) {
-          console.error(e);
-          showAlert('Failed to load the selected game.');
+        
+        $list.find('.save-card').removeClass('selected');
+        
+        $card.addClass('selected');
+        selectedGameId = id;
+        
+        if ($globalLoadBtn.length) {
+          $globalLoadBtn
+            .removeClass('disabled')
+            .css({ 'pointer-events': 'auto', 'opacity': '1' });
         }
+        
+        announce(`Selected: ${name}`, 'info');
       });
 
-      actions.appendChild(btnLoad);
-      card.append(header, meta, actions);
-      list.appendChild(card);
+      $card.append($header, $meta);
+      $list.append($card);
     });
 
-    container.appendChild(list);
+    $container.append($list);
   }
 
+  //  Fetches the list of saved games from the server and renders them in the UI.
+  //  If the request fails, it displays an error message in the UI.
   async function fetchAndRender() {
-    try {
-      const items = await api.getJSON(listUrl);
-      // Accept either { saves: [...] } or [...]
-      renderList(Array.isArray(items) ? items : (items?.saves ?? []));
-    } catch (e) {
-      console.error(e);
-      showAlert('Could not fetch saved games.');
-      renderList([]);
-    }
+    $.ajax({
+      url: listUrl,
+      method: 'GET',
+      dataType: 'json',
+      success: function(data) {
+        const files = Array.isArray(data) ? data : (data.files || []);
+        renderList(files);
+        announce(`Found ${files.length} saved game${files.length !== 1 ? 's' : ''}`, 'info');
+      },
+      error: function(jqXHR, textStatus, errorThrown) {
+        console.error('Failed to fetch saved games:', textStatus, errorThrown);
+        announce('Could not fetch saved games.', 'error');
+        renderList([]);
+      }
+    });
+  }
+
+  // Global Load Button Event Handler using jQuery
+  if ($globalLoadBtn.length) {
+    $globalLoadBtn.on('mouseenter', function() {
+      if (!$(this).hasClass('disabled')) {
+        soundManager.play('hover', { volume: 0.3 });
+      }
+    });
+
+    $globalLoadBtn.on('click', async function(e) {
+      e.preventDefault();
+      
+      if (!selectedGameId || $(this).hasClass('disabled')) {
+        announce('Please select a game to load.', 'error');
+        return;
+      }
+
+      soundManager.play('click', { volume: 0.6 });
+      
+      const $btn = $(this);
+      $btn.addClass('disabled').css('pointer-events', 'none');
+      const originalText = $btn.text();
+      $btn.text('Loading...');
+      
+      try {
+        const sessionId = await fileIOApi.resolveSessionId();
+        const csrfToken = $('meta[name="csrf-token"]').attr('content');
+        
+        // Using jQuery Ajax to load the game
+        $.ajax({
+          url: loadUrl,
+          method: 'POST',
+          contentType: 'application/json',
+          dataType: 'json',
+          headers: csrfToken ? {
+            'Csrf-Token': csrfToken,
+            'X-CSRF-Token': csrfToken
+          } : {},
+          data: JSON.stringify({ 
+            fileName: selectedGameId, 
+            sessionId: sessionId 
+          }),
+          success: function(response) {
+            announce(`Successfully loaded: ${selectedGameId}`, 'success');
+            
+            if (response.gameState) {
+              console.log('Game state loaded:', response.gameState);
+              updateGameDataDisplay(response.gameState);
+            }
+            
+            setTimeout(function() { 
+              window.location.href = redirectTo; 
+            }, 800);
+          },
+          error: function(jqXHR, textStatus, errorThrown) {
+            console.error('Failed to load game:', textStatus, errorThrown);
+            const errorMsg = jqXHR.responseText || 'Failed to load the selected game.';
+            announce(errorMsg, 'error');
+            
+            $btn.removeClass('disabled')
+                .css('pointer-events', 'auto')
+                .text(originalText);
+          }
+        });
+      } catch (e) {
+        console.error('Error during load:', e);
+        announce('An error occurred while loading the game.', 'error');
+        $btn.removeClass('disabled')
+            .css('pointer-events', 'auto')
+            .text(originalText);
+      }
+    });
+  }
+
+  // Helper function to display loaded game data (optional enhancement)
+  function updateGameDataDisplay(gameState) {
+    if (!gameState) return;
+    
+    // Create a preview section if game data is available
+    const $preview = $('<div>')
+      .addClass('game-preview')
+      .html(`
+        <h3>Game Preview</h3>
+        <div class="preview-content">
+          ${gameState.currentScene ? `<p><strong>Scene:</strong> ${gameState.currentScene}</p>` : ''}
+          ${gameState.players ? `<p><strong>Players:</strong> ${gameState.players.length}</p>` : ''}
+          ${gameState.round ? `<p><strong>Round:</strong> ${gameState.round}</p>` : ''}
+        </div>
+      `);
+    
+    // Append or update preview
+    $('.game-preview').remove();
+    $container.before($preview);
   }
 
   await fetchAndRender();
 
   return {
     destroy() {
-      // remove all listeners by nuking the container content
-      container.innerHTML = '';
+      // Remove all jQuery event listeners
+      $container.empty();
+      $globalLoadBtn.off('mouseenter click');
     },
     refresh: fetchAndRender,
   };

@@ -14,3 +14,7 @@
 .DS_Store
 Thumbs.db
 
+# Game save files
+/games/
+*.json
+

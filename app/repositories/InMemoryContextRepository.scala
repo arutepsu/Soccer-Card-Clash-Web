@@ -2,6 +2,7 @@ package app.repositories
 import javax.inject._
 import java.util.concurrent.ConcurrentHashMap
 import app.repositories.GameContextRepository
+import scala.jdk.CollectionConverters.*
 import de.htwg.se.soccercardclash.model.gameComponent.context.GameContext
 
 @Singleton
@@ -10,4 +11,5 @@ final class InMemoryGameContextRepository @Inject()() extends GameContextReposit
   def get(sid: String) = Option(store.get(sid))
   def set(sid: String, ctx: GameContext) = store.put(sid, ctx)
   def clear(sid: String) = store.remove(sid)
+  def keys: Seq[String] = store.keySet().asScala.toSeq.sorted
 }

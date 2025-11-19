@@ -3,14 +3,27 @@
 
 <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/loadGame.css")'>
 <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/base/gameButton.css")'>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/jQueryAjax.css")'>
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 @views.html.components.navBar()
-<div class="scene scene--loadgame">
+<div id="app" data-scene="LoadGame">
+  <div class="scene scene--loadgame" data-list-url="@routes.FileIOController.listSavedGames()" data-load-url="@routes.FileIOController.loadGameFromFile()" data-redirect="@routes.UiController.playingField()">
   <h1 class="header">Select a Saved Game</h1>
 
-  <div class="container">
-  </div>
+  <div class="container" aria-live="polite"></div>
+  <div class="loadgame-messages" aria-live="assertive"></div>
 
   <div class="buttons">
     <a class="gbtn btn btn-warning" href='@routes.UiController.mainMenu()'>Back</a>
+    <a class="gbtn btn load-game-btn">Load</a>
+  </div>
   </div>
 </div>
+@defining(play.filters.csrf.CSRF.getToken) { csrfOpt =>
+  @csrfOpt.map { t =>
+    <meta name="csrf-token" content="@t.value">
+  }
+}
+<div id="overlay" class="hidden" aria-hidden="true"></div>
+<script type="module" src='@routes.Assets.versioned("javascripts/app.js")'></script>

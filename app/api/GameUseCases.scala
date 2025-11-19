@@ -27,10 +27,15 @@ final class GameUseCases @Inject()(
   val holder: IGameContextHolder,
 ) extends IGameUseCases {
 
-  private def noGame: Left[AppError, Nothing] = Left(AppError("No active game"))
+  private def noGame(sid: String): Left[AppError, Nothing] = {
+    val ks = try repo.keys.mkString(", ") catch
+      case _: Throwable => "<unavailable>"
+    println(s"[GameUseCases] No active game for sessionId='$sid'. Repo keys: [$ks]")
+    Left(AppError(s"No active game for sessionId: '$sid'"))
+  }
 
   private def withCtx[A](sid: String)(f: GameContext => Either[AppError, A]): Either[AppError, A] =
-    repo.get(sid).map(f).getOrElse(noGame)
+    repo.get(sid).map(f).getOrElse(noGame(sid))
 
   private def getFromHolder: Either[AppError, GameContext] =
     Try(holder.get) match {
@@ -83,7 +88,7 @@ final class GameUseCases @Inject()(
   }
 
   override def state(sid: String): Either[AppError, WebGameState] =
-    repo.get(sid).map(render).getOrElse(noGame)
+    repo.get(sid).map(render).getOrElse(noGame(sid))
 
   override def swap(index: Int, sid: String): Either[AppError, WebGameState] =
     withCtx(sid) { ctx =>

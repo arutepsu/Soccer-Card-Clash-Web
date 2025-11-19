@@ -11,6 +11,8 @@ import app.api.IGameUseCases
 import app.api.GameUseCases
 import app.repositories.GameContextRepository
 import app.repositories.InMemoryGameContextRepository
+import app.fileIO.IFileIO
+import app.fileIO.JsonFileIO
 
 class Module extends AbstractModule {
   override def configure(): Unit = {
@@ -19,5 +21,6 @@ class Module extends AbstractModule {
     bind(classOf[Tui]).to(classOf[WebTui]).asEagerSingleton()
     bind(classOf[IGameUseCases]).to(classOf[GameUseCases]).asEagerSingleton()
     bind(classOf[GameContextRepository]).to(classOf[InMemoryGameContextRepository]).asEagerSingleton()
+    bind(classOf[IFileIO]).to(classOf[JsonFileIO]).asEagerSingleton()
   }
 }

@@ -12,11 +12,11 @@ export function createSoundManager({ basePath = '/assets/sounds/' } = {}) {
     audio.volume = 0.5;
 
     audio.addEventListener('canplaythrough', () => {
-      console.log(`[SoundManager] ✓ "${name}" loaded successfully`);
+      console.log(`[SoundManager]"${name}" loaded successfully`);
     });
 
     audio.addEventListener('error', (e) => {
-      console.error(`[SoundManager] ✗ Failed to load "${name}":`, e);
+      console.error(`[SoundManager] Failed to load "${name}":`, e);
     });
 
     sounds.set(name, audio);
@@ -37,10 +37,10 @@ export function createSoundManager({ basePath = '/assets/sounds/' } = {}) {
       playPromise
         .then(() => {
           unlocked = true;
-          console.log('[SoundManager] ✓ Audio unlocked after user interaction.');
+          console.log('[SoundManager] Audio unlocked');
         })
         .catch(() => {
-          console.warn('[SoundManager] ⚠️ Unlock attempt failed (no user gesture yet).');
+          console.warn('[SoundManager]Unlock failed.');
         });
     }
   }
@@ -64,7 +64,7 @@ export function createSoundManager({ basePath = '/assets/sounds/' } = {}) {
   function play(name, { volume = 1.0, loop = false } = {}) {
     const audio = sounds.get(name);
     if (!audio) {
-      console.warn(`[SoundManager] Sound "${name}" not found. Did you preload it?`);
+      console.warn(`[SoundManager] Sound "${name}" not found`);
       return null;
     }
 
@@ -84,10 +84,10 @@ export function createSoundManager({ basePath = '/assets/sounds/' } = {}) {
       if (playPromise !== undefined) {
         playPromise
           .then(() => {
-            console.log(`[SoundManager] ✓ "${name}" playing`);
+            console.log(`[SoundManager]"${name}" playing`);
           })
           .catch((err) => {
-            console.warn(`[SoundManager] ✗ Failed to play "${name}":`, err.message);
+            console.warn(`[SoundManager] Failed to play "${name}":`, err.message);
             if (err.name === 'NotAllowedError') {
               console.warn('[SoundManager] Autoplay blocked. Will unlock on user interaction.');
             }

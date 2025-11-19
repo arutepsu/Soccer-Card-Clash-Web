@@ -1,4 +1,6 @@
 // /assets/javascripts/navButtonBar.js
+import { fileIOApi } from '../api/FileIOApi.js';
+
 export function createNavButtonBar({ navigate, api, soundManager } = {}) {
   let root;
   let onEvent = () => {};
@@ -126,6 +128,7 @@ export function createNavButtonBar({ navigate, api, soundManager } = {}) {
           <button class="gbtn" data-pause-action="undo">Undo</button>
           <button class="gbtn" data-pause-action="redo">Redo</button>
           <button class="gbtn" data-pause-action="restart">Restart</button>
+          <button class="gbtn" data-pause-action="save">Save</button>
           <button class="gbtn" data-pause-action="mainmenu">Main Menu</button>
         </div>
       </div>
@@ -183,6 +186,53 @@ export function createNavButtonBar({ navigate, api, soundManager } = {}) {
         cleanup();
         closeOverlay(overlay, { restoreTo: previouslyFocused });
         go('/main-menu');
+        return;
+      }
+
+      if (act === 'save') {
+        onEvent({ type: 'PauseDialogAction', action: 'save' });
+        el.setAttribute('disabled', 'true');
+        el.textContent = 'Saving...';
+        // Session automatisch ermitteln
+        fileIOApi.quickSave()
+          .then(() => {
+            console.log('Game saved successfully');
+            if (soundManager) {
+              soundManager.play('success', { volume: 0.7 });
+            }
+            cleanup();
+            closeOverlay(overlay, { restoreTo: previouslyFocused });
+            
+            const savedMsg = document.createElement('div');
+            savedMsg.className = 'save-notification';
+            savedMsg.textContent = 'Game Saved!';
+            savedMsg.style.cssText = `
+              position: fixed;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              background: #4CAF50;
+              color: white;
+              padding: 20px 40px;
+              border-radius: 10px;
+              font-size: 20px;
+              font-weight: bold;
+              z-index: 10001;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            `;
+            document.body.appendChild(savedMsg);
+            
+            setTimeout(() => {
+              savedMsg.remove();
+              go('/main-menu');
+            }, 1500);
+          })
+          .catch((error) => {
+            console.error('Save failed:', error);
+            el.removeAttribute('disabled');
+            el.textContent = 'Save';
+            alert('Failed to save game: ' + error.message);
+          });
         return;
       }
     };
