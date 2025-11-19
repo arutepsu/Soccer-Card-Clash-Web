@@ -1,59 +1,129 @@
 import { extractComparisonEvents } from './comparisonEvents.js';
 
+function valueFromFileName(card) {
+  const fn = card?.fileName;
+  if (!fn) return null;
+  const valueStr = fn.split('_of_')[0];
+
+  const faces = {
+    jack: 11,
+    queen: 12,
+    king: 13,
+    ace: 14,
+  };
+
+  const n = parseInt(valueStr, 10);
+  if (!Number.isNaN(n)) return n;
+  return faces[valueStr] ?? null;
+}
+
+function isSingleTie(atkCard, defCard) {
+  const av = valueFromFileName(atkCard);
+  const dv = valueFromFileName(defCard);
+  return av != null && dv != null && av === dv;
+}
+
+function isDoubleTie(atk1, atk2, def) {
+  const v1 = valueFromFileName(atk1);
+  const v2 = valueFromFileName(atk2);
+  const vd = valueFromFileName(def);
+  if (v1 == null || v2 == null || vd == null) return false;
+  return v1 + v2 === vd;
+}
+
 export function createComparisonOrchestrator({
   api,
   overlay,
   scheduler,
   comparisonHandler,
   ActionNames,
-  getRoles,                 // () => ({ attacker, defender })
-  applyUiFromWeb,           // (web) => void
-  updateFromServerContext,  // (web) => void
-  generator,                // ComparisonDialogGenerator
+  getRoles,
+  applyUiFromWeb,
+  updateFromServerContext,
+  generator,
   soundManager,  
 }) {
     let pendingActionType = null;
     let isOverlayActive   = false;
     let latestStreamWeb   = null;
 
-    let lastStableWeb     = null; // last normal game state from stream
-    let preActionWeb      = null; // snapshot taken when user clicks action
+    let lastStableWeb     = null;
+    let preActionWeb      = null;
 
-let currentComparison = null; // { atkCard, defCard, success }
+let currentComparison = null;
 
 
     function setPendingAction(type) {
     pendingActionType = type;
-    // snapshot state BEFORE we send the action to the server
     preActionWeb = lastStableWeb;
     currentComparison = null;
     }
-  // game rule helper: attacker = end of queue, defender = index
-    function getAttackAndDefendCardsFromState(web, meta) {
-    if (!web?.cards) return { atkCard: null, defCard: null };
-
-    const hand  = Array.isArray(web.cards.attackerHand) ? web.cards.attackerHand : [];
-    const lastIdx = hand.length - 1;
-    const lastHandCard = lastIdx >= 0 ? hand[lastIdx] : null;  // end-of-queue
-
-    const field = Array.isArray(web.cards.defenderField) ? web.cards.defenderField : [];
-    const dSlot = Number.isInteger(meta?.defenderIndex) ? field[meta.defenderIndex] : null;
-
-    const atkFile =
-        lastHandCard?.fileName ||
-        lastHandCard?.card?.fileName ||
-        null;
-
-    const defFile =
-        dSlot?.card?.fileName ||
-        dSlot?.fileName ||
-        null;
-
-    const atkCard = atkFile ? { fileName: atkFile } : null;
-    const defCard = defFile ? { fileName: defFile } : null;
-
-    return { atkCard, defCard };
+  function getAttackAndDefendCardsFromState(web, meta) {
+    if (!web?.cards) {
+      return {
+        atkCard: null,
+        defCard: null,
+        extraAtkCardTie: null,
+        extraDefCardTie: null,
+        atkCard1Double: null,
+        atkCard2Double: null,
+        defCard1Double: null,
+        defCard2Double: null,
+      };
     }
+
+    const cards = web.cards;
+
+    const attHand = Array.isArray(cards.attackerHand) ? cards.attackerHand : [];
+    const defHand = Array.isArray(cards.defenderHand) ? cards.defenderHand : [];
+    const defField = Array.isArray(cards.defenderField) ? cards.defenderField : [];
+
+    const last = (arr) => (arr.length > 0 ? arr[arr.length - 1] : null);
+    const secondLast = (arr) => (arr.length > 1 ? arr[arr.length - 2] : null);
+
+    const attLast  = last(attHand);
+    const attPrev  = secondLast(attHand);
+
+    const dSlot = Number.isInteger(meta?.defenderIndex) ? defField[meta.defenderIndex] : null;
+    const defFieldCard = dSlot?.card ?? dSlot ?? null;
+
+    const defHandLast  = last(defHand);
+    const defHandPrev  = secondLast(defHand);
+
+    function toCard(raw) {
+      if (!raw) return null;
+      const f =
+        raw.fileName ||
+        raw.card?.fileName ||
+        raw.id ||
+        null;
+
+      return f ? { fileName: f } : null;
+    }
+
+    const atkCard = toCard(attLast);
+    const defCard = toCard(defFieldCard);
+
+    const extraAtkCardTie = toCard(attPrev);
+    const extraDefCardTie = toCard(defHandLast);
+
+    const atkCard1Double = toCard(attPrev);
+    const atkCard2Double = toCard(attLast);
+    const defCard1Double = toCard(defHandPrev);
+    const defCard2Double = toCard(defHandLast);
+
+    return {
+      atkCard,
+      defCard,
+      extraAtkCardTie,
+      extraDefCardTie,
+      atkCard1Double,
+      atkCard2Double,
+      defCard1Double,
+      defCard2Double,
+    };
+  }
+
 
 
   function runOverlayForPendingAction() {
@@ -73,7 +143,6 @@ let currentComparison = null; // { atkCard, defCard, success }
     const seq = [];
 
     if (overlayAction) {
-      // --- 1) Normal path: handler built an overlay action ---
       seq.push({
         delay: 0,
         block: () => {
@@ -87,7 +156,6 @@ let currentComparison = null; // { atkCard, defCard, success }
       currentComparison?.atkCard &&
       currentComparison?.defCard
     ) {
-      // --- 2) Pure game-rule based fallback for regular attack ---
       console.log('[CMP] fallback using currentComparison from hand-end + defenderIndex');
 
       seq.push({
@@ -123,7 +191,6 @@ let currentComparison = null; // { atkCard, defCard, success }
       });
 
     } else {
-      // --- 3) ultimate debug text, no "last" cards, just info ---
       const host = document.getElementById('overlay');
       const div  = document.createElement('div');
       div.className = 'overlay-textflow';
@@ -137,7 +204,6 @@ let currentComparison = null; // { atkCard, defCard, success }
       console.warn('[CMP] overlayAction null; no currentComparison');
     }
 
-    // --- 4) unified refresh AFTER overlay duration ---
     seq.push({
       delay: 3000 + delay + 150,
       block: async () => {
@@ -162,14 +228,12 @@ let currentComparison = null; // { atkCard, defCard, success }
   }
 
 function afterServerApply(serverWeb, meta) {
-    comparisonHandler.resetLastCards();
     currentComparison = null;
 
     const cmp = extractComparisonEvents(serverWeb);
     console.log('[CMP] afterServerApply action=', meta?.action, 'defIdx=', meta?.defenderIndex, 'extracted=', cmp.map(e=>e.type));
 
     if (cmp.length) {
-        // normal path: server sent comparison events
         cmp.forEach(ev => comparisonHandler.handleComparisonEvent(ev));
         if (!cmp.some(e => e.type === 'AttackResultEvent')) {
         comparisonHandler.handleComparisonEvent({ type: 'AttackResultEvent', attackSuccess: false });
@@ -186,52 +250,132 @@ function afterServerApply(serverWeb, meta) {
         }
 
     } else if (meta?.action === 'RegularAttack' && Number.isInteger(meta?.defenderIndex)) {
-        const source = preActionWeb || serverWeb; // prefer preActionWeb
-        const { atkCard, defCard } = getAttackAndDefendCardsFromState(source, meta);
-        console.log('[CMP] synth from PRE-ACTION state (end-of-queue):', { atkCard, defCard });
+      const source = preActionWeb || serverWeb;
+      const {
+        atkCard,
+        defCard,
+        extraAtkCardTie,
+        extraDefCardTie,
+      } = getAttackAndDefendCardsFromState(source, meta);
 
-        if (atkCard && defCard) {
-        currentComparison = { atkCard, defCard, success: false };
+      console.log('[CMP] synth from PRE-ACTION state (end-of-queue):', {
+        atkCard,
+        defCard,
+        extraAtkCardTie,
+        extraDefCardTie,
+      });
 
-        // optional: feed synthetic events to handler
+      if (atkCard && defCard) {
+        const tie = isSingleTie(atkCard, defCard);
+
+        currentComparison = { atkCard, defCard, success: !tie };
+
         comparisonHandler.handleComparisonEvent({
-            type: 'ComparedCardsEvent',
+          type: 'ComparedCardsEvent',
+          attackingCard: atkCard,
+          defendingCard: defCard,
+        });
+
+        if (tie && extraAtkCardTie && extraDefCardTie) {
+          comparisonHandler.handleComparisonEvent({
+            type: 'TieComparisonEvent',
             attackingCard: atkCard,
             defendingCard: defCard,
-        });
-        comparisonHandler.handleComparisonEvent({
-            type: 'AttackResultEvent',
-            attackSuccess: false,
-        });
-        } else {
-        console.warn('[CMP] could not derive cards from PRE-ACTION state', {
-            preActionWeb,
-            meta,
-        });
+            extraAttackerCard: extraAtkCardTie,
+            extraDefenderCard: extraDefCardTie,
+          });
+          console.log('[CMP] synthesized TieComparisonEvent (client-side)');
         }
-    } else {
-        console.warn('[CMP] no comparison data and not a RegularAttack fallback path');
+
+        comparisonHandler.handleComparisonEvent({
+          type: 'AttackResultEvent',
+          attackSuccess: !tie,
+        });
+      } else {
+        console.warn('[CMP] could not derive cards from PRE-ACTION state', {
+          preActionWeb,
+          meta,
+        });
+      }
+    } else if (meta?.action === 'DoubleAttack' && Number.isInteger(meta?.defenderIndex)) {
+      const source = preActionWeb || serverWeb;
+      const {
+        atkCard1Double,
+        atkCard2Double,
+        defCard,
+        extraAtkCardTie,
+        extraDefCardTie,
+      } = getAttackAndDefendCardsFromState(source, meta);
+
+      console.log('[CMP] synth DOUBLE from PRE-ACTION state (last 2 cards):', {
+        atkCard1Double,
+        atkCard2Double,
+        defCard,
+        extraAtkCardTie,
+        extraDefCardTie,
+      });
+
+      if (atkCard1Double && atkCard2Double && defCard) {
+        const tie = isDoubleTie(atkCard1Double, atkCard2Double, defCard);
+
+        currentComparison = { atkCard: atkCard2Double, defCard, success: !tie };
+
+        comparisonHandler.handleComparisonEvent({
+          type: 'DoubleComparedCardsEvent',
+          attackingCard1: atkCard1Double,
+          attackingCard2: atkCard2Double,
+          defendingCard: defCard,
+        });
+
+        if (tie && extraAtkCardTie && extraDefCardTie) {
+          comparisonHandler.handleComparisonEvent({
+            type: 'DoubleTieComparisonEvent',
+            attackingCard1: atkCard1Double,
+            attackingCard2: atkCard2Double,
+            defendingCard: defCard,
+            extraAttackerCard: extraAtkCardTie,
+            extraDefenderCard: extraDefCardTie,
+          });
+          console.log('[CMP] synthesized DoubleTieComparisonEvent (client-side)');
+        }
+
+        comparisonHandler.handleComparisonEvent({
+          type: 'AttackResultEvent',
+          attackSuccess: !tie,
+        });
+      } else {
+        console.warn('[CMP] could not derive DOUBLE cards from PRE-ACTION state', {
+          preActionWeb,
+          meta,
+        });
+      }
     }
+
+
 
     runOverlayForPendingAction();
     }
 
 
-    function handleStreamWeb(web) {
+  function handleStreamWeb(web) {
     const events = extractComparisonEvents(web);
-    for (const ev of events) comparisonHandler.handleComparisonEvent(ev);
 
-    // if overlay in progress or action pending, don't touch the UI, just remember latest post-action state
-    if (pendingActionType || isOverlayActive) {
-        latestStreamWeb = web;
-        return;
+    if (pendingActionType) {
+      for (const ev of events) {
+        comparisonHandler.handleComparisonEvent(ev);
+      }
     }
 
-    // normal flow: this becomes the "stable" state we can snapshot before actions
+    if (pendingActionType || isOverlayActive) {
+      latestStreamWeb = web;
+      return;
+    }
+
     lastStableWeb = web;
     applyUiFromWeb(web);
     updateFromServerContext(web);
-    }
+  }
+
 
 
   return {

@@ -1,4 +1,3 @@
-// /assets/javascripts/controllers/PlayingFieldController.js
 export function createPlayingFieldController({
   api,
   fieldRenderer,
@@ -8,11 +7,11 @@ export function createPlayingFieldController({
   elField,
   elHand,
   mapWebToScene,
-  afterServerApply, 
+  afterServerApply,
 }) {
   let gameState = null;
   const getGS = () => gameState;
-  let lastUsedDefenderIndex = null; // NEW
+  let lastUsedDefenderIndex = null;
 
   let defenderFieldBar = null;
   let attackerHandBar  = null;
@@ -51,46 +50,63 @@ export function createPlayingFieldController({
     return { players: { attacker, defender } };
   }
 
+  // ---------- SINGLE ATTACK (DEFENDER) ----------
   async function onSingleAttackDefender() {
     if (busy || !defenderFieldBar) return;
+
     const idx = defenderFieldBar.selectedDefenderIndex?.();
     if (idx == null) return;
-    lastUsedDefenderIndex = idx; // NEW
+
+    lastUsedDefenderIndex = idx;
+
     try {
       busy = true;
       const web = await api.singleAttackDefender(idx);
-      // const mapped = applyWeb(web);
-      // NEW: notify scene
-      afterServerApply?.(web, { action: 'RegularAttack', defenderIndex: idx});
-      // runOverlayForPendingAction?.();
+
+      afterServerApply?.(web, {
+        action: 'RegularAttack',
+        defenderIndex: idx,
+      });
     } finally {
       defenderFieldBar.resetSelectedDefender?.();
       busy = false;
     }
   }
 
-
+  // ---------- SINGLE ATTACK (GOALKEEPER) ----------
   async function onSingleAttackGoalkeeper() {
     if (busy) return;
     try {
       busy = true;
       const web = await api.singleAttackGoalkeeper();
-      applyWeb(web);
-      runOverlayForPendingAction(); 
+
+      afterServerApply?.(web, {
+        action: 'RegularAttack',
+        defenderIndex: null,
+        target: 'goalkeeper',
+      });
     } finally {
       busy = false;
     }
   }
 
+  // ---------- DOUBLE ATTACK  ----------
   async function onDoubleAttack() {
     if (busy || !defenderFieldBar) return;
+
     const idx = defenderFieldBar.selectedDefenderIndex?.();
     if (idx == null) return;
+
+    lastUsedDefenderIndex = idx;
+
     try {
       busy = true;
       const web = await api.doubleAttack(idx);
-      applyWeb(web);
-      runOverlayForPendingAction(); 
+
+      afterServerApply?.(web, {
+        action: 'DoubleAttack',
+        defenderIndex: idx,
+      });
     } finally {
       defenderFieldBar.resetSelectedDefender?.();
       busy = false;
