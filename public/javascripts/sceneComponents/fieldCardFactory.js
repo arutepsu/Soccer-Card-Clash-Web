@@ -38,7 +38,6 @@ export function createFieldCardFactory(registry) {
     if (isGoalkeeper) $el.addClass('is-goalkeeper');
     if (cardOpt?.isBoosted) anim.applyBoostEffect($el[0]);
 
-    // Event-Handling mit jQuery
     $el
       .on('mouseenter', () => anim.applyHoverEffect($el[0], selectedIndexAccessor(), index))
       .on('mouseleave', () => anim.removeHoverEffect($el[0], selectedIndexAccessor(), index))

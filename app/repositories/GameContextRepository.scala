@@ -5,4 +5,6 @@ trait GameContextRepository {
   def get(sessionId: String): Option[GameContext]
   def set(sessionId: String, ctx: GameContext): Unit
   def clear(sessionId: String): Unit
+  /** All session ids currently stored */
+  def keys: Seq[String]
 }
