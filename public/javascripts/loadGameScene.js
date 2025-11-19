@@ -82,7 +82,7 @@ export async function build({ api, overlay, createGameAlert }) {
       const $meta = $('<div>')
         .addClass('save-card__meta')
         .text(when ? `Updated: ${fmtDate(when)}` : '');
-/
+
       $card.on('mouseenter', function() {
         soundManager.play('hover', { volume: 0.3 });
       });
