@@ -1,7 +1,6 @@
-// /assets/javascripts/navButtonBar.js
 import { fileIOApi } from '../api/FileIOApi.js';
 
-export function createNavButtonBar({ navigate, api, soundManager } = {}) {
+export function createNavButtonBar({ navigate, api, overlay, soundManager } = {}) {
   let root;
   let onEvent = () => {};
 
@@ -44,7 +43,7 @@ export function createNavButtonBar({ navigate, api, soundManager } = {}) {
       if (!btn) return;
 
       if (soundManager && !btn.disabled) {
-        soundManager.play('click', { volume: 0.6 });
+        soundManager.play('hover', { volume: 0.6 });
       }
 
       const a = btn.dataset.action;
@@ -67,12 +66,16 @@ export function createNavButtonBar({ navigate, api, soundManager } = {}) {
       }
     });
 
-    root.addEventListener('mouseenter', (e) => {
-      const btn = e.target.closest('[data-action]');
-      if (btn && soundManager && !btn.disabled) {
-        soundManager.play('hover', { volume: 0.3 });
-      }
-    }, true);
+    root.addEventListener(
+      'mouseenter',
+      (e) => {
+        const btn = e.target.closest('[data-action]');
+        if (btn && soundManager && !btn.disabled) {
+          soundManager.play('hover', { volume: 0.3 });
+        }
+      },
+      true
+    );
   }
 
   function openPauseDialog() {
@@ -91,6 +94,7 @@ export function createNavButtonBar({ navigate, api, soundManager } = {}) {
         <button class="gbtn" data-pause-action="resume">Resume</button>
         <button class="gbtn" data-pause-action="undo">Undo</button>
         <button class="gbtn" data-pause-action="redo">Redo</button>
+        <button class="gbtn" data-pause-action="save">Save Game</button>
         <button class="gbtn" data-pause-action="restart">Restart</button>
         <button class="gbtn" data-pause-action="mainmenu">Main Menu</button>
       </div>
@@ -111,7 +115,7 @@ export function createNavButtonBar({ navigate, api, soundManager } = {}) {
       if (!el) return;
 
       if (soundManager && !el.disabled) {
-        soundManager.play('click', { volume: 0.6 });
+        soundManager.play('hover', { volume: 0.6 });
       }
 
       const act = el.dataset.pauseAction;
@@ -132,7 +136,6 @@ export function createNavButtonBar({ navigate, api, soundManager } = {}) {
       }
 
       if (act === 'restart') {
-        // let scene know + actually restart
         onEvent({ type: 'PauseDialogAction', action: 'restart' });
         cleanup();
         overlay.hide?.();
@@ -152,16 +155,21 @@ export function createNavButtonBar({ navigate, api, soundManager } = {}) {
         onEvent({ type: 'PauseDialogAction', action: 'save' });
         el.setAttribute('disabled', 'true');
         el.textContent = 'Saving...';
-        // Session automatisch ermitteln
+
         fileIOApi.quickSave()
           .then(() => {
             console.log('Game saved successfully');
+            
             if (soundManager) {
               soundManager.play('success', { volume: 0.7 });
             }
+
             cleanup();
-            closeOverlay(overlay, { restoreTo: previouslyFocused });
-            
+
+            overlay.hide?.();
+            if (previouslyFocused && document.contains(previouslyFocused)) {
+              try { previouslyFocused.focus(); } catch {}
+            }
             const savedMsg = document.createElement('div');
             savedMsg.className = 'save-notification';
             savedMsg.textContent = 'Game Saved!';
@@ -180,7 +188,7 @@ export function createNavButtonBar({ navigate, api, soundManager } = {}) {
               box-shadow: 0 4px 12px rgba(0,0,0,0.5);
             `;
             document.body.appendChild(savedMsg);
-            
+
             setTimeout(() => {
               savedMsg.remove();
               go('/main-menu');
@@ -189,11 +197,13 @@ export function createNavButtonBar({ navigate, api, soundManager } = {}) {
           .catch((error) => {
             console.error('Save failed:', error);
             el.removeAttribute('disabled');
-            el.textContent = 'Save';
+            el.textContent = 'Save Game';
             alert('Failed to save game: ' + error.message);
           });
+
         return;
       }
+
     };
 
     const onKey = (e) => {
@@ -216,12 +226,11 @@ export function createNavButtonBar({ navigate, api, soundManager } = {}) {
       document.removeEventListener('keydown', onKey);
     }
 
-    // attach listeners directly to the dialog node
     node.addEventListener('click', onClick);
     node.addEventListener('mouseenter', onHover, true);
     document.addEventListener('keydown', onKey);
 
-    // 👇 this actually opens the overlay
+    // this actually opens the overlay
     overlay.show(node, { autoHide: false });
 
     const firstBtn = node.querySelector('[data-pause-action]');
