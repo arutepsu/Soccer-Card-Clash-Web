@@ -118,7 +118,7 @@ function createCardImageView(card, scale = 0.7) {
   return img;
 }
 
-function createCardFrame(imageEl, { highlightGreen = false, highlightRed = false, slideFrom = 100 } = {}) {
+function createCardFrame(imageEl, { highlightGreen = false, highlightRed = false, slideFrom = -100 } = {}) {
   const frame = document.createElement('div');
   frame.className = 'cmp-card-frame';
   frame.style.position = 'relative';
@@ -136,7 +136,8 @@ function createCardFrame(imageEl, { highlightGreen = false, highlightRed = false
 
   frame.append(imageEl, border);
 
-  slideInNode(frame, highlightGreen ? -Math.abs(slideFrom) : Math.abs(slideFrom), 700);
+  // slide from given side (negative = from left, positive = from right)
+  slideInNode(frame, slideFrom, 700);
 
   // after 1s, apply border color like Scala PauseTransition
   setTimeout(() => {
@@ -186,33 +187,73 @@ function showComparisonUI({
   const resultMessage = attackSuccess ? 'Attack Successful!' : 'Attack Failed!';
   const resultText = createText(resultMessage, { fontSize: 16 * scaleFactor, weight: 'bold', color: 'white' });
 
-  // Avatars
+  // Avatars: left = "player1 side", right = "player2 side"
   const leftAvatar  = getAvatarView(attacker, 0.7 * scaleFactor);
   const rightAvatar = getAvatarView(defender, 0.7 * scaleFactor);
 
-  // Card images
-  const atkImg1 = attackingCard1 ? createCardImageView(attackingCard1, 0.7 * scaleFactor) : null;
-  const atkImg2 = attackingCard2 ? createCardImageView(attackingCard2, 0.7 * scaleFactor) : null;
-  const defImg  = defendingCard   ? createCardImageView(defendingCard, 0.6) : null;
+  // Determine winner/loser by side
+  const attackerWins = !!attackSuccess;
 
-  const extraAtkImg = extraAttackerCard ? createCardImageView(extraAttackerCard, 0.7 * scaleFactor) : null;
-  const extraDefImg = extraDefenderCard ? createCardImageView(extraDefenderCard, 0.7 * scaleFactor) : null;
+  // In this layout, left side currently shows attacking cards, right side defending cards.
+  // So: left is attacker, right is defender.
+  const leftWins  = attackerWins;
+  const rightWins = !attackerWins;
 
-  // Frames w/ highlights + slide-in
-  const atkFrame1 = attackingCard1 ? createCardFrame(createCardImageView(attackingCard1, 0.7), { highlightGreen: attackSuccess, highlightRed: false, slideFrom: 100 }) : null;
-  const atkFrame2 = attackingCard2 ? createCardFrame(createCardImageView(attackingCard2, 0.7), { highlightGreen: attackSuccess, highlightRed: false, slideFrom: 100 }) : null;
-  const extraAtkFrame = extraAttackerCard ? createCardFrame(createCardImageView(extraAttackerCard, 0.7), { highlightGreen: attackSuccess, highlightRed: false, slideFrom: 100 }) : null;
+  const leftHighlightGreen  = leftWins;
+  const leftHighlightRed    = !leftWins;
+  const rightHighlightGreen = rightWins;
+  const rightHighlightRed   = !rightWins;
 
-  const defFrame  = defendingCard ? createCardFrame(createCardImageView(defendingCard, 0.7), { highlightGreen: false, highlightRed: !attackSuccess, slideFrom: -100 }) : null;
-  const extraDefFrame = extraDefenderCard ? createCardFrame(createCardImageView(extraDefenderCard, 0.7), { highlightGreen: false, highlightRed: !attackSuccess, slideFrom: -100 }) : null;
+  // Frames w/ highlights + slide-in (left side from left, right side from right)
+  const atkFrame1 = attackingCard1
+    ? createCardFrame(createCardImageView(attackingCard1, 0.7), {
+        highlightGreen: leftHighlightGreen,
+        highlightRed:   leftHighlightRed,
+        slideFrom:      -100, // from left
+      })
+    : null;
 
-  // Winner line — mirrored from Scala (note: both branches used attacker.name there)
-  const isDefenderWinner = !attackSuccess;
-  const winnerTextContent = isDefenderWinner
-    ? `🏆 Winner: ${toPlayerName(attacker)}`
-    : `🏆 Winner: ${toPlayerName(attacker)}`;
-  const winnerColor = isDefenderWinner ? 'red' : 'green';
-  const winnerText = createText(winnerTextContent, { fontSize: 30 * scaleFactor, weight: 'bold', color: winnerColor });
+  const atkFrame2 = attackingCard2
+    ? createCardFrame(createCardImageView(attackingCard2, 0.7), {
+        highlightGreen: leftHighlightGreen,
+        highlightRed:   leftHighlightRed,
+        slideFrom:      -100,
+      })
+    : null;
+
+  const extraAtkFrame = extraAttackerCard
+    ? createCardFrame(createCardImageView(extraAttackerCard, 0.7), {
+        highlightGreen: leftHighlightGreen,
+        highlightRed:   leftHighlightRed,
+        slideFrom:      -100,
+      })
+    : null;
+
+  const defFrame  = defendingCard
+    ? createCardFrame(createCardImageView(defendingCard, 0.7), {
+        highlightGreen: rightHighlightGreen,
+        highlightRed:   rightHighlightRed,
+        slideFrom:      100, // from right
+      })
+    : null;
+
+  const extraDefFrame = extraDefenderCard
+    ? createCardFrame(createCardImageView(extraDefenderCard, 0.7), {
+        highlightGreen: rightHighlightGreen,
+        highlightRed:   rightHighlightRed,
+        slideFrom:      100,
+      })
+    : null;
+
+  // Winner line – show actual winner (attacker if success, defender if not)
+  const winnerPlayer = attackerWins ? attacker : defender;
+  const winnerTextContent = `🏆 Winner: ${toPlayerName(winnerPlayer)}`;
+
+  const winnerText = createText(winnerTextContent, {
+    fontSize: 30 * scaleFactor,
+    weight: 'bold',
+    color: 'limegreen', // winner always green
+  });
 
   // Layouts
   const leftCards = [atkFrame1, atkFrame2, extraAtkFrame].filter(Boolean);
@@ -254,7 +295,7 @@ function showComparisonUI({
   // Animations sequence
   const scheduler = new UIActionScheduler();
   scheduler.runSequence(
-    delayed(0,   () => fadeInNode(root, 700)),
+    delayed(0,    () => fadeInNode(root, 700)),
     delayed(1500, () => showWinnerText(winnerText, 500)),
     delayed(1500, () => showResultText(resultText, 500)),
   );

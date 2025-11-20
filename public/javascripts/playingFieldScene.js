@@ -17,6 +17,30 @@ import { createComparisonOrchestrator } from './utils/playingField/comparisonOrc
 import { createGameApi } from './api/gameApi.js';
 import { createPlayingFieldController } from './controllers/playingFieldController.js';
 import { createSoundManager } from './utils/soundManager.js';
+// add this helper somewhere near top of the file (outside build())
+function findPlayerByNameInWeb(web, name) {
+  if (!web || !name || !web.players) return null;
+
+  const candidates = [];
+  (function visit(v) {
+    if (!v) return;
+    if (Array.isArray(v)) {
+      v.forEach(visit);
+      return;
+    }
+    if (typeof v === 'object') {
+      if ('id' in v && 'name' in v && typeof v.name === 'string') {
+        candidates.push(v);
+      }
+      for (const key of Object.keys(v)) {
+        if (key === 'id' || key === 'name') continue;
+        visit(v[key]);
+      }
+    }
+  })(web.players);
+
+  return candidates.find(p => p.name === name) || null;
+}
 
 export async function build({ api, overlay, createGameAlert }) {
   const avatarRegistry = createPlayerAvatarRegistry({
