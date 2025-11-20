@@ -1,5 +1,6 @@
 // /assets/javascripts/multiplayerScene.js
 import { createSoundManager } from './utils/soundManager.js';
+import { setPlayers } from './utils/playerSidesRegistry.js'; 
 
 export async function build({ api, overlay, createGameAlert }) {
   // Sound Manager
@@ -46,6 +47,8 @@ export async function build({ api, overlay, createGameAlert }) {
   function validate() {
     const v1 = trim(p1);
     const v2 = trim(p2);
+
+    setPlayers(v1, v2);
 
     if (!v1 || !v2) {
       showAlert('Please enter both player names.');
