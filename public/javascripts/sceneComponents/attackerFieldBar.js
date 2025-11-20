@@ -1,72 +1,127 @@
+// /assets/javascripts/sceneComponents/attackerFieldBar.js
 export function createAttackerFieldBar(getCurrentAttacker, getGameState, fieldRenderer) {
-  let $root = null;
+  /** @type {HTMLElement | null} */
+  let root = null;
   let mounted = false;
-  let selected = null;
+  let selected = /** @type {{ kind: 'defender', index: number } | { kind: 'goalkeeper' } | null */ (null);
   let lastAttackerName = null;
 
-  const cssSelect = ($el) => $el.addClass('is-selected');
+  const cssSelect = (el) => el.classList.add('is-selected');
+
   const cssUnselectAll = () => {
-    if (!$root) return;
-    $root.find('.field-card.is-selected').removeClass('is-selected');
+    if (!root) return;
+    root.querySelectorAll('.field-card.is-selected').forEach(card => {
+      card.classList.remove('is-selected');
+    });
   };
 
-  const canPick = ($el) => !$el.hasClass('is-defeated');
+  const canPick = (el) => !el.classList.contains('is-defeated');
+
+  const safeState = () =>
+    (typeof getGameState === 'function' ? getGameState() : null);
+
+  const currentAttacker = () => {
+    if (typeof getCurrentAttacker === 'function') {
+      const att = getCurrentAttacker();
+      if (att) return att;
+    }
+    const st = safeState();
+    return { id: 'att', name: st?.roles?.attacker };
+  };
+
+  function normalizeRow(row) {
+    // fieldRenderer may return an HTMLElement or an HTML string
+    if (!row) {
+      return document.createElement('div');
+    }
+    if (row instanceof HTMLElement) {
+      return row;
+    }
+    if (typeof row === 'string') {
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = row.trim();
+      return wrapper.firstElementChild || wrapper;
+    }
+    // Fallback
+    return row;
+  }
 
   function render() {
-    if (!$root) return;
-    $root.empty();
+    if (!root) return;
+    root.innerHTML = '';
 
-    const attackerPlayer = typeof getCurrentAttacker === 'function'
-      ? getCurrentAttacker()
-      : { id: 'att', name: getGameState()?.roles?.attacker };
-
+    const attackerPlayer = currentAttacker();
     const attName = attackerPlayer?.name ?? null;
+
     if (attName !== lastAttackerName) {
       lastAttackerName = attName;
       selected = null;
     }
 
-    const defRow = $(fieldRenderer.createDefenderRow(attackerPlayer, getGameState));
-    const gkRow  = $(fieldRenderer.createGoalkeeperRow(attackerPlayer, getGameState));
+    const defRowRaw = fieldRenderer.createDefenderRow(attackerPlayer, getGameState);
+    const gkRowRaw  = fieldRenderer.createGoalkeeperRow(attackerPlayer, getGameState);
 
-    // --- Verteidiger-Karten ---
-    defRow.find('.field-card').each(function() {
-      const $card = $(this);
-      $card.on('click', function() {
-        if (!canPick($card)) return;
-        const idx = Number($card.data('index'));
+    const defRow = normalizeRow(defRowRaw);
+    const gkRow  = normalizeRow(gkRowRaw);
+
+    // --- Defender cards ---
+    defRow.querySelectorAll('.field-card').forEach(cardEl => {
+      cardEl.addEventListener('click', () => {
+        if (!canPick(cardEl)) return;
+        const idx = Number(cardEl.dataset.index);
         selected = { kind: 'defender', index: idx };
         cssUnselectAll();
-        cssSelect($card);
+        cssSelect(cardEl);
       });
     });
 
-    // --- Torwart-Karte ---
-    const $gkEl = gkRow.find('.field-card.goalkeeper');
-    if ($gkEl.length) {
-      $gkEl.on('click', function() {
-        if (!canPick($gkEl)) return;
+    // --- Goalkeeper card ---
+    const gkEl = gkRow.querySelector('.field-card.goalkeeper');
+    if (gkEl) {
+      gkEl.addEventListener('click', () => {
+        if (!canPick(gkEl)) return;
         selected = { kind: 'goalkeeper' };
         cssUnselectAll();
-        cssSelect($gkEl);
+        cssSelect(gkEl);
       });
     }
 
+    // Restore previous selection if still valid
     if (selected?.kind === 'defender') {
-      const $el = defRow.find(`.field-card[data-index="${selected.index}"]`);
-      if ($el.length && canPick($el)) cssSelect($el); else selected = null;
+      const selEl = defRow.querySelector(`.field-card[data-index="${selected.index}"]`);
+      if (selEl && canPick(selEl)) {
+        cssSelect(selEl);
+      } else {
+        selected = null;
+      }
     } else if (selected?.kind === 'goalkeeper') {
-      if ($gkEl.length && canPick($gkEl)) cssSelect($gkEl); else selected = null;
+      if (gkEl && canPick(gkEl)) {
+        cssSelect(gkEl);
+      } else {
+        selected = null;
+      }
     }
 
-    $root.append(defRow, gkRow);
+    root.appendChild(defRow);
+    root.appendChild(gkRow);
   }
 
   return {
     mount(container) {
       if (mounted) return;
-      $root = $('<div class="attacker-field-bar"></div>');
-      $(container).append($root);
+
+      let parent;
+      if (container instanceof HTMLElement) {
+        parent = container;
+      } else {
+        parent = document.querySelector(container);
+      }
+      if (!parent) return;
+
+      root = document.createElement('div');
+      root.className = 'attacker-field-bar';
+      parent.appendChild(root);
+
       mounted = true;
       render();
     },
@@ -76,6 +131,6 @@ export function createAttackerFieldBar(getCurrentAttacker, getGameState, fieldRe
     clearSelection() {
       selected = null;
       cssUnselectAll();
-    }
+    },
   };
 }

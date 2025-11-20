@@ -1,13 +1,20 @@
 // /assets/javascripts/sceneComponents/attackerBar.js
 export function createAttackerBar(avatarRegistry) {
-  let $root = null;
+  /** @type {HTMLElement | null} */
+  let root = null;
   let webState = null;
 
   function mount(el) {
-    $root = $(el);
-    if (!$root.length) return;
+    // Support both a DOM element and a selector string
+    if (el instanceof HTMLElement) {
+      root = el;
+    } else {
+      root = document.querySelector(el);
+    }
+    if (!root) return;
 
-    $root.addClass('attacker-bar').html(`
+    root.classList.add('attacker-bar');
+    root.innerHTML = `
       <div class="attacker-bar__inner">
         <div class="attacker-avatar-col">
           <div class="player-avatar-box">
@@ -19,7 +26,7 @@ export function createAttackerBar(avatarRegistry) {
           <pre class="player-actions" data-attacker-actions></pre>
         </div>
       </div>
-    `);
+    `;
   }
 
   function currentAttackerFrom(st) {
@@ -39,29 +46,40 @@ export function createAttackerBar(avatarRegistry) {
   }
 
   function render() {
-    if (!$root || !webState) return;
+    if (!root || !webState) return;
 
     const attacker = currentAttackerFrom(webState);
 
+    // Ensure attacker has an avatar assigned
     try {
       avatarRegistry.getAvatarFileName(attacker);
     } catch {
       avatarRegistry.assignAvatarsInOrder([attacker]);
     }
 
-    const $img = $root.find('[data-attacker-avatar]');
-    const $name = $root.find('[data-attacker-name]');
-    if ($img.length) $img.attr('src', avatarRegistry.getAvatarUrl(attacker));
-    if ($name.length) $name.text(attacker.name ?? 'Attacker');
+    const img = root.querySelector('[data-attacker-avatar]');
+    const nameEl = root.querySelector('[data-attacker-name]');
+    if (img) {
+      img.setAttribute('src', avatarRegistry.getAvatarUrl(attacker));
+    }
+    if (nameEl) {
+      nameEl.textContent = attacker.name ?? 'Attacker';
+    }
 
-    const $actions = $root.find('[data-attacker-actions]');
-    if ($actions.length) {
-      const lim = webState.allowed?.attacker || webState.allowed?.[attacker.id] || {};
-      const toNum = (x, f = 0) => (Number.isFinite(Number(x)) ? Number(x) : f);
+    const actionsEl = root.querySelector('[data-attacker-actions]');
+    if (actionsEl) {
+      const lim =
+        webState.allowed?.attacker ||
+        webState.allowed?.[attacker.id] ||
+        {};
+      const toNum = (x, f = 0) =>
+        Number.isFinite(Number(x)) ? Number(x) : f;
+
       const swap = toNum(lim.swapRemaining, 0);
       const boost = toNum(lim.boostRemaining, 0);
       const da = toNum(lim.doubleAttackRemaining, 0);
-      $actions.text(`Swap: ${swap}\nBoost: ${boost}\nDoubleAttack: ${da}`);
+
+      actionsEl.textContent = `Swap: ${swap}\nBoost: ${boost}\nDoubleAttack: ${da}`;
     }
   }
 
