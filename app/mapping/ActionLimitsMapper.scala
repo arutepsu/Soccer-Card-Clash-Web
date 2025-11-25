@@ -1,6 +1,6 @@
 package app.mapping
 
-import app.models.{ActionLimitsView, AllowedActionsView}
+import app.models.view.{ActionLimitsView, AllowedActionsView}
 import de.htwg.se.soccercardclash.model.playerComponent.IPlayer
 import de.htwg.se.soccercardclash.model.playerComponent.playerAction.{
   PlayerActionPolicies, CanPerformAction

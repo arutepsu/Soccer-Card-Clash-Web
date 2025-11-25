@@ -33,6 +33,7 @@ function isDoubleTie(atk1, atk2, def) {
 
 export function createComparisonOrchestrator({
   api,
+  push,
   overlay,
   scheduler,
   comparisonHandler,
@@ -41,23 +42,23 @@ export function createComparisonOrchestrator({
   applyUiFromWeb,
   updateFromServerContext,
   generator,
-  soundManager,  
+  soundManager,
 }) {
-    let pendingActionType = null;
-    let isOverlayActive   = false;
-    let latestStreamWeb   = null;
+  let pendingActionType = null;
+  let isOverlayActive   = false;
+  let latestStreamWeb   = null;
 
-    let lastStableWeb     = null;
-    let preActionWeb      = null;
+  let lastStableWeb     = null;
+  let preActionWeb      = null;
 
-let currentComparison = null;
+  let currentComparison = null;
 
-
-    function setPendingAction(type) {
+  function setPendingAction(type) {
     pendingActionType = type;
     preActionWeb = lastStableWeb;
     currentComparison = null;
-    }
+  }
+
   function getAttackAndDefendCardsFromState(web, meta) {
     if (!web?.cards) {
       return {
@@ -124,8 +125,6 @@ let currentComparison = null;
     };
   }
 
-
-
   function runOverlayForPendingAction() {
     if (!pendingActionType) return;
 
@@ -135,10 +134,17 @@ let currentComparison = null;
     console.log('[CMP] runOverlay pending=', pendingActionType, 'hasAction=', !!overlayAction);
 
     const delay =
-      (pendingActionType === ActionNames.RegularAttack || pendingActionType === ActionNames.DoubleAttack) ? 0 :
-      (pendingActionType === ActionNames.Undo || pendingActionType === ActionNames.Redo ||
-       pendingActionType === ActionNames.BoostDefender || pendingActionType === ActionNames.BoostGoalkeeper ||
-       pendingActionType === ActionNames.RegularSwap  || pendingActionType === ActionNames.ReverseSwap) ? 100 : 0;
+      (pendingActionType === ActionNames.RegularAttack ||
+       pendingActionType === ActionNames.DoubleAttack)
+        ? 0
+        : (pendingActionType === ActionNames.Undo ||
+           pendingActionType === ActionNames.Redo ||
+           pendingActionType === ActionNames.BoostDefender ||
+           pendingActionType === ActionNames.BoostGoalkeeper ||
+           pendingActionType === ActionNames.RegularSwap ||
+           pendingActionType === ActionNames.ReverseSwap)
+          ? 100
+          : 0;
 
     const seq = [];
 
@@ -148,9 +154,8 @@ let currentComparison = null;
         block: () => {
           console.log('[CMP] executing overlayAction block → overlay.show()');
           overlayAction.block();
-        }
+        },
       });
-
     } else if (
       pendingActionType === ActionNames.RegularAttack &&
       currentComparison?.atkCard &&
@@ -177,7 +182,7 @@ let currentComparison = null;
             atkCard,
             defCard,
             success ?? false,
-            width
+            width,
           );
 
           const host = document.getElementById('overlay');
@@ -187,9 +192,8 @@ let currentComparison = null;
           setTimeout(() => {
             host?.__hideOverlay?.() || overlay?.hide?.();
           }, 3000);
-        }
+        },
       });
-
     } else {
       const host = document.getElementById('overlay');
       const div  = document.createElement('div');
@@ -221,34 +225,43 @@ let currentComparison = null;
           pendingActionType = null;
           isOverlayActive = false;
         }
-      }
+      },
     });
 
     scheduler.runSequence(...seq);
   }
 
-function afterServerApply(serverWeb, meta) {
+  function afterServerApply(serverWeb, meta) {
     currentComparison = null;
 
     const cmp = extractComparisonEvents(serverWeb);
-    console.log('[CMP] afterServerApply action=', meta?.action, 'defIdx=', meta?.defenderIndex, 'extracted=', cmp.map(e=>e.type));
+    console.log(
+      '[CMP] afterServerApply action=',
+      meta?.action,
+      'defIdx=',
+      meta?.defenderIndex,
+      'extracted=',
+      cmp.map((e) => e.type),
+    );
 
     if (cmp.length) {
-        cmp.forEach(ev => comparisonHandler.handleComparisonEvent(ev));
-        if (!cmp.some(e => e.type === 'AttackResultEvent')) {
-        comparisonHandler.handleComparisonEvent({ type: 'AttackResultEvent', attackSuccess: false });
+      cmp.forEach((ev) => comparisonHandler.handleComparisonEvent(ev));
+      if (!cmp.some((e) => e.type === 'AttackResultEvent')) {
+        comparisonHandler.handleComparisonEvent({
+          type: 'AttackResultEvent',
+          attackSuccess: false,
+        });
         console.log('[CMP] synthesized AttackResultEvent=false (no server result)');
-        }
+      }
 
-        const cmpEvt = cmp.find(e => e.type === 'ComparedCardsEvent');
-        if (cmpEvt?.attackingCard && cmpEvt?.defendingCard) {
+      const cmpEvt = cmp.find((e) => e.type === 'ComparedCardsEvent');
+      if (cmpEvt?.attackingCard && cmpEvt?.defendingCard) {
         currentComparison = {
-            atkCard: cmpEvt.attackingCard,
-            defCard: cmpEvt.defendingCard,
-            success: undefined,
+          atkCard: cmpEvt.attackingCard,
+          defCard: cmpEvt.defendingCard,
+          success: undefined,
         };
-        }
-
+      }
     } else if (meta?.action === 'RegularAttack' && Number.isInteger(meta?.defenderIndex)) {
       const source = preActionWeb || serverWeb;
       const {
@@ -351,11 +364,8 @@ function afterServerApply(serverWeb, meta) {
       }
     }
 
-
-
     runOverlayForPendingAction();
-    }
-
+  }
 
   function handleStreamWeb(web) {
     const events = extractComparisonEvents(web);
@@ -375,8 +385,6 @@ function afterServerApply(serverWeb, meta) {
     applyUiFromWeb(web);
     updateFromServerContext(web);
   }
-
-
 
   return {
     setPendingAction,

@@ -12,7 +12,7 @@ import play.filters.csrf.CSRFAddToken
 import play.api.libs.json._
 import de.htwg.se.soccercardclash.model.gameComponent.context.GameContext
 import scala.util.Try
-import app.models.WebGameState
+import app.models.state.WebGameState
 
 @Singleton
 class UiController @Inject()(
@@ -50,21 +50,32 @@ class UiController @Inject()(
   def scene(to: String): Action[AnyContent] =
     addToken(Action { implicit req: MessagesRequest[AnyContent] =>
       implicit val m: Messages = messagesApi.preferred(req)
+
+      val sid0 = getOrCreateSid(req)
+      val sessionWithSid = req.session + ("sid" -> sid0)
+
       val internal = prettyToInternal.getOrElse(to, to)
       slugToEvent.get(internal) match {
         case Some(ev) =>
           GlobalObservable.notifyObservers(ev)
           Ok(views.html.scenes.gamepage(internal, mgr.sceneHtml))
+            .withSession(sessionWithSid)
+
         case None =>
           NotFound(s"Unknown scene: $to")
+            .withSession(sessionWithSid)
       }
     })
+
 
   def sceneCurrent(): Action[AnyContent] =
     addToken(Action { implicit req: MessagesRequest[AnyContent] =>
       implicit val m: Messages = messagesApi.preferred(req)
+      val sid0 = getOrCreateSid(req)
       Ok(views.html.scenes.gamepage("PlayingField", mgr.sceneHtml))
+        .withSession(req.session + ("sid" -> sid0))
     })
+
 
 
   def switchScene(to: String): Action[AnyContent] = Action { implicit req =>

@@ -1,5 +1,7 @@
-package app.models
+package app.models.state
+
 import play.api.libs.json._
+import app.models.view._
 
 final case class WebGameState(
   roles: RolesView,

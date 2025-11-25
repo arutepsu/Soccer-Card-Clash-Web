@@ -1,8 +1,8 @@
 // /assets/javascripts/scenes/mainMenuScene.js
 import { createSoundManager } from './utils/soundManager.js';
 
-export async function build({ overlay /* api not needed here */, createGameAlert }) {
-  // Sound Manager 
+export async function build({ overlay, createGameAlert }) {
+
   const soundManager = createSoundManager({ basePath: '/assets/sounds/' });
   soundManager.preload('hover', 'hover.wav');
   soundManager.preload('click', 'attack.wav');
@@ -30,12 +30,10 @@ window.addEventListener('keydown', unlockAudio);
 
   buttons.forEach(btn => {
     btn.addEventListener('mouseenter', () => {
-      console.log('[MainMenu] Button hover detected:', btn.textContent);
       soundManager.play('hover', { volume: 0.8 });
     });
     
     btn.addEventListener('click', () => {
-      console.log('[MainMenu] Button click detected:', btn.textContent);
       if (!btn.disabled) {
         soundManager.play('click', { volume: 0.6 });
       }
