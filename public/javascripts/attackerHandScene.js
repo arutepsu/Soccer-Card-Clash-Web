@@ -1,15 +1,24 @@
+// /assets/javascripts/attackerHandScene.js
 import { createAttackerHandController } from './controllers/attackerHandController.js';
 import { createPlayerAvatarRegistry } from './utils/playersAvatarRegistry.js';
 import { createAttackerBar } from './sceneComponents/attackerBar.js';
 
 function assignAvatarsFrom(registry, state) {
   if (!state) return;
-  const attacker = state.players?.attacker ?? { id: 'att', name: state.roles?.attacker, playerType: 'Human' };
-  const defender = state.players?.defender ?? { id: 'def', name: state.roles?.defender, playerType: 'Human' };
+  const attacker = state.players?.attacker ?? {
+    id: 'att',
+    name: state.roles?.attacker,
+    playerType: 'Human',
+  };
+  const defender = state.players?.defender ?? {
+    id: 'def',
+    name: state.roles?.defender,
+    playerType: 'Human',
+  };
   registry.assignAvatarsInOrder([attacker, defender]);
 }
 
-export async function build({ api, overlay, createGameAlert }) {
+export async function build({ api, push, overlay, createGameAlert }) {
   const els = {
     playerBarEl:     document.getElementById('attacker-bar'),
     handEl:          document.getElementById('attacker-hand'),
@@ -26,14 +35,25 @@ export async function build({ api, overlay, createGameAlert }) {
 
   const avatarRegistry = createPlayerAvatarRegistry({
     avatarsPath: '/assets/images/players/',
-    fileNames: ['player1.jpg', 'player2.jpg', 'ai.jpg', 'taka.jpg', 'defendra.jpg', 'bitstrom.jpg', 'meta.jpg']
+    fileNames: [
+      'player1.jpg',
+      'player2.jpg',
+      'ai.jpg',
+      'taka.jpg',
+      'defendra.jpg',
+      'bitstrom.jpg',
+      'meta.jpg',
+    ],
   });
   await avatarRegistry.preloadAvatars().catch(() => {});
 
   const attackerBar = createAttackerBar(avatarRegistry);
   attackerBar.mount(els.playerBarEl);
 
-  const initial = await api.fetchGameState().catch(() => null);
+  const initial = api && typeof api.fetchGameState === 'function'
+    ? await api.fetchGameState().catch(() => null)
+    : null;
+
   if (initial) {
     assignAvatarsFrom(avatarRegistry, initial);
     attackerBar.updateFromWebState?.(initial);
@@ -41,22 +61,36 @@ export async function build({ api, overlay, createGameAlert }) {
 
   const controller = createAttackerHandController({
     api,
+    push,
     els: {
-      elHand:        els.handEl,
+      elHand:         els.handEl,
       btnRegularSwap: els.btnRegularSwap,
       btnReverseSwap: els.btnReverseSwap,
       btnInfo:        els.btnInfo,
       btnBack:        els.btnBack,
       overlay,
-      attackerBar  
+      attackerBar,
     },
     createGameAlert,
+    onNavigateBack: () => {
+      window.location.href = '/playing-field';
+    },
   });
 
   await controller.initWithServerState(initial);
+  
+  let es = null;
+  if (api && typeof api.openStream === 'function') {
+    es = api.openStream((web) => {
+      if (!web) return;
+      assignAvatarsFrom(avatarRegistry, web);
+      attackerBar.updateFromWebState?.(web);
+      controller.updateFromServerContext(web);
+    });
+  }
 
   function destroy() {
-    ['btnRegularSwap', 'btnReverseSwap', 'btnInfo', 'btnBack'].forEach(key => {
+    ['btnRegularSwap', 'btnReverseSwap', 'btnInfo', 'btnBack'].forEach((key) => {
       const el = els[key];
       if (el && el.parentNode) {
         const clone = el.cloneNode(true);

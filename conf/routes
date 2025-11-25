@@ -46,3 +46,8 @@ POST   /game/start-multiplayer    controllers.UiController.startMultiplayerGame
 POST   /api/restart    controllers.UiController.restart
 
 GET     /assets/*file           controllers.Assets.versioned(path="/public", file: Asset)
+
+GET   /ws/game                 controllers.GamePushController.wsGame
+GET   /sse/events              controllers.GamePushController.sseEvents
+GET   /comet/events            controllers.GamePushController.cometEvents(lastEventId: Long ?= 0)
+POST  /api/push/command        controllers.GamePushController.postCommand()

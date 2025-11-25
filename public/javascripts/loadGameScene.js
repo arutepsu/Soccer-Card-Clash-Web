@@ -1,8 +1,7 @@
 import { createSoundManager } from './utils/soundManager.js';
 import { fileIOApi } from './api/FileIOApi.js';
 
-export async function build({ api, overlay, createGameAlert }) {
-  // Sound Manager 
+export async function build({ api, push, overlay, createGameAlert }) {
   const soundManager = createSoundManager({ basePath: '/assets/sounds/' });
   soundManager.preload('hover', 'hover.wav');
   soundManager.preload('click', 'attack.wav');
@@ -11,12 +10,11 @@ export async function build({ api, overlay, createGameAlert }) {
   const $container = $root.find('.container');
   if (!$root.length || !$container.length) return { destroy() {}, refresh: async () => {} };
 
-  // Data attributes from the root element
-  const listUrl = $root.data('list-url') || '/api/files/list';
-  const loadUrl = $root.data('load-url') || '/api/files/load';
-  const redirectTo = $root.data('redirect') || '/playing-field';
-  const $messagesEl = $root.find('.loadgame-messages');
-  const $globalLoadBtn = $root.find('.load-game-btn');
+  const listUrl    = $root.data('list-url')   || '/api/files/list';
+  const loadUrl    = $root.data('load-url')   || '/api/files/load';
+  const redirectTo = $root.data('redirect')   || '/playing-field';
+  const $messagesEl     = $root.find('.loadgame-messages');
+  const $globalLoadBtn  = $root.find('.load-game-btn');
 
   let selectedGameId = null;
 
@@ -48,7 +46,6 @@ export async function build({ api, overlay, createGameAlert }) {
     $container.empty();
     selectedGameId = null;
     
-    // Disable global load button initially
     if ($globalLoadBtn.length) {
       $globalLoadBtn
         .addClass('disabled')
@@ -67,7 +64,7 @@ export async function build({ api, overlay, createGameAlert }) {
 
     $.each(items, function(index, fileName) {
       const name = fileName;
-      const id = fileName;
+      const id   = fileName;
       const when = null;
 
       const $card = $('<div>')
@@ -87,12 +84,10 @@ export async function build({ api, overlay, createGameAlert }) {
         soundManager.play('hover', { volume: 0.3 });
       });
 
-
       $card.on('click', function() {
         soundManager.play('click', { volume: 0.6 });
         
         $list.find('.save-card').removeClass('selected');
-        
         $card.addClass('selected');
         selectedGameId = id;
         
@@ -112,8 +107,6 @@ export async function build({ api, overlay, createGameAlert }) {
     $container.append($list);
   }
 
-  //  Fetches the list of saved games from the server and renders them in the UI.
-  //  If the request fails, it displays an error message in the UI.
   async function fetchAndRender() {
     $.ajax({
       url: listUrl,
@@ -125,14 +118,22 @@ export async function build({ api, overlay, createGameAlert }) {
         announce(`Found ${files.length} saved game${files.length !== 1 ? 's' : ''}`, 'info');
       },
       error: function(jqXHR, textStatus, errorThrown) {
-        console.error('Failed to fetch saved games:', textStatus, errorThrown);
         announce('Could not fetch saved games.', 'error');
         renderList([]);
       }
     });
   }
 
-  // Global Load Button Event Handler using jQuery
+  function setLoadBusy(busy) {
+    if (!$globalLoadBtn.length) return;
+    const $btn = $globalLoadBtn;
+    if (busy) {
+      $btn.addClass('disabled').css('pointer-events', 'none');
+    } else {
+      $btn.removeClass('disabled').css('pointer-events', selectedGameId ? 'auto' : 'none');
+    }
+  }
+
   if ($globalLoadBtn.length) {
     $globalLoadBtn.on('mouseenter', function() {
       if (!$(this).hasClass('disabled')) {
@@ -151,15 +152,27 @@ export async function build({ api, overlay, createGameAlert }) {
       soundManager.play('click', { volume: 0.6 });
       
       const $btn = $(this);
-      $btn.addClass('disabled').css('pointer-events', 'none');
       const originalText = $btn.text();
       $btn.text('Loading...');
+      setLoadBusy(true);
       
+      if (push && typeof push.load === 'function') {
+        try {
+          push.load(selectedGameId);
+          announce(`Loading via server push: ${selectedGameId}`, 'info');
+        } catch (err) {
+          console.error('Push load failed:', err);
+          announce('Could not load game via server push.', 'error');
+          $btn.text(originalText);
+          setLoadBusy(false);
+        }
+        return;
+      }
+
       try {
         const sessionId = await fileIOApi.resolveSessionId();
         const csrfToken = $('meta[name="csrf-token"]').attr('content');
         
-        // Using jQuery Ajax to load the game
         $.ajax({
           url: loadUrl,
           method: 'POST',
@@ -177,7 +190,6 @@ export async function build({ api, overlay, createGameAlert }) {
             announce(`Successfully loaded: ${selectedGameId}`, 'success');
             
             if (response.gameState) {
-              console.log('Game state loaded:', response.gameState);
               updateGameDataDisplay(response.gameState);
             }
             
@@ -186,30 +198,24 @@ export async function build({ api, overlay, createGameAlert }) {
             }, 800);
           },
           error: function(jqXHR, textStatus, errorThrown) {
-            console.error('Failed to load game:', textStatus, errorThrown);
             const errorMsg = jqXHR.responseText || 'Failed to load the selected game.';
             announce(errorMsg, 'error');
             
-            $btn.removeClass('disabled')
-                .css('pointer-events', 'auto')
-                .text(originalText);
+            $btn.text(originalText);
+            setLoadBusy(false);
           }
         });
-      } catch (e) {
-        console.error('Error during load:', e);
+      } catch (err) {
         announce('An error occurred while loading the game.', 'error');
-        $btn.removeClass('disabled')
-            .css('pointer-events', 'auto')
-            .text(originalText);
+        $btn.text(originalText);
+        setLoadBusy(false);
       }
     });
   }
 
-  // Helper function to display loaded game data (optional enhancement)
   function updateGameDataDisplay(gameState) {
     if (!gameState) return;
     
-    // Create a preview section if game data is available
     const $preview = $('<div>')
       .addClass('game-preview')
       .html(`
@@ -221,7 +227,6 @@ export async function build({ api, overlay, createGameAlert }) {
         </div>
       `);
     
-    // Append or update preview
     $('.game-preview').remove();
     $container.before($preview);
   }
@@ -230,7 +235,6 @@ export async function build({ api, overlay, createGameAlert }) {
 
   return {
     destroy() {
-      // Remove all jQuery event listeners
       $container.empty();
       $globalLoadBtn.off('mouseenter click');
     },
