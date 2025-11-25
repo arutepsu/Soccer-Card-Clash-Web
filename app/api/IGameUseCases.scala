@@ -1,6 +1,6 @@
 package app.api
 import app.models.AppError
-import app.models.WebGameState 
+import app.models.state.WebGameState 
 import de.htwg.se.soccercardclash.util.AIAction
 import de.htwg.se.soccercardclash.controller.contextHolder.IGameContextHolder
 

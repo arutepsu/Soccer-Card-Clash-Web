@@ -1,4 +1,4 @@
-// controllers/attackerHandController.js
+// /assets/javascripts/controllers/attackerHandController.js
 
 import { createDefaultHandCardRenderer } from '../sceneComponents/handCardRenderer.js';
 import { createAttackerHandBar } from '../sceneComponents/attackerHandBar.js';
@@ -8,16 +8,17 @@ function buildMapWebToScene(cardRegistry) {
   const toImg = (f) => cardRegistry.getImageForCard(f);
   const back  = cardRegistry.getImageUrl('flippedCard.png');
 
-  const mapHand = (list = []) => list.map((c, i, arr) => {
-    const isLast = i === arr.length - 1;
-    const front  = toImg(c?.fileName);
-   return {
-     fileName: c?.fileName,
-     imgFront: front,
-     imgBack : back,
-     img     : isLast ? front : back
-   };
-  });
+  const mapHand = (list = []) =>
+    list.map((c, i, arr) => {
+      const isLast = i === arr.length - 1;
+      const front  = toImg(c?.fileName);
+      return {
+        fileName: c?.fileName,
+        imgFront: front,
+        imgBack:  back,
+        img:      isLast ? front : back,
+      };
+    });
 
   return function mapWebToScene(web) {
     const attacker = {
@@ -25,14 +26,14 @@ function buildMapWebToScene(cardRegistry) {
       name: web.roles?.attacker,
       score: web.scores?.attacker,
       playerType: 'Human',
-      actionStates: web.allowed?.attacker
+      actionStates: web.allowed?.attacker,
     };
     const defender = {
       id: 'def',
       name: web.roles?.defender,
       score: web.scores?.defender,
       playerType: 'Human',
-      actionStates: web.allowed?.defender
+      actionStates: web.allowed?.defender,
     };
     return {
       players: { attacker, defender },
@@ -40,17 +41,19 @@ function buildMapWebToScene(cardRegistry) {
         hands: {
           att: mapHand(web.cards?.attackerHand),
           def: mapHand(web.cards?.defenderHand),
-        }
+        },
       },
-      allowed: web.allowed
+      allowed: web.allowed,
     };
   };
 }
 
 export function createAttackerHandController({
   api,
+  push,
   els: { elHand, btnRegularSwap, btnReverseSwap, btnInfo, btnBack, overlay, attackerBar },
   createGameAlert,
+  onNavigateBack,
 }) {
   let gs = null;
   const getGS = () => gs;
@@ -61,23 +64,29 @@ export function createAttackerHandController({
   const handRenderer = createDefaultHandCardRenderer();
   const mapWebToScene = buildMapWebToScene(cardRegistry);
 
-  function attackerRef(state) {
-    return state?.players?.attacker ?? { id: 'att', name: state?.roles?.attacker, playerType: 'Human' };
-  }
-
   async function init() {
     await initWithServerState();
   }
 
   async function initWithServerState(initialWeb) {
     await cardRegistry.preloadAll().catch(() => {});
-    const web = initialWeb ?? await api.fetchGameState();
+    const web =
+      initialWeb ??
+      (api && typeof api.fetchGameState === 'function'
+        ? await api.fetchGameState()
+        : null);
+
+    if (!web) {
+      console.warn('[AttackerHandController] No initial web state available');
+      return;
+    }
+
     gs = mapWebToScene(web);
 
     handBar = createAttackerHandBar(
       () => getGS()?.players?.attacker,
       getGS,
-      handRenderer
+      handRenderer,
     );
     handBar.mount(elHand);
     handBar.updateBar();
@@ -88,13 +97,18 @@ export function createAttackerHandController({
 
   function wireButtons() {
     btnInfo?.addEventListener('click', () => {
-      const alert = createGameAlert?.({ message: 'Select a card then choose a swap action.' });
-      if (overlay && alert) overlay.show(alert, { onHide: () => alert.cleanup?.() });
+      const alert = createGameAlert?.({
+        message: 'Select a card then choose a swap action.',
+      });
+      if (overlay && alert)
+        overlay.show(alert, { onHide: () => alert.cleanup?.() });
     });
 
     btnRegularSwap?.addEventListener('click', onSwapSelected);
     btnReverseSwap?.addEventListener('click', onReverseSwap);
-    btnBack?.addEventListener('click', () => { /* your navigation logic */ });
+    btnBack?.addEventListener('click', () => {
+      onNavigateBack?.();
+    });
   }
 
   function applyWeb(web) {
@@ -102,6 +116,7 @@ export function createAttackerHandController({
     handBar?.updateBar();
     attackerBar?.updateFromWebState?.(web);
   }
+
   async function onSwapSelected() {
     if (busy || !handBar) return;
     const idx = handBar.selectedHandIndex?.();
@@ -109,11 +124,28 @@ export function createAttackerHandController({
       showAlert('Pick a card in your hand to swap.');
       return;
     }
+
     try {
       busy = true;
-      const web = await api.swap(idx);
-      applyWeb(web);
-    } catch {
+
+      if (push && typeof push.swap === 'function') {
+        push.swap(idx);
+
+        if (api && typeof api.fetchGameState === 'function') {
+          const web = await api.fetchGameState().catch(() => null);
+          if (web) applyWeb(web);
+        } else {
+          console.warn('[AttackerHandController] push.swap used but api.fetchGameState is not available');
+        }
+      } else if (api && typeof api.swap === 'function') {
+        const web = await api.swap(idx);
+        applyWeb(web);
+      } else {
+        console.warn('[AttackerHandController] No push.swap or api.swap available');
+        showAlert('Swap is currently unavailable.');
+      }
+    } catch (err) {
+      console.error('[AttackerHandController] Swap failed:', err);
       showAlert('Swap failed. Try again.');
     } finally {
       handBar.resetSelectedHand?.();
@@ -123,11 +155,28 @@ export function createAttackerHandController({
 
   async function onReverseSwap() {
     if (busy) return;
+
     try {
       busy = true;
-      const web = await api.reverseSwap();
-      applyWeb(web);
-    } catch {
+
+      if (push && typeof push.reverseSwap === 'function') {
+        push.reverseSwap();
+
+        if (api && typeof api.fetchGameState === 'function') {
+          const web = await api.fetchGameState().catch(() => null);
+          if (web) applyWeb(web);
+        } else {
+          console.warn('[AttackerHandController] push.reverseSwap used but api.fetchGameState is not available');
+        }
+      } else if (api && typeof api.reverseSwap === 'function') {
+        const web = await api.reverseSwap();
+        applyWeb(web);
+      } else {
+        console.warn('[AttackerHandController] No push.reverseSwap or api.reverseSwap available');
+        showAlert('Reverse swap is currently unavailable.');
+      }
+    } catch (err) {
+      console.error('[AttackerHandController] Reverse swap failed:', err);
       showAlert('Reverse swap failed. Try again.');
     } finally {
       busy = false;
@@ -135,8 +184,15 @@ export function createAttackerHandController({
   }
 
   function showAlert(message) {
-    if (!overlay || !createGameAlert) { alert(message); return; }
-    const el = createGameAlert({ message, autoHideMs: 2500, onOk: () => overlay.hide?.() });
+    if (!overlay || !createGameAlert) {
+      alert(message);
+      return;
+    }
+    const el = createGameAlert({
+      message,
+      autoHideMs: 2500,
+      onOk: () => overlay.hide?.(),
+    });
     overlay.show?.(el, { onHide: () => el.cleanup?.() });
   }
 
@@ -146,6 +202,7 @@ export function createAttackerHandController({
   }
 
   async function refresh() {
+    if (!api || typeof api.fetchGameState !== 'function') return;
     const web = await api.fetchGameState().catch(() => null);
     if (web) applyWeb(web);
   }
