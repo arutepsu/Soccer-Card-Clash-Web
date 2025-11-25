@@ -17,40 +17,23 @@ import { createComparisonOrchestrator } from './utils/playingField/comparisonOrc
 import { createGameApi } from './api/gameApi.js';
 import { createPlayingFieldController } from './controllers/playingFieldController.js';
 import { createSoundManager } from './utils/soundManager.js';
-// add this helper somewhere near top of the file (outside build())
-function findPlayerByNameInWeb(web, name) {
-  if (!web || !name || !web.players) return null;
-
-  const candidates = [];
-  (function visit(v) {
-    if (!v) return;
-    if (Array.isArray(v)) {
-      v.forEach(visit);
-      return;
-    }
-    if (typeof v === 'object') {
-      if ('id' in v && 'name' in v && typeof v.name === 'string') {
-        candidates.push(v);
-      }
-      for (const key of Object.keys(v)) {
-        if (key === 'id' || key === 'name') continue;
-        visit(v[key]);
-      }
-    }
-  })(web.players);
-
-  return candidates.find(p => p.name === name) || null;
-}
-
-export async function build({ api, overlay, createGameAlert }) {
+export async function build({ api, push, overlay, createGameAlert }) {
   const avatarRegistry = createPlayerAvatarRegistry({
     avatarsPath: '/assets/images/players/',
-    fileNames: ['player1.jpg','player2.jpg','ai.jpg','taka.jpg','defendra.jpg','bitstrom.jpg','meta.jpg']
+    fileNames: [
+      'player1.jpg',
+      'player2.jpg',
+      'ai.jpg',
+      'taka.jpg',
+      'defendra.jpg',
+      'bitstrom.jpg',
+      'meta.jpg',
+    ],
   });
   const cardRegistry = createCardImageRegistry();
   await Promise.all([
     avatarRegistry.preloadAvatars().catch(() => {}),
-    cardRegistry.preloadAll().catch(() => {})
+    cardRegistry.preloadAll().catch(() => {}),
   ]);
 
   ComparisonDialogGenerator.configure({
@@ -61,32 +44,37 @@ export async function build({ api, overlay, createGameAlert }) {
   let lastRoles = { attacker: '', defender: '' };
   
   const soundManager = createSoundManager({ basePath: '/assets/sounds/' });
-  soundManager.preload('attack', 'attack.wav'); 
+  soundManager.preload('attack', 'attack.wav');
   soundManager.preload('hover', 'hover.wav');
   
-  await Promise.all([avatarRegistry.preloadAvatars().catch(() => {}), cardRegistry.preloadAll().catch(() => {})]);
+  await Promise.all([
+    avatarRegistry.preloadAvatars().catch(() => {}),
+    cardRegistry.preloadAll().catch(() => {}),
+  ]);
 
   const playersBar = createPlayersBar(avatarRegistry);
   playersBar.mount(document.getElementById('players-bar'));
 
-  const navBar = createNavButtonBar({ api, overlay, soundManager });
+  const navBar = createNavButtonBar({ api, push, overlay, soundManager });
   navBar.mount(document.getElementById('nav-bar'));
 
   const actionBar = createActionButtonBar({ overlay });
   actionBar.mount(document.getElementById('action-bar'));
 
-  const fieldRenderer = createDefaultFieldCardRenderer({ defeatedImg: cardRegistry.getDefeatedImage() });
-  const handRenderer  = createDefaultHandCardRenderer();
+  const fieldRenderer = createDefaultFieldCardRenderer({
+    defeatedImg: cardRegistry.getDefeatedImage(),
+  });
+  const handRenderer = createDefaultHandCardRenderer();
 
   const ActionNames = {
-    RegularAttack:    'RegularAttack',
-    DoubleAttack:     'DoubleAttack',
-    Undo:             'Undo',
-    Redo:             'Redo',
-    BoostDefender:    'BoostDefender',
-    BoostGoalkeeper:  'BoostGoalkeeper',
-    RegularSwap:      'RegularSwap',
-    ReverseSwap:      'ReverseSwap'
+    RegularAttack:   'RegularAttack',
+    DoubleAttack:    'DoubleAttack',
+    Undo:            'Undo',
+    Redo:            'Redo',
+    BoostDefender:   'BoostDefender',
+    BoostGoalkeeper: 'BoostGoalkeeper',
+    RegularSwap:     'RegularSwap',
+    ReverseSwap:     'ReverseSwap',
   };
 
   const elField = document.getElementById('field');
@@ -94,7 +82,8 @@ export async function build({ api, overlay, createGameAlert }) {
 
   const attackerAvatarBox = document.getElementById('attacker-avatar-box');
   const inputBlocker      = document.getElementById('input-blocker');
-  const setAITurn = (active) => inputBlocker?.classList.toggle('is-active', !!active);
+  const setAITurn = (active) =>
+    inputBlocker?.classList.toggle('is-active', !!active);
 
   let controller;
   const scheduler = new UIActionScheduler();
@@ -109,10 +98,16 @@ export async function build({ api, overlay, createGameAlert }) {
     }
 
     if (attackerAvatarBox) {
-      const attackerRef = { id: 'att', name: web.roles?.attacker, playerType: 'Human' };
+      const attackerRef = {
+        id: 'att',
+        name: web.roles?.attacker,
+        playerType: 'Human',
+      };
       attackerAvatarBox.innerHTML = `
         <span class="attacker-label">Attacker:</span>
-        <img class="attacker-avatar neon-avatar" src="${avatarRegistry.getAvatarUrl(attackerRef)}" alt="">
+        <img class="attacker-avatar neon-avatar" src="${avatarRegistry.getAvatarUrl(
+          attackerRef
+        )}" alt="">
         <span class="attacker-name">${attackerRef.name ?? ''}</span>
       `;
     }
@@ -122,8 +117,8 @@ export async function build({ api, overlay, createGameAlert }) {
     controller,
     contextHolder: {
       get: () => ({
-        state: { roles: { attacker: lastRoles.attacker, defender: lastRoles.defender } }
-      })
+        state: { roles: { attacker: lastRoles.attacker, defender: lastRoles.defender } },
+      }),
     },
     overlay,
     onAutoClose: async () => {
@@ -140,6 +135,7 @@ export async function build({ api, overlay, createGameAlert }) {
 
   const orchestrator = createComparisonOrchestrator({
     api,
+    push,
     overlay,
     scheduler,
     comparisonHandler,
@@ -147,13 +143,13 @@ export async function build({ api, overlay, createGameAlert }) {
     getRoles: () => lastRoles,
     applyUiFromWeb,
     updateFromServerContext: (web) => controller.updateFromServerContext(web),
-    generator: ComparisonDialogGenerator, 
-    soundManager
+    generator: ComparisonDialogGenerator,
+    soundManager,
   });
-
 
   controller = createPlayingFieldController({
     api,
+    push,
     fieldRenderer,
     handRenderer,
     createPlayersFieldBar,
@@ -172,9 +168,11 @@ export async function build({ api, overlay, createGameAlert }) {
     if (ev.type === 'PauseDialogAction') {
       switch (ev.action) {
         case 'undo':
-          controller.onUndo?.();   return;
+          controller.onUndo?.();
+          return;
         case 'redo':
-          controller.onRedo?.();   return;
+          controller.onRedo?.();
+          return;
         case 'restart':
         case 'mainmenu':
         case 'resume':
@@ -192,7 +190,6 @@ export async function build({ api, overlay, createGameAlert }) {
     const key = typeof action === 'string' ? action : action?.id || action?.type;
 
     switch (key) {
-      // ---- SINGLE ATTACK (defender) ----
       case 'attack-regular':
       case 'attack-defender':
       case 'attack':
@@ -212,7 +209,6 @@ export async function build({ api, overlay, createGameAlert }) {
         return;
       }
 
-      // ---- SINGLE ATTACK (goalkeeper) ----
       case 'attack-goalkeeper':
       case 'single-attack-gk':
       case 'attack-gk': {
@@ -221,7 +217,6 @@ export async function build({ api, overlay, createGameAlert }) {
         return;
       }
 
-      // ---- DOUBLE ATTACK ----
       case 'attack-double':
       case 'double-attack': {
         orchestrator.setPendingAction(ActionNames.DoubleAttack);
@@ -229,7 +224,6 @@ export async function build({ api, overlay, createGameAlert }) {
         return;
       }
 
-      // ---- SWAP (regular) ----
       case 'swap':
       case 'swap-regular': {
         orchestrator.setPendingAction(ActionNames.RegularSwap);
@@ -237,7 +231,6 @@ export async function build({ api, overlay, createGameAlert }) {
         return;
       }
 
-      // ---- SWAP (reverse) ----
       case 'swap-reverse':
       case 'reverse-swap': {
         orchestrator.setPendingAction(ActionNames.ReverseSwap);
@@ -245,7 +238,6 @@ export async function build({ api, overlay, createGameAlert }) {
         return;
       }
 
-      // ---- BOOST ----
       case 'boost':
       case 'boost-selected': {
         orchestrator.setPendingAction(ActionNames.BoostDefender);
@@ -253,7 +245,6 @@ export async function build({ api, overlay, createGameAlert }) {
         return;
       }
 
-      // ---- UNDO / REDO ----
       case 'undo': {
         orchestrator.setPendingAction(ActionNames.Undo);
         controller.onUndo?.();
@@ -266,18 +257,16 @@ export async function build({ api, overlay, createGameAlert }) {
         return;
       }
 
-      // ---- DEFAULT ----
       default:
         window.dispatchEvent(
           new CustomEvent('pf:event', {
             detail: { type: 'GameAction', action: key },
-          })
+          }),
         );
     }
   };
 
   actionBar.onClick(onActionClick);
-
 
   actionBar.onHoverEvent?.((event) => {
     if (event?.type === 'hover') {
@@ -318,7 +307,8 @@ export async function build({ api, overlay, createGameAlert }) {
     setAITurn,
     showComparison: (data) => comparison.openComparison(data),
     showGoal: (name) => comparison.goalScored({ winnerName: name }),
-    showGameOver: (name, scoreLine) => comparison.gameOver({ winnerName: name, scoreLine }),
+    showGameOver: (name, scoreLine) =>
+      comparison.gameOver({ winnerName: name, scoreLine }),
     setActionEnabled: (map) => actionBar.setEnabled(map),
     refreshOnRoleSwitch: () => playersBar.refreshOnRoleSwitch(),
   };

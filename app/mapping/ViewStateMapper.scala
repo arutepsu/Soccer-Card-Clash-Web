@@ -1,6 +1,7 @@
 package app.mapping
 
-import app.models._
+import app.models.view._
+import app.models.state.WebGameState
 import de.htwg.se.soccercardclash.model.gameComponent.components.*
 import de.htwg.se.soccercardclash.model.gameComponent.IGameState
 import app.api.*

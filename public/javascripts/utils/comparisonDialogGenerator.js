@@ -3,19 +3,16 @@ import { UIActionScheduler, delayed } from './uiActionScheduler.js';
 let avatarRegistry = null;
 let cardRegistry   = null;
 
-/** Call once to inject registries/paths */
 export function configure(opts = {}) {
   avatarRegistry = opts.avatarRegistry ?? avatarRegistry;
   cardRegistry   = opts.cardRegistry   ?? cardRegistry;
 }
 
-/** helpers */
 function px(n) { return `${n}px`; }
 
 function fadeInNode(node, durationMs = 500) {
   node.style.opacity = '0';
   node.style.transition = `opacity ${durationMs}ms`;
-  // rAF twice to ensure style application before transition
   requestAnimationFrame(() => {
     requestAnimationFrame(() => { node.style.opacity = '1'; });
   });
@@ -69,7 +66,6 @@ function getAvatarView(player, scale = 1) {
       return avatarRegistry.getAvatarImg(player, { scale });
     }
 
-    // Fallback: build <img> using getAvatarUrl
     if (typeof avatarRegistry.getAvatarUrl === 'function') {
       const img = document.createElement('img');
       img.src = avatarRegistry.getAvatarUrl(player);
@@ -88,7 +84,6 @@ function getAvatarView(player, scale = 1) {
     console.warn('[CDG] failed to resolve avatar', player, e);
   }
 
-  // Final fallback: text pill
   const ph = document.createElement('div');
   ph.textContent = toPlayerName(player);
   ph.style.padding = '6px 10px';
@@ -107,7 +102,6 @@ function getCardUrlFromFileName(fileName) {
 function createCardImageView(card, scale = 0.7) {
   const url = getCardUrlFromFileName(card?.fileName);
   const img = document.createElement('img');
-  // Scala used 325x275 * scale with preserve ratio; we keep width and auto height
   img.src = url || '';
   img.alt = card?.fileName || 'card';
   img.style.width = px(325 * scale);
@@ -136,10 +130,8 @@ function createCardFrame(imageEl, { highlightGreen = false, highlightRed = false
 
   frame.append(imageEl, border);
 
-  // slide from given side (negative = from left, positive = from right)
   slideInNode(frame, slideFrom, 700);
 
-  // after 1s, apply border color like Scala PauseTransition
   setTimeout(() => {
     if (highlightGreen) border.style.borderColor = 'limegreen';
     else if (highlightRed) border.style.borderColor = 'red';
@@ -170,9 +162,6 @@ function vbox(gap = 10, children = []) {
   return box;
 }
 
-/**
- * Core renderer (Scala: showComparisonUI). Returns a DOM Node.
- */
 function showComparisonUI({
   attacker, defender,
   attackingCard1, attackingCard2,
@@ -187,15 +176,11 @@ function showComparisonUI({
   const resultMessage = attackSuccess ? 'Attack Successful!' : 'Attack Failed!';
   const resultText = createText(resultMessage, { fontSize: 16 * scaleFactor, weight: 'bold', color: 'white' });
 
-  // Avatars: left = "player1 side", right = "player2 side"
   const leftAvatar  = getAvatarView(attacker, 0.7 * scaleFactor);
   const rightAvatar = getAvatarView(defender, 0.7 * scaleFactor);
 
-  // Determine winner/loser by side
   const attackerWins = !!attackSuccess;
 
-  // In this layout, left side currently shows attacking cards, right side defending cards.
-  // So: left is attacker, right is defender.
   const leftWins  = attackerWins;
   const rightWins = !attackerWins;
 
@@ -204,12 +189,11 @@ function showComparisonUI({
   const rightHighlightGreen = rightWins;
   const rightHighlightRed   = !rightWins;
 
-  // Frames w/ highlights + slide-in (left side from left, right side from right)
   const atkFrame1 = attackingCard1
     ? createCardFrame(createCardImageView(attackingCard1, 0.7), {
         highlightGreen: leftHighlightGreen,
         highlightRed:   leftHighlightRed,
-        slideFrom:      -100, // from left
+        slideFrom:      -100,
       })
     : null;
 
@@ -233,7 +217,7 @@ function showComparisonUI({
     ? createCardFrame(createCardImageView(defendingCard, 0.7), {
         highlightGreen: rightHighlightGreen,
         highlightRed:   rightHighlightRed,
-        slideFrom:      100, // from right
+        slideFrom:      100,
       })
     : null;
 
@@ -245,17 +229,15 @@ function showComparisonUI({
       })
     : null;
 
-  // Winner line – show actual winner (attacker if success, defender if not)
   const winnerPlayer = attackerWins ? attacker : defender;
   const winnerTextContent = `🏆 Winner: ${toPlayerName(winnerPlayer)}`;
 
   const winnerText = createText(winnerTextContent, {
     fontSize: 30 * scaleFactor,
     weight: 'bold',
-    color: 'limegreen', // winner always green
+    color: 'limegreen',
   });
 
-  // Layouts
   const leftCards = [atkFrame1, atkFrame2, extraAtkFrame].filter(Boolean);
   const rightCards = [defFrame, extraDefFrame].filter(Boolean);
 
@@ -268,7 +250,6 @@ function showComparisonUI({
   const cardImagesHBox = hbox(20, [leftCardsBox, rightCardsBox]);
   const cardImagesBox  = vbox(10, [cardImagesHBox]);
 
-  // Tie-breaker row if any
   if (extraAtkFrame || extraDefFrame) {
     const tiebreaker = hbox(10, [extraAtkFrame, extraDefFrame].filter(Boolean));
     cardImagesBox.append(tiebreaker);
@@ -283,7 +264,6 @@ function showComparisonUI({
     vbox(5, [rightAvatar]),
   ]);
 
-  // Root
   const root = vbox(10, [playerInfoBox, winnerText, resultText]);
   root.style.padding = '15px';
   root.style.borderRadius = '10px';
@@ -292,7 +272,6 @@ function showComparisonUI({
   root.style.backgroundRepeat = 'no-repeat';
   root.style.backgroundPosition = 'center';
 
-  // Animations sequence
   const scheduler = new UIActionScheduler();
   scheduler.runSequence(
     delayed(0,    () => fadeInNode(root, 700)),
@@ -300,13 +279,11 @@ function showComparisonUI({
     delayed(1500, () => showResultText(resultText, 500)),
   );
 
-  // initial fade to match Scala's extra call
   fadeInNode(root, 700);
 
   return root;
 }
 
-/** Public API (Scala-style wrappers) */
 export function showSingleComparison(attacker, defender, attackingCard, defendingCard, attackSuccess, sceneWidth) {
   return showComparisonUI({
     attacker, defender, attackingCard1: attackingCard, attackingCard2: null,

@@ -9,7 +9,7 @@ import scala.concurrent.{ExecutionContext}
 import scala.concurrent.duration._
 import services.webtui._
 import play.api.libs.json._
-import app.models.WebGameState
+import app.models.state.WebGameState
 import de.htwg.se.soccercardclash.controller.contextHolder.IGameContextHolder
 import app.mapping.ViewStateMapper
 import app.api.IGameUseCases

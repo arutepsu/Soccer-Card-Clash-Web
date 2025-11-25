@@ -2,7 +2,7 @@
 package app.api
 
 import javax.inject._
-import app.models.WebGameState
+import app.models.state.WebGameState
 import app.repositories.GameContextRepository
 import app.mapping.ViewStateMapper
 

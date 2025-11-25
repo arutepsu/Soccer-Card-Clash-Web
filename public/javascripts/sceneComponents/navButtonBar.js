@@ -1,6 +1,6 @@
 import { fileIOApi } from '../api/FileIOApi.js';
 
-export function createNavButtonBar({ navigate, api, overlay, soundManager } = {}) {
+export function createNavButtonBar({ navigate, api, push, overlay, soundManager } = {}) {
   let root;
   let onEvent = () => {};
 
@@ -11,14 +11,15 @@ export function createNavButtonBar({ navigate, api, overlay, soundManager } = {}
 
   async function doRestart() {
     const btns = root?.querySelectorAll('[data-pause-action]');
-    btns?.forEach(b => b.setAttribute('disabled', 'true'));
+    btns?.forEach((b) => b.setAttribute('disabled', 'true'));
     try {
+      // rest api
       if (api?.restart) {
         await api.restart();
       } else {
         await fetch('/api/game/restart', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
         });
       }
       go('/playing-field');
@@ -26,7 +27,7 @@ export function createNavButtonBar({ navigate, api, overlay, soundManager } = {}
       console.error('Restart failed', e);
       alert('Restart failed. Please try again.');
     } finally {
-      btns?.forEach(b => b.removeAttribute('disabled'));
+      btns?.forEach((b) => b.removeAttribute('disabled'));
     }
   }
 
@@ -74,7 +75,7 @@ export function createNavButtonBar({ navigate, api, overlay, soundManager } = {}
           soundManager.play('hover', { volume: 0.3 });
         }
       },
-      true
+      true,
     );
   }
 
@@ -106,7 +107,9 @@ export function createNavButtonBar({ navigate, api, overlay, soundManager } = {}
       overlay.hide?.();
 
       if (previouslyFocused && document.contains(previouslyFocused)) {
-        try { previouslyFocused.focus(); } catch {}
+        try {
+          previouslyFocused.focus();
+        } catch {}
       }
     };
 
@@ -156,10 +159,11 @@ export function createNavButtonBar({ navigate, api, overlay, soundManager } = {}
         el.setAttribute('disabled', 'true');
         el.textContent = 'Saving...';
 
-        fileIOApi.quickSave()
+        fileIOApi
+          .quickSave()
           .then(() => {
             console.log('Game saved successfully');
-            
+
             if (soundManager) {
               soundManager.play('success', { volume: 0.7 });
             }
@@ -168,7 +172,9 @@ export function createNavButtonBar({ navigate, api, overlay, soundManager } = {}
 
             overlay.hide?.();
             if (previouslyFocused && document.contains(previouslyFocused)) {
-              try { previouslyFocused.focus(); } catch {}
+              try {
+                previouslyFocused.focus();
+              } catch {}
             }
             const savedMsg = document.createElement('div');
             savedMsg.className = 'save-notification';
@@ -203,7 +209,6 @@ export function createNavButtonBar({ navigate, api, overlay, soundManager } = {}
 
         return;
       }
-
     };
 
     const onKey = (e) => {
@@ -230,7 +235,6 @@ export function createNavButtonBar({ navigate, api, overlay, soundManager } = {}
     node.addEventListener('mouseenter', onHover, true);
     document.addEventListener('keydown', onKey);
 
-    // this actually opens the overlay
     overlay.show(node, { autoHide: false });
 
     const firstBtn = node.querySelector('[data-pause-action]');

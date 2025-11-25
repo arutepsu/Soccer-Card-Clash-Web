@@ -1,9 +1,9 @@
-// /assets/javascripts/controllers/attackerDefendersController.js
 import { createDefaultFieldCardRenderer } from '../sceneComponents/fieldCardRenderer.js';
 import { createAttackerFieldBar } from '../sceneComponents/attackerFieldBar.js';
 
 export function createAttackerDefendersController({
   api,
+  push,
   els: { fieldEl, overlay, btnBoost, btnInfo, btnBack, attackerBar },
   onNavigateBack,
   createGameAlert,
@@ -14,11 +14,10 @@ export function createAttackerDefendersController({
   let rawWeb   = null;
   let fieldBar = null;
 
-
   let lastAttackerName = null;
 
   const renderer = createDefaultFieldCardRenderer({
-    boostImg: '/assets/images/cards/effects/boost.png'
+    boostImg: '/assets/images/cards/effects/boost.png',
   });
 
   function mountIfNeeded() {
@@ -27,7 +26,10 @@ export function createAttackerDefendersController({
   }
 
   function attackerPlayerOf(st) {
-    return st?.players?.attacker ?? { id: 'att', name: (st?.roles?.attacker || 'Attacker') };
+    return st?.players?.attacker ?? {
+      id: 'att',
+      name: st?.roles?.attacker || 'Attacker',
+    };
   }
 
   function updateBoostButtonState() {
@@ -55,6 +57,11 @@ export function createAttackerDefendersController({
   }
 
   async function refresh() {
+    if (!api || typeof api.fetchGameState !== 'function') {
+      console.warn('[AttDefCtrl] refresh() called but api.fetchGameState is not available');
+      return;
+    }
+
     const fresh = await api.fetchGameState();
     rawWeb   = fresh;
     webState = mapWebToScene ? mapWebToScene(fresh) : fresh;
@@ -67,7 +74,17 @@ export function createAttackerDefendersController({
   const getCurrentAttacker = () => attackerPlayerOf(webState);
 
   async function initWithServerState(initialWebState) {
-    const base = initialWebState ?? await api.fetchGameState();
+    let base = initialWebState;
+
+    if (!base && api && typeof api.fetchGameState === 'function') {
+      base = await api.fetchGameState().catch(() => null);
+    }
+
+    if (!base) {
+      console.warn('[AttDefCtrl] No initial web state available');
+      return;
+    }
+
     rawWeb   = base;
     webState = mapWebToScene ? mapWebToScene(base) : base;
 
@@ -81,7 +98,10 @@ export function createAttackerDefendersController({
   }
 
   function showAlert(message, { autoHideMs = 3000 } = {}) {
-    if (!overlay) { alert(message); return; }
+    if (!overlay) {
+      alert(message);
+      return;
+    }
     const el = createGameAlert({ message, autoHideMs, onOk: () => overlay.hide?.() });
     overlay.show?.(el, { onHide: () => el.cleanup && el.cleanup() });
   }
@@ -98,22 +118,43 @@ export function createAttackerDefendersController({
       showAlert('Pick one of your defenders or the goalkeeper to boost.');
       return;
     }
+
     try {
+      if (push && typeof push.boost === 'function') {
+        if (sel.kind === 'defender') {
+          push.boost('defender', sel.index);
+        } else {
+          push.boost('goalkeeper');
+        }
+        fieldBar?.clearSelection?.();
+        return;
+      }
+
+      if (!api || typeof api.boost !== 'function') {
+        console.warn('[AttDefCtrl] No push or api.boost available for Boost action');
+        showAlert('Boost is currently unavailable.');
+        return;
+      }
+
       if (sel.kind === 'defender') {
         await api.boost({ target: 'defender', index: sel.index });
       } else {
         await api.boost({ target: 'goalkeeper' });
       }
+
       await refresh();
       fieldBar?.clearSelection?.();
     } catch (e) {
+      console.error('[AttDefCtrl] Boost failed:', e);
       showAlert('Boost failed. Please try again.');
     }
   }
 
   btnBoost?.addEventListener('click', onBoost);
   btnInfo?.addEventListener('click', () => {
-    showAlert('Boost temporarily increases the selected defender or goalkeeper.', { autoHideMs: 3000 });
+    showAlert('Boost temporarily increases the selected defender or goalkeeper.', {
+      autoHideMs: 3000,
+    });
   });
   btnBack?.addEventListener('click', () => onNavigateBack?.());
 

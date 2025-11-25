@@ -1,4 +1,5 @@
-package app.models
+package app.models.view
+
 import play.api.libs.json._
 
 final case class HandView(cards: Seq[CardView])

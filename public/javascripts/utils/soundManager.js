@@ -6,17 +6,14 @@ export function createSoundManager({ basePath = '/assets/sounds/' } = {}) {
 
   function preload(name, fileName) {
     const fullPath = `${basePath}${fileName}`;
-    console.log(`[SoundManager] Preloading "${name}" from ${fullPath}`);
     const audio = new Audio(fullPath);
     audio.preload = 'auto';
     audio.volume = 0.5;
 
     audio.addEventListener('canplaythrough', () => {
-      console.log(`[SoundManager]"${name}" loaded successfully`);
     });
 
     audio.addEventListener('error', (e) => {
-      console.error(`[SoundManager] Failed to load "${name}":`, e);
     });
 
     sounds.set(name, audio);
@@ -28,7 +25,6 @@ export function createSoundManager({ basePath = '/assets/sounds/' } = {}) {
    */
   function unlock() {
     if (unlocked) return;
-    console.log('[SoundManager] Attempting to unlock audio...');
     const a = new Audio();
     a.volume = 0;
     const playPromise = a.play();
@@ -37,15 +33,12 @@ export function createSoundManager({ basePath = '/assets/sounds/' } = {}) {
       playPromise
         .then(() => {
           unlocked = true;
-          console.log('[SoundManager] Audio unlocked');
         })
         .catch(() => {
-          console.warn('[SoundManager]Unlock failed.');
         });
     }
   }
 
-  // Automatically listen for first user input
   window.addEventListener(
     'pointerdown',
     () => {
@@ -64,11 +57,8 @@ export function createSoundManager({ basePath = '/assets/sounds/' } = {}) {
   function play(name, { volume = 1.0, loop = false } = {}) {
     const audio = sounds.get(name);
     if (!audio) {
-      console.warn(`[SoundManager] Sound "${name}" not found`);
       return null;
     }
-
-    console.log(`[SoundManager] Playing "${name}" at volume ${volume}`);
 
     try {
       const clone = audio.cloneNode();
@@ -84,7 +74,6 @@ export function createSoundManager({ basePath = '/assets/sounds/' } = {}) {
       if (playPromise !== undefined) {
         playPromise
           .then(() => {
-            console.log(`[SoundManager]"${name}" playing`);
           })
           .catch((err) => {
             console.warn(`[SoundManager] Failed to play "${name}":`, err.message);
@@ -115,7 +104,6 @@ export function createSoundManager({ basePath = '/assets/sounds/' } = {}) {
   }
 
   function debug() {
-    console.log('[SoundManager] Loaded sounds:', Array.from(sounds.keys()));
     sounds.forEach((audio, name) => {
       console.log(`  - ${name}: ready=${audio.readyState >= 2}, src=${audio.src}`);
     });

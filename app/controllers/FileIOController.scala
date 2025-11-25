@@ -6,7 +6,8 @@ import play.api.libs.json._
 import app.fileIO.IFileIO
 import app.api.IGameUseCases
 import app.repositories.GameContextRepository
-import app.models.{AppError, WebGameState}
+import app.models.AppError
+import app.models.state.WebGameState
 import app.mapping.ViewStateMapper
 import de.htwg.se.soccercardclash.model.gameComponent.context.GameContext
 
