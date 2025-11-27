@@ -1,26 +1,25 @@
 import { createSoundManager } from './utils/soundManager.js';
 
-export async function build({ api, push, overlay, createGameAlert }) {
-  // Sound Manager 
+export async function build({ overlay, createGameAlert }) {
   const soundManager = createSoundManager({ basePath: '/assets/sounds/' });
   soundManager.preload('hover', 'hover.wav');
   soundManager.preload('click', 'attack.wav');
-  
+
   const root = document.querySelector('.scene--singleplayer');
   if (!root) return { destroy() {}, refresh: async () => {} };
 
-  const form     = root.querySelector('form');
   const input    = root.querySelector('#p1name');
-  const btnStart = root.querySelector('#btn-sp-start');
+  const btnStart = root.querySelector('.btn-start');
+  const btnBack  = root.querySelector('.btn-back');
 
-  const aiSelect = root.querySelector('[name="aiPlayer"]');
-
-  btnStart?.addEventListener('mouseenter', () => {
-    if (!btnStart.disabled) soundManager.play('hover', { volume: 0.6 });
-  });
-  
-  btnStart?.addEventListener('click', () => {
-    if (!btnStart.disabled) soundManager.play('click', { volume: 0.6 });
+  [btnStart, btnBack].forEach((btn) => {
+    if (!btn) return;
+    btn.addEventListener('mouseenter', () => {
+      if (!btn.disabled) soundManager.play('hover', { volume: 0.6 });
+    });
+    btn.addEventListener('click', () => {
+      if (!btn.disabled) soundManager.play('click', { volume: 0.6 });
+    });
   });
 
   function showAlert(msg) {
@@ -34,38 +33,8 @@ export async function build({ api, push, overlay, createGameAlert }) {
 
   const getHumanName = () => (input?.value || '').trim();
 
-  const getAiName = () => {
-    if (!aiSelect) return 'AI';
-
-    if (aiSelect instanceof HTMLSelectElement) {
-      const v = aiSelect.value.trim();
-      return v || 'AI';
-    }
-
-    const checked = root.querySelector('input[name="aiPlayer"]:checked');
-    if (checked && checked.value) {
-      return checked.value.trim() || 'AI';
-    }
-
-    return 'AI';
-  };
-
-  const setBusy = (busy) => {
-    const flag = !!busy;
-    if (btnStart) {
-      btnStart.disabled = flag;
-      btnStart.classList.toggle('is-busy', flag);
-    }
-    if (input) input.disabled = flag;
-
-    root.querySelectorAll('[name="aiPlayer"]').forEach(el => {
-      el.disabled = flag;
-    });
-  };
-
-  async function onSubmit(e) {
+  function onStartClick(e) {
     const name = getHumanName();
-
     if (!name) {
       e.preventDefault();
       showAlert('Please enter your name first.');
@@ -73,32 +42,19 @@ export async function build({ api, push, overlay, createGameAlert }) {
       return;
     }
 
-    try { sessionStorage.setItem('humanPlayerName', name); } catch {}
-
-    const aiName = getAiName();
-
-    if (push && typeof push.createGameWithAI === 'function') {
-      e.preventDefault();
-      setBusy(true);
-
-      try {
-        push.createGameWithAI(name, aiName);
-      } catch (err) {
-        console.error('CreateGameWithAI failed:', err);
-        showAlert('Could not start game, please try again.');
-        setBusy(false);
-      }
-
-      return;
+    try {
+      sessionStorage.setItem('humanPlayerName', name);
+    } catch (err) {
+      console.warn('[Singleplayer] failed to store name in sessionStorage:', err);
     }
 
   }
 
-  form?.addEventListener('submit', onSubmit);
+  btnStart?.addEventListener('click', onStartClick);
 
   return {
     destroy() {
-      form?.removeEventListener('submit', onSubmit);
+      btnStart?.removeEventListener('click', onStartClick);
     },
     refresh: async () => {},
   };

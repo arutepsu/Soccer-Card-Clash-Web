@@ -1,10 +1,10 @@
-// /assets/javascripts/scenes/WebSceneManager.js
 import { GlobalObservable } from '../core/Observable.js';
 import { SceneRegistry, SceneSwitchEvent } from './registry.js';
 import { createGameApi } from '../api/gameApi.js';
 import { createOverlay } from '../overlay.js';
 import { createGameAlert } from '../utils/gameAlert.js';
-import { createServerPushClient } from '../api/serverPushClient.js'; // NEW
+import { createServerPushClient } from '../api/serverPushClient.js';
+import { createGameEventStream } from '../api/gameEventStream.js';
 
 function getCsrf() {
   return document.querySelector('meta[name="csrf-token"]')?.content;
@@ -12,23 +12,21 @@ function getCsrf() {
 
 export class WebSceneManager {
   constructor() {
-    this.current = null;
+    this.current   = null;
     this.currentId = null;
-    this.root = document.getElementById('app');
-    this.overlay = null;
-    this.api = null;   // REST API
-    this.push = null;  // Push protocol API
+    this.root      = document.getElementById('app');
+
+    this.overlay      = null;
+    this.api          = null;  // REST + stream
+    this.push         = null;  // WebSocket commands
+    this.streamClient = null;  // SSE / Comet client
+
     GlobalObservable.add(this);
   }
 
   async init() {
-    // old REST API (still available for now)
-    this.api = createGameApi({ csrfToken: getCsrf() });
-
-    // NEW: WebSocket-based push client
     this.push = createServerPushClient();
 
-    // forward all push messages to the active scene, if it wants them
     this.push.onMessage((env) => {
       if (this.current?.onPushMessage) {
         try {
@@ -37,6 +35,13 @@ export class WebSceneManager {
           console.error('[WebSceneManager] onPushMessage error:', e);
         }
       }
+    });
+
+    this.streamClient = createGameEventStream();
+
+    this.api = createGameApi({
+      csrfToken: getCsrf(),
+      streamClient: this.streamClient,
     });
 
     const overlayEl = document.getElementById('overlay');
@@ -56,22 +61,28 @@ export class WebSceneManager {
     if (this.currentId === sceneId) return;
 
     const mod = SceneRegistry[sceneId];
-    if (!mod?.build) return;
+    if (!mod?.build) {
+      console.warn('[WebSceneManager] Unknown sceneId:', sceneId);
+      return;
+    }
 
     if (withFade && this.root) {
       this.fadeOut(this.root, 200);
       await this.wait(180);
     }
 
-    try { this.current?.destroy?.(); } catch {}
+    try {
+      this.current?.destroy?.();
+    } catch (e) {
+      console.warn('[WebSceneManager] destroy() threw:', e);
+    }
 
-    this.current = null;
+    this.current   = null;
     this.currentId = sceneId;
 
-    // 🔥 pass BOTH api (REST) and push (ServerPush) into scenes
     this.current = await mod.build({
-      api: this.api,       // old REST API
-      push: this.push,     // new push-based API
+      api: this.api,
+      push: this.push,
       overlay: this.overlay,
       createGameAlert,
     });
@@ -81,7 +92,9 @@ export class WebSceneManager {
     }
   }
 
-  wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+  wait(ms) {
+    return new Promise((r) => setTimeout(r, ms));
+  }
 
   fadeOut(el, ms = 200) {
     el.style.transition = `opacity ${ms}ms ease`;

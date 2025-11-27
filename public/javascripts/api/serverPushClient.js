@@ -1,49 +1,89 @@
 // /assets/javascripts/api/serverPushClient.js
-export function createServerPushClient() {
+
+export function createServerPushClient(opts = {}) {
+  const {
+    path = '/ws/game',
+    reconnectDelayMs = 1000,
+  } = opts;
+
   let ws = null;
-  let handlers = new Set();
   let connected = false;
+  let reconnectTimer = null;
+  let intentionallyClosed = false;
+
+  const handlers = new Set();
+
+  function buildWsUrl() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    return `${proto}://${location.host}${path}`;
+  }
+
+  function scheduleReconnect() {
+    if (intentionallyClosed) return;
+    if (reconnectTimer != null) return;
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null;
+      connect();
+    }, reconnectDelayMs);
+  }
 
   function connect() {
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsUrl = `${proto}://${location.host}/ws/game`;
+    const url = buildWsUrl();
+    console.log('[WS] connecting to', url);
 
-    console.log('[WS] connecting to', wsUrl);
-    ws = new WebSocket(wsUrl);
+    try {
+      ws = new WebSocket(url);
+    } catch (err) {
+      console.warn('[WS] failed to construct WebSocket:', err);
+      scheduleReconnect();
+      return;
+    }
 
     ws.onopen = () => {
       connected = true;
       console.log('[WS] connected');
     };
 
-    ws.onclose = () => {
+    ws.onclose = (ev) => {
       connected = false;
-      console.log('[WS] closed, reconnecting...');
-      setTimeout(connect, 1000);
+      console.log('[WS] closed:', ev.code, ev.reason || '');
+      if (!intentionallyClosed) {
+        console.log('[WS] scheduling reconnect...');
+        scheduleReconnect();
+      }
     };
 
     ws.onerror = (e) => {
       console.warn('[WS] error:', e);
     };
 
+    //raw ws message - state
     ws.onmessage = (ev) => {
+      let msg;
       try {
-        const msg = JSON.parse(ev.data);
-        handlers.forEach((h) => h(msg));
+        msg = JSON.parse(ev.data);
       } catch (err) {
         console.error('[WS] invalid JSON:', err, ev.data);
+        return;
       }
+      //forward to handler - no sending events
+      handlers.forEach((h) => {
+        try {
+          h(msg);
+        } catch (err) {
+          console.error('[WS] handler threw:', err);
+        }
+      });
     };
   }
 
-  connect();
-
   function sendEnvelope(type, payload = {}, requestId = null) {
-    if (!connected || !ws || ws.readyState !== WebSocket.OPEN) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
       console.warn('[WS] not connected, cannot send:', type);
       return;
     }
 
+    /** @type {GameEnvelope} */
     const env = {
       kind: 'command',
       type,
@@ -52,63 +92,117 @@ export function createServerPushClient() {
       payload,
     };
 
-    ws.send(JSON.stringify(env));
+    try {
+      ws.send(JSON.stringify(env));
+    } catch (err) {
+      console.error('[WS] failed to send envelope:', err, env);
+    }
   }
 
-  return {
-    isConnected() {
-      return connected;
-    },
+  function isConnected() {
+    return connected && ws && ws.readyState === WebSocket.OPEN;
+  }
 
-    onMessage(handler) {
-      handlers.add(handler);
-    },
-    offMessage(handler) {
-      handlers.delete(handler);
-    },
+  function onMessage(handler) {
+    if (typeof handler !== 'function') return;
+    handlers.add(handler);
+  }
 
-    // high-level API
-    getState() {
-      sendEnvelope('GetState', {}, 'state-req');
-    },
-    regularAttack(target, index = null) {
-      sendEnvelope('RegularAttack', { target, index });
-    },
-    doubleAttack(index) {
-      sendEnvelope('DoubleAttack', { index });
-    },
-    boost(target, index = null) {
-      sendEnvelope('Boost', { target, index });
-    },
-    swap(index) {
-      sendEnvelope('RegularSwap', { index });
-    },
-    reverseSwap() {
-      sendEnvelope('ReverseSwap', {});
-    },
-    undo() {
-      sendEnvelope('Undo', {});
-    },
-    redo() {
-      sendEnvelope('Redo', {});
-    },
-    executeAI(aiAction) {
-      sendEnvelope('ExecuteAI', aiAction);
-    },
-    createGame(p1, p2) {
-      sendEnvelope('CreateGame', { p1, p2 });
-    },
-    createGameWithAI(humanPlayer, aiName) {
-      sendEnvelope('CreateGameWithAI', { humanPlayer, aiName });
-    },
-    load(fileName) {
-      sendEnvelope('LoadGame', { fileName });
-    },
-    save() {
-      sendEnvelope('SaveGame', {});
-    },
-    quit() {
-      sendEnvelope('QuitGame', {});
+  function offMessage(handler) {
+    handlers.delete(handler);
+  }
+
+  function close() {
+    intentionallyClosed = true;
+    if (reconnectTimer != null) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
     }
+    if (ws) {
+      try {
+        ws.close();
+      } catch {}
+      ws = null;
+    }
+    connected = false;
+  }
+
+  function getState() {
+    sendEnvelope('GetState', {}, 'state-req');
+  }
+
+  function regularAttack(target, index = null) {
+    sendEnvelope('RegularAttack', { target, index });
+  }
+
+  function doubleAttack(index) {
+    sendEnvelope('DoubleAttack', { index });
+  }
+
+  function boost(target, index = null) {
+    sendEnvelope('Boost', { target, index });
+  }
+
+  function swap(index) {
+    sendEnvelope('RegularSwap', { index });
+  }
+
+  function reverseSwap() {
+    sendEnvelope('ReverseSwap', {});
+  }
+
+  function undo() {
+    sendEnvelope('Undo', {});
+  }
+
+  function redo() {
+    sendEnvelope('Redo', {});
+  }
+
+  function executeAI(aiAction) {
+    sendEnvelope('ExecuteAI', aiAction);
+  }
+
+  function createGame(p1, p2) {
+    sendEnvelope('CreateGame', { p1, p2 });
+  }
+
+  function createGameWithAI(humanPlayer, aiName) {
+    sendEnvelope('CreateGameWithAI', { humanPlayer, aiName });
+  }
+
+  function load(fileName) {
+    sendEnvelope('LoadGame', { fileName });
+  }
+
+  function save() {
+    sendEnvelope('SaveGame', {});
+  }
+
+  function quit() {
+    sendEnvelope('QuitGame', {});
+  }
+
+  connect();
+
+  return {
+    isConnected,
+    onMessage,
+    offMessage,
+    close,
+    getState,
+    regularAttack,
+    doubleAttack,
+    boost,
+    swap,
+    reverseSwap,
+    undo,
+    redo,
+    executeAI,
+    createGame,
+    createGameWithAI,
+    load,
+    save,
+    quit,
   };
 }

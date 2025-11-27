@@ -12,7 +12,6 @@ export function createPlayingFieldController({
 }) {
   let gameState = null;
   const getGS = () => gameState;
-  let lastUsedDefenderIndex = null;
 
   let defenderFieldBar = null;
   let attackerHandBar  = null;
@@ -51,6 +50,7 @@ export function createPlayingFieldController({
     return { players: { attacker, defender } };
   }
 
+
   async function onSingleAttackDefender() {
     if (busy || !defenderFieldBar) return;
 
@@ -62,7 +62,7 @@ export function createPlayingFieldController({
     try {
       busy = true;
 
-      if (push && typeof push.regularAttack === 'function') {
+      if (push && typeof push.regularAttack === 'function' && push.isConnected?.()) {
         push.regularAttack('defender', idx);
 
         afterServerApply?.(null, {
@@ -94,7 +94,7 @@ export function createPlayingFieldController({
     try {
       busy = true;
 
-      if (push && typeof push.regularAttack === 'function') {
+      if (push && typeof push.regularAttack === 'function' && push.isConnected?.()) {
         push.regularAttack('goalkeeper', null);
 
         afterServerApply?.(null, {
@@ -133,7 +133,7 @@ export function createPlayingFieldController({
     try {
       busy = true;
 
-      if (push && typeof push.doubleAttack === 'function') {
+      if (push && typeof push.doubleAttack === 'function' && push.isConnected?.()) {
         push.doubleAttack(idx);
 
         afterServerApply?.(null, {
@@ -167,8 +167,9 @@ export function createPlayingFieldController({
     try {
       busy = true;
 
-      if (push && typeof push.swap === 'function') {
+      if (push && typeof push.swap === 'function' && push.isConnected?.()) {
         push.swap(idx);
+        afterServerApply?.(null, { action: 'RegularSwap' });
         return;
       }
 
@@ -178,7 +179,7 @@ export function createPlayingFieldController({
       }
 
       const web = await api.swap(idx);
-      applyWeb(web);
+      afterServerApply?.(web, { action: 'RegularSwap' });
     } finally {
       attackerHandBar.resetSelectedHand?.();
       busy = false;
@@ -190,9 +191,9 @@ export function createPlayingFieldController({
     try {
       busy = true;
 
-
-      if (push && typeof push.reverseSwap === 'function') {
+      if (push && typeof push.reverseSwap === 'function' && push.isConnected?.()) {
         push.reverseSwap();
+        afterServerApply?.(null, { action: 'ReverseSwap' });
         return;
       }
 
@@ -202,7 +203,7 @@ export function createPlayingFieldController({
       }
 
       const web = await api.reverseSwap();
-      applyWeb(web);
+      afterServerApply?.(web, { action: 'ReverseSwap' });
     } finally {
       busy = false;
     }
@@ -213,8 +214,9 @@ export function createPlayingFieldController({
     try {
       busy = true;
 
-      if (push && typeof push.undo === 'function') {
+      if (push && typeof push.undo === 'function' && push.isConnected?.()) {
         push.undo();
+        afterServerApply?.(null, { action: 'Undo' });
         return;
       }
 
@@ -224,7 +226,7 @@ export function createPlayingFieldController({
       }
 
       const web = await api.undo();
-      applyWeb(web);
+      afterServerApply?.(web, { action: 'Undo' });
     } finally {
       busy = false;
     }
@@ -235,8 +237,9 @@ export function createPlayingFieldController({
     try {
       busy = true;
 
-      if (push && typeof push.redo === 'function') {
+      if (push && typeof push.redo === 'function' && push.isConnected?.()) {
         push.redo();
+        afterServerApply?.(null, { action: 'Redo' });
         return;
       }
 
@@ -246,7 +249,7 @@ export function createPlayingFieldController({
       }
 
       const web = await api.redo();
-      applyWeb(web);
+      afterServerApply?.(web, { action: 'Redo' });
     } finally {
       busy = false;
     }
@@ -259,9 +262,12 @@ export function createPlayingFieldController({
     try {
       busy = true;
 
-      if (push && typeof push.boost === 'function') {
-        if (sel && sel.kind === 'goalkeeper') {
+      const isGK = sel && sel.kind === 'goalkeeper';
+
+      if (push && typeof push.boost === 'function' && push.isConnected?.()) {
+        if (isGK) {
           push.boost('goalkeeper');
+          afterServerApply?.(null, { action: 'BoostGoalkeeper' });
         } else {
           const idx =
             sel?.kind === 'defender'
@@ -269,6 +275,7 @@ export function createPlayingFieldController({
               : defenderFieldBar.selectedDefenderIndex?.();
           if (idx == null) return;
           push.boost('defender', idx);
+          afterServerApply?.(null, { action: 'BoostDefender' });
         }
         return;
       }
@@ -278,9 +285,9 @@ export function createPlayingFieldController({
         return;
       }
 
-      if (sel && sel.kind === 'goalkeeper') {
+      if (isGK) {
         const web = await api.boost({ target: 'goalkeeper' });
-        applyWeb(web);
+        afterServerApply?.(web, { action: 'BoostGoalkeeper' });
       } else {
         const idx =
           sel?.kind === 'defender'
@@ -288,7 +295,7 @@ export function createPlayingFieldController({
             : defenderFieldBar.selectedDefenderIndex?.();
         if (idx == null) return;
         const web = await api.boost({ target: 'defender', index: idx });
-        applyWeb(web);
+        afterServerApply?.(web, { action: 'BoostDefender' });
       }
     } finally {
       defenderFieldBar.resetSelectedDefender?.();
