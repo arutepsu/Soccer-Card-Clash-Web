@@ -1,5 +1,3 @@
-// /assets/javascripts/controllers/attackerHandController.js
-
 import { createDefaultHandCardRenderer } from '../sceneComponents/handCardRenderer.js';
 import { createAttackerHandBar } from '../sceneComponents/attackerHandBar.js';
 import { createCardImageRegistry } from '../utils/cardImageRegistry.js';
@@ -73,7 +71,7 @@ export function createAttackerHandController({
     const web =
       initialWeb ??
       (api && typeof api.fetchGameState === 'function'
-        ? await api.fetchGameState()
+        ? await api.fetchGameState().catch(() => null)
         : null);
 
     if (!web) {
@@ -127,18 +125,13 @@ export function createAttackerHandController({
 
     try {
       busy = true;
+      
 
-      if (push && typeof push.swap === 'function') {
-        push.swap(idx);
+      if (push && typeof push.swap === 'function' && push.isConnected?.()) {
+        push.swap(idx); // ws
 
-        if (api && typeof api.fetchGameState === 'function') {
-          const web = await api.fetchGameState().catch(() => null);
-          if (web) applyWeb(web);
-        } else {
-          console.warn('[AttackerHandController] push.swap used but api.fetchGameState is not available');
-        }
       } else if (api && typeof api.swap === 'function') {
-        const web = await api.swap(idx);
+        const web = await api.swap(idx); // rest
         applyWeb(web);
       } else {
         console.warn('[AttackerHandController] No push.swap or api.swap available');
@@ -159,17 +152,10 @@ export function createAttackerHandController({
     try {
       busy = true;
 
-      if (push && typeof push.reverseSwap === 'function') {
-        push.reverseSwap();
-
-        if (api && typeof api.fetchGameState === 'function') {
-          const web = await api.fetchGameState().catch(() => null);
-          if (web) applyWeb(web);
-        } else {
-          console.warn('[AttackerHandController] push.reverseSwap used but api.fetchGameState is not available');
-        }
+      if (push && typeof push.reverseSwap === 'function' && push.isConnected?.()) {
+        push.reverseSwap(); // ws
       } else if (api && typeof api.reverseSwap === 'function') {
-        const web = await api.reverseSwap();
+        const web = await api.reverseSwap(); // rest
         applyWeb(web);
       } else {
         console.warn('[AttackerHandController] No push.reverseSwap or api.reverseSwap available');

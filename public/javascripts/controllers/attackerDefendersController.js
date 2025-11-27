@@ -14,22 +14,27 @@ export function createAttackerDefendersController({
   let rawWeb   = null;
   let fieldBar = null;
 
-  let lastAttackerName = null;
-
   const renderer = createDefaultFieldCardRenderer({
     boostImg: '/assets/images/cards/effects/boost.png',
   });
-
-  function mountIfNeeded() {
-    if (!fieldEl || !fieldBar) return;
-    if (!fieldBar.isMounted?.()) fieldBar.mount(fieldEl);
-  }
 
   function attackerPlayerOf(st) {
     return st?.players?.attacker ?? {
       id: 'att',
       name: st?.roles?.attacker || 'Attacker',
     };
+  }
+
+  function mountIfNeeded() {
+    if (!fieldEl) return;
+
+    if (!fieldBar && webState) {
+      const attackerPlayer = attackerPlayerOf(webState);
+      fieldBar = createAttackerFieldBar(attackerPlayer, () => webState, renderer);
+      fieldBar.mount(fieldEl);
+    } else if (fieldBar && !fieldBar.isMounted?.()) {
+      fieldBar.mount(fieldEl);
+    }
   }
 
   function updateBoostButtonState() {
@@ -40,20 +45,21 @@ export function createAttackerDefendersController({
     btnBoost.classList.toggle('is-disabled', !canBoost);
   }
 
-  function rebuildFieldBarIfAttackerChanged(state) {
-    const att = attackerPlayerOf(state);
-    if (att?.name !== lastAttackerName) {
-      lastAttackerName = att?.name ?? null;
-      fieldBar = createAttackerFieldBar(att, () => webState, renderer);
-      mountIfNeeded();
-      onPlayersChange?.(state);
-    }
-  }
-
   function paintBars() {
+    if (!webState) return;
     attackerBar?.updateFromWebState?.(rawWeb ?? webState);
     fieldBar?.updateBar?.();
     updateBoostButtonState();
+  }
+
+  function applyServerState(base) {
+    if (!base) return;
+    rawWeb   = base;
+    webState = mapWebToScene ? mapWebToScene(base) : base;
+
+    mountIfNeeded();
+    onPlayersChange?.(base);
+    paintBars();
   }
 
   async function refresh() {
@@ -62,16 +68,9 @@ export function createAttackerDefendersController({
       return;
     }
 
-    const fresh = await api.fetchGameState();
-    rawWeb   = fresh;
-    webState = mapWebToScene ? mapWebToScene(fresh) : fresh;
-
-    rebuildFieldBarIfAttackerChanged(fresh);
-    mountIfNeeded();
-    paintBars();
+    const fresh = await api.fetchGameState().catch(() => null);
+    applyServerState(fresh);
   }
-
-  const getCurrentAttacker = () => attackerPlayerOf(webState);
 
   async function initWithServerState(initialWebState) {
     let base = initialWebState;
@@ -85,16 +84,7 @@ export function createAttackerDefendersController({
       return;
     }
 
-    rawWeb   = base;
-    webState = mapWebToScene ? mapWebToScene(base) : base;
-
-    const attackerPlayer = attackerPlayerOf(webState);
-    lastAttackerName = attackerPlayer?.name ?? null;
-    fieldBar = createAttackerFieldBar(getCurrentAttacker, () => webState, renderer);
-
-    mountIfNeeded();
-    onPlayersChange?.(base);
-    paintBars();
+    applyServerState(base);
   }
 
   function showAlert(message, { autoHideMs = 3000 } = {}) {
@@ -158,5 +148,9 @@ export function createAttackerDefendersController({
   });
   btnBack?.addEventListener('click', () => onNavigateBack?.());
 
-  return { initWithServerState, refresh };
+  return {
+    initWithServerState,
+    refresh,
+    updateFromServerContext: applyServerState,
+  };
 }

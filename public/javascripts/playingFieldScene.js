@@ -1,4 +1,3 @@
-// /assets/javascripts/playingFieldScene.js
 import { createPlayerAvatarRegistry } from './utils/playersAvatarRegistry.js';
 import { createPlayersBar }          from './sceneComponents/playersBar.js';
 import { createNavButtonBar }        from './sceneComponents/navButtonBar.js';
@@ -46,11 +45,6 @@ export async function build({ api, push, overlay, createGameAlert }) {
   const soundManager = createSoundManager({ basePath: '/assets/sounds/' });
   soundManager.preload('attack', 'attack.wav');
   soundManager.preload('hover', 'hover.wav');
-  
-  await Promise.all([
-    avatarRegistry.preloadAvatars().catch(() => {}),
-    cardRegistry.preloadAll().catch(() => {}),
-  ]);
 
   const playersBar = createPlayersBar(avatarRegistry);
   playersBar.mount(document.getElementById('players-bar'));

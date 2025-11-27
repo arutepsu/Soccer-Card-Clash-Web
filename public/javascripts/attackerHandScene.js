@@ -1,4 +1,3 @@
-// /assets/javascripts/attackerHandScene.js
 import { createAttackerHandController } from './controllers/attackerHandController.js';
 import { createPlayerAvatarRegistry } from './utils/playersAvatarRegistry.js';
 import { createAttackerBar } from './sceneComponents/attackerBar.js';
@@ -50,9 +49,10 @@ export async function build({ api, push, overlay, createGameAlert }) {
   const attackerBar = createAttackerBar(avatarRegistry);
   attackerBar.mount(els.playerBarEl);
 
-  const initial = api && typeof api.fetchGameState === 'function'
-    ? await api.fetchGameState().catch(() => null)
-    : null;
+  const initial =
+    api && typeof api.fetchGameState === 'function'
+      ? await api.fetchGameState().catch(() => null)
+      : null;
 
   if (initial) {
     assignAvatarsFrom(avatarRegistry, initial);
@@ -78,10 +78,10 @@ export async function build({ api, push, overlay, createGameAlert }) {
   });
 
   await controller.initWithServerState(initial);
-  
-  let es = null;
+
+  let streamHandle = null;
   if (api && typeof api.openStream === 'function') {
-    es = api.openStream((web) => {
+    streamHandle = api.openStream((web) => {
       if (!web) return;
       assignAvatarsFrom(avatarRegistry, web);
       attackerBar.updateFromWebState?.(web);
@@ -90,6 +90,8 @@ export async function build({ api, push, overlay, createGameAlert }) {
   }
 
   function destroy() {
+    try { streamHandle?.close?.(); } catch {}
+
     ['btnRegularSwap', 'btnReverseSwap', 'btnInfo', 'btnBack'].forEach((key) => {
       const el = els[key];
       if (el && el.parentNode) {
