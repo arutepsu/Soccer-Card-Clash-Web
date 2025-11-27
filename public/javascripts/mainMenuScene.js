@@ -1,4 +1,3 @@
-// /assets/javascripts/scenes/mainMenuScene.js
 import { createSoundManager } from './utils/soundManager.js';
 
 export async function build({ overlay, createGameAlert }) {
