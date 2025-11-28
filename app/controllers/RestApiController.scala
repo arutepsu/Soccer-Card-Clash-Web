@@ -16,6 +16,11 @@ import app.api.IGameUseCases
 import controllers.dto._
 import de.htwg.se.soccercardclash.util.AIAction
 import controller.json.AIActionJson._
+import app.api.IGameUseCases
+import app.session.GameSessionId
+import de.htwg.se.soccercardclash.controller.contextHolder.IGameContextHolder
+import controllers.dto._
+import de.htwg.se.soccercardclash.util.AIAction
 
 @Singleton
 class GameApiController @Inject()(
@@ -24,16 +29,19 @@ class GameApiController @Inject()(
   gameUseCases: IGameUseCases
 )(implicit ec: ExecutionContext) extends AbstractController(cc) {
 
+  private val JSON = "application/json"
+
   sealed trait AttackTarget
   object AttackTarget {
     final case class DefenderAt(index: Int) extends AttackTarget
     case object Goalkeeper extends AttackTarget
   }
 
-  private def withSid(f: String => Result)(implicit req: RequestHeader): Result =
-    req.session.get("sid").map(f).getOrElse(
-      Unauthorized("No session id (sid) in cookie/session")
-    )
+  private def withSid(f: GameSessionId => Result)(implicit req: RequestHeader): Result =
+    req.session.get("sid") match {
+      case Some(raw) => f(GameSessionId(raw))
+      case None      => Unauthorized("No session id (sid) in cookie/session")
+    }
 
   private def toTarget(dto: SingleAttackDto): Either[String, AttackTarget] =
     dto.target.toLowerCase match {
@@ -46,8 +54,6 @@ class GameApiController @Inject()(
         }
       case other => Left(s"Unknown target: $other")
     }
-
-
 
   def state: Action[AnyContent] = Action { implicit req =>
     withSid { sid =>
@@ -80,11 +86,13 @@ class GameApiController @Inject()(
         bad => BadRequest(Json.obj("error" -> JsError.toJson(bad))),
         dto => toTarget(dto) match {
           case Left(msg) => BadRequest(Json.obj("error" -> msg))
+
           case Right(AttackTarget.Goalkeeper) =>
             gameUseCases.singleAttack(-1, sid) match {
               case Right(web) => Ok(Json.toJson(web)).as(JSON)
               case Left(err)  => BadRequest(Json.obj("error" -> err.message))
             }
+
           case Right(AttackTarget.DefenderAt(i)) =>
             gameUseCases.singleAttack(i, sid) match {
               case Right(web) => Ok(Json.toJson(web)).as(JSON)
@@ -108,6 +116,7 @@ class GameApiController @Inject()(
               case Right(web) => Ok(Json.toJson(web)).as(JSON)
               case Left(err)  => BadRequest(Json.obj("error" -> err.message))
             }
+
           case "defender" =>
             dto.index match {
               case Some(i) if i >= 0 && i <= 2 =>
@@ -115,11 +124,14 @@ class GameApiController @Inject()(
                   case Right(web) => Ok(Json.toJson(web)).as(JSON)
                   case Left(err)  => BadRequest(Json.obj("error" -> err.message))
                 }
+
               case Some(i) =>
                 BadRequest(Json.obj("error" -> s"Defender index out of range: $i (expected 0..2)"))
+
               case None =>
                 BadRequest(Json.obj("error" -> "Missing 'index' for target=defender"))
             }
+
           case other =>
             BadRequest(Json.obj("error" -> s"Unknown target: $other"))
         }
@@ -139,7 +151,9 @@ class GameApiController @Inject()(
               case Left(err)  => BadRequest(Json.obj("error" -> err.message))
             }
           } else {
-            BadRequest(Json.obj("error" -> s"Defender index out of range: ${dto.index} (expected 0..2)"))
+            BadRequest(Json.obj(
+              "error" -> s"Defender index out of range: ${dto.index} (expected 0..2)"
+            ))
           }
       )
     }
@@ -199,5 +213,4 @@ class GameApiController @Inject()(
       )
     }
   }
-
 }

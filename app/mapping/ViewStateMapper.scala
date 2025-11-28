@@ -1,5 +1,6 @@
 package app.mapping
 
+import javax.inject._
 import app.models.view._
 import app.models.state.WebGameState
 import de.htwg.se.soccercardclash.model.gameComponent.components.*
@@ -17,9 +18,14 @@ import scala.reflect.Selectable.reflectiveSelectable
 import de.htwg.se.soccercardclash.model.cardComponent.ICard
 import de.htwg.se.soccercardclash.model.cardComponent.base.types.BoostedCard
 
-object ViewStateMapper {
+trait IViewStateMapper {
+  def toWebState(ctx: GameContext): WebGameState
+}
 
-  def toWebState(ctx: GameContext): WebGameState = {
+@Singleton
+class ViewStateMapper @Inject()() extends IViewStateMapper {
+
+  override def toWebState(ctx: GameContext): WebGameState = {
     val s         = ctx.state
     val roles     = s.getRoles
     val gameCards = s.getGameCards
@@ -28,23 +34,18 @@ object ViewStateMapper {
     val att = roles.attacker
     val de  = roles.defender
 
-    // ---- HANDS (CardView)
-// ---- HANDS (CardView)
     def handFor(p: IPlayer): Seq[CardView] =
       qToSeq(gameCards.getPlayerHand(p)).map(toCardView)
 
-    // ---- FIELDS (CardSlotView)
     def fieldSlotsFor(p: IPlayer, prefix: String): Seq[CardSlotView] = {
-      // Already a List[Option[ICard]], no need for pattern matching
       val defenders: List[Option[ICard]] = gameCards.getPlayerDefenders(p)
       defenders.zipWithIndex.map { case (maybeCard, i) =>
         CardSlotView(id = s"$prefix-$i", card = maybeCard.map(toCardView))
       }
     }
- 
 
-    val attackerGK = gameCards.getPlayerGoalkeeper(att).map(toCardView) // Option[CardView]
-    val defenderGK = gameCards.getPlayerGoalkeeper(de).map(toCardView)  // Option[CardView]
+    val attackerGK = gameCards.getPlayerGoalkeeper(att).map(toCardView)
+    val defenderGK = gameCards.getPlayerGoalkeeper(de).map(toCardView)
 
     val allowed = ActionLimitsMapper.toAllowed(att, de)
 
@@ -67,9 +68,7 @@ object ViewStateMapper {
   }
 
   private def qToSeq(q: IHandCardsQueue): Seq[ICard] =
-    q.toList // or q.cards
-
-
+    q.toList // or q.cards, depending on your API
 
   private def toCardView(c: ICard): CardView = {
     val isBoosted = c match {
@@ -87,7 +86,6 @@ object ViewStateMapper {
       fileName = toFileName(rankStr, suitStr)
     )
   }
-
 
   private def toFileName(rank: String, suit: String): String = {
     def r(s: String) = s.toLowerCase match {

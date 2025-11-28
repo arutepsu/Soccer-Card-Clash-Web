@@ -5,24 +5,30 @@ import play.api.mvc._
 import play.api.libs.json._
 import app.fileIO.IFileIO
 import app.api.IGameUseCases
-import app.repositories.GameContextRepository
+import app.session.repositories.IGameContextRepository
 import app.models.AppError
 import app.models.state.WebGameState
 import app.mapping.ViewStateMapper
 import de.htwg.se.soccercardclash.model.gameComponent.context.GameContext
+import app.api.IGameUseCases
+import app.session.GameSessionId
+import app.session.repositories.IGameContextRepository
+import app.models.state.WebGameState
+import app.api.IGameUseCases
+import app.session.GameSessionId
 
 @Singleton
 class FileIOController @Inject()(
   cc: ControllerComponents,
   fileIO: IFileIO,
   gameUseCases: IGameUseCases,
-  repo: GameContextRepository
+  repo: IGameContextRepository
 ) extends AbstractController(cc) {
 
   private val JSON = "application/json"
 
   /* GET /api/files/list
-   Lists all saved game files
+   * Lists all saved game files
    */
   def listSavedGames(): Action[AnyContent] = Action { implicit request =>
     val gamesFolder = new java.io.File("games/")
@@ -39,76 +45,90 @@ class FileIOController @Inject()(
   }
 
   /*
-   POST /api/files/load
-   loads a game from a file
+   * POST /api/files/load
+   * loads a game from a file
+   * body: { "fileName": "abc.json", "sessionId": "some-session-id" }
    */
   def loadGameFromFile(): Action[JsValue] = Action(parse.json) { implicit request =>
-    val fileName = (request.body \ "fileName").asOpt[String].getOrElse("game.json")
+    val fileName  = (request.body \ "fileName").asOpt[String].getOrElse("game.json")
     val sessionId = (request.body \ "sessionId").asOpt[String].getOrElse("default")
-    
-    gameUseCases.load(fileName, sessionId) match {
-      case Right(webState) => Ok(Json.toJson(webState)).as(JSON)
-      case Left(error) => NotFound(Json.obj(
-        "error" -> error.message,
-        "fileName" -> fileName
-      ))
+    val sid       = GameSessionId(sessionId)
+
+    // now GameUseCases works with GameSessionId
+    gameUseCases.load(fileName, sid) match {
+      case Right(webState) =>
+        Ok(Json.toJson(webState)).as(JSON)
+
+      case Left(error) =>
+        NotFound(Json.obj(
+          "error"     -> error.message,
+          "fileName"  -> fileName,
+          "sessionId" -> sid.value
+        )).as(JSON)
     }
   }
 
   /*
-   POST /api/files/save
-   saves the game to a file
+   * POST /api/files/save
+   * saves the game to a file
+   * body: { "fileName": "abc.json", "sessionId": "some-session-id" }
    */
   def saveGameToFile(): Action[JsValue] = Action(parse.json) { implicit request =>
-    val fileName = (request.body \ "fileName").asOpt[String].getOrElse("game.json")
+    val fileName  = (request.body \ "fileName").asOpt[String].getOrElse("game.json")
     val sessionId = (request.body \ "sessionId").asOpt[String].getOrElse("default")
-    println(s"[FileIOController] Save requested. sessionId='$sessionId', fileName='$fileName'")
+    val sid       = GameSessionId(sessionId)
 
-    gameUseCases.save(sessionId) match {
+    println(s"[FileIOController] Save requested. sessionId='${sid.value}', fileName='$fileName'")
+
+    gameUseCases.save(sid) match {
       case Right(webState) =>
-        repo.get(sessionId) match {
+        repo.get(sid) match {
           case Some(ctx) =>
             try {
+              // ctx.state = domain game state
               fileIO.save(ctx.state, fileName)
               Ok(Json.obj(
-                "success" -> true,
-                "fileName" -> fileName,
-                "message" -> s"Game saved to $fileName",
-                "sessionId" -> sessionId,
-                "state" -> Json.toJson(webState)
+                "success"   -> true,
+                "fileName"  -> fileName,
+                "message"   -> s"Game saved to $fileName",
+                "sessionId" -> sid.value,
+                "state"     -> Json.toJson(webState)
               )).as(JSON)
             } catch {
               case e: Throwable =>
                 println(s"[FileIOController] File save failed: ${e.getMessage}")
                 InternalServerError(Json.obj(
                   "success" -> false,
-                  "error" -> s"File write failed: ${e.getMessage}"
-                ))
+                  "error"   -> s"File write failed: ${e.getMessage}"
+                )).as(JSON)
             }
+
           case None =>
-            println(s"[FileIOController] No context found for sessionId='$sessionId'")
+            println(s"[FileIOController] No context found for sessionId='${sid.value}'")
             NotFound(Json.obj(
               "success" -> false,
-              "error" -> s"No game context for sessionId '$sessionId'"
-            ))
+              "error"   -> s"No game context for sessionId '${sid.value}'"
+            )).as(JSON)
         }
+
       case Left(error) =>
         println(s"[FileIOController] gameUseCases.save failed: ${error.message}")
         InternalServerError(Json.obj(
-          "success" -> false,
-          "error" -> error.message,
-          "sessionId" -> sessionId
-        ))
+          "success"   -> false,
+          "error"     -> error.message,
+          "sessionId" -> sid.value
+        )).as(JSON)
     }
   }
 
   /*
-  DELETE /api/files/delete
-   Deletes a game file
+   * DELETE /api/files/delete
+   * Deletes a game file
+   * body: { "fileName": "abc.json" }
    */
   def deleteGameFile(): Action[JsValue] = Action(parse.json) { implicit request =>
     val fileName = (request.body \ "fileName").asOpt[String]
-    
+
     fileName match {
       case Some(name) =>
         val file = new java.io.File(s"games/$name")
@@ -120,14 +140,15 @@ class FileIOController @Inject()(
         } else {
           NotFound(Json.obj(
             "success" -> false,
-            "error" -> s"File $name not found or could not be deleted"
-          ))
+            "error"   -> s"File $name not found or could not be deleted"
+          )).as(JSON)
         }
+
       case None =>
         BadRequest(Json.obj(
           "success" -> false,
-          "error" -> "fileName is required"
-        ))
+          "error"   -> "fileName is required"
+        )).as(JSON)
     }
   }
 }
