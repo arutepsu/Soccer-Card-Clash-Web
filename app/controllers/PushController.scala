@@ -5,11 +5,11 @@ import akka.actor.ActorSystem
 import akka.stream.Materializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import app.models._
-import app.services.IGamePushService
+import app.api.push.IGamePushService
 import play.api.libs.EventSource
 import play.api.libs.json._
 import play.api.mvc._
-import app.protocol.Envelope
+import app.api.push.protocol.Envelope
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton

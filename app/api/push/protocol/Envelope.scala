@@ -1,4 +1,4 @@
-package app.protocol
+package app.api.push.protocol
 
 import play.api.libs.json._
 
@@ -11,6 +11,14 @@ final case class Envelope(
   version: Int = 1,
   payload: JsValue = JsObject.empty
 )
+// {
+//   "kind": "command",
+//   "type": "RegularAttack",
+//   "gameId": "ignored",
+//   "requestId": null,
+//   "payload": { "target": "defender", "index": 2 }
+// }
+
 
 object Envelope {
   implicit val format: OFormat[Envelope] = Json.format[Envelope]

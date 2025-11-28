@@ -35,6 +35,8 @@ export async function build({ api, push, overlay, createGameAlert }) {
     cardRegistry.preloadAll().catch(() => {}),
   ]);
 
+  let lastUsedDefenderIndex;
+
   ComparisonDialogGenerator.configure({
     avatarRegistry,
     cardRegistry,

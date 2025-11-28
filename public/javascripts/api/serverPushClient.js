@@ -1,5 +1,3 @@
-// /assets/javascripts/api/serverPushClient.js
-
 export function createServerPushClient(opts = {}) {
   const {
     path = '/ws/game',

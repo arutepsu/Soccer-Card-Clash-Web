@@ -56,7 +56,7 @@ export function createPlayingFieldController({
 
     const idx = defenderFieldBar.selectedDefenderIndex?.();
     if (idx == null) return;
-
+    let lastUsedDefenderIndex;
     lastUsedDefenderIndex = idx;
 
     try {

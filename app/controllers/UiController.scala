@@ -13,6 +13,10 @@ import play.api.libs.json._
 import de.htwg.se.soccercardclash.model.gameComponent.context.GameContext
 import scala.util.Try
 import app.models.state.WebGameState
+import app.session.GameSessionId
+import app.models.{AppError}
+import app.models.state.WebGameState
+import de.htwg.se.soccercardclash.controller.contextHolder.IGameContextHolder
 
 @Singleton
 class UiController @Inject()(
@@ -51,7 +55,7 @@ class UiController @Inject()(
     addToken(Action { implicit req: MessagesRequest[AnyContent] =>
       implicit val m: Messages = messagesApi.preferred(req)
 
-      val sid0 = getOrCreateSid(req)
+      val sid0          = getOrCreateSid(req)
       val sessionWithSid = req.session + ("sid" -> sid0)
 
       val internal = prettyToInternal.getOrElse(to, to)
@@ -67,7 +71,6 @@ class UiController @Inject()(
       }
     })
 
-
   def sceneCurrent(): Action[AnyContent] =
     addToken(Action { implicit req: MessagesRequest[AnyContent] =>
       implicit val m: Messages = messagesApi.preferred(req)
@@ -76,33 +79,32 @@ class UiController @Inject()(
         .withSession(req.session + ("sid" -> sid0))
     })
 
-
-
   def switchScene(to: String): Action[AnyContent] = Action { implicit req =>
     val internal = prettyToInternal.getOrElse(to, to)
-    val pretty = prettyToInternal.find(_._2 == internal).map(_._1).getOrElse(internal)
+    val pretty   = prettyToInternal.find(_._2 == internal).map(_._1).getOrElse(internal)
     SeeOther(routes.UiController.scene(pretty).url)
   }
 
-  def mainMenu(): Action[AnyContent]         = scene("main-menu")
-  def singleplayer(): Action[AnyContent]     = scene("singleplayer")
-  def multiplayer(): Action[AnyContent]      = scene("multiplayer")
-  def ai(): Action[AnyContent]               = scene("ai")
-  def loadGame(): Action[AnyContent]         = scene("load-game")
-  def playingField(): Action[AnyContent]     = scene("playing-field")
-  def attackerHand(): Action[AnyContent]     = scene("attacker-hand")
-  def attackerDefenders(): Action[AnyContent]= scene("attacker-defenders")
+  def mainMenu(): Action[AnyContent]          = scene("main-menu")
+  def singleplayer(): Action[AnyContent]      = scene("singleplayer")
+  def multiplayer(): Action[AnyContent]       = scene("multiplayer")
+  def ai(): Action[AnyContent]                = scene("ai")
+  def loadGame(): Action[AnyContent]          = scene("load-game")
+  def playingField(): Action[AnyContent]      = scene("playing-field")
+  def attackerHand(): Action[AnyContent]      = scene("attacker-hand")
+  def attackerDefenders(): Action[AnyContent] = scene("attacker-defenders")
 
   def startMultiplayerGame: Action[AnyContent] = Action { implicit req =>
     val data = req.body.asFormUrlEncoded.getOrElse(Map.empty)
     val p1   = data.get("player1").flatMap(_.headOption).getOrElse("Player 1")
     val p2   = data.get("player2").flatMap(_.headOption).getOrElse("Player 2")
 
-    val sid0 = getOrCreateSid(req)
+    val sidRaw = getOrCreateSid(req)
+    val sid    = GameSessionId(sidRaw)
 
-    gameUseCases.createGame(p1, p2, sid0) match {
+    gameUseCases.createGame(p1, p2, sid) match {
       case Right(_webState) =>
-        val nextSession = req.session + ("sid" -> sid0)
+        val nextSession = req.session + ("sid" -> sidRaw)
         GlobalObservable.notifyObservers(SceneSwitchEvent.PlayingField)
 
         SeeOther(routes.UiController.scene("playing-field").url)
@@ -120,11 +122,12 @@ class UiController @Inject()(
     val human = data.get("humanPlayer").flatMap(_.headOption).getOrElse("Human")
     val ai    = data.get("aiPlayer").flatMap(_.headOption).getOrElse("Bot")
 
-    val sid0 = getOrCreateSid(req)
+    val sidRaw = getOrCreateSid(req)
+    val sid    = GameSessionId(sidRaw)
 
-    gameUseCases.createGameWithAI(human, ai, sid0) match {
+    gameUseCases.createGameWithAI(human, ai, sid) match {
       case Right(_webState) =>
-        val nextSession = req.session + ("sid" -> sid0)
+        val nextSession = req.session + ("sid" -> sidRaw)
         GlobalObservable.notifyObservers(SceneSwitchEvent.PlayingField)
 
         SeeOther(routes.UiController.scene("playing-field").url)
@@ -136,7 +139,6 @@ class UiController @Inject()(
           .flashing("error" -> s"Failed to start: ${err.message}")
     }
   }
-
 
   def restart: Action[AnyContent] = Action { implicit req =>
     val bodyNames: Option[(String, String)] = for {
@@ -155,20 +157,23 @@ class UiController @Inject()(
       bodyNames.orElse(prevNames).getOrElse(("Player 1", "Player 2"))
 
     gameUseCases.holder.clear()
-    val sid0 = getOrCreateSid(req)
+
+    val sidRaw = getOrCreateSid(req)
+    val sid    = GameSessionId(sidRaw)
 
     val createdWeb: Either[AppError, WebGameState] =
-      gameUseCases.createGame(attackerName, defenderName, sid0)
+      gameUseCases.createGame(attackerName, defenderName, sid)
 
     createdWeb.fold(
       err => InternalServerError(Json.obj("error" -> err.message)),
       web => {
         Ok(
           Json.obj(
-            "status" -> "restarted",
-            "attackerName" -> attackerName,
-            "defenderName" -> defenderName,
-            "state" -> Json.toJson(web)
+            "status"        -> "restarted",
+            "attackerName"  -> attackerName,
+            "defenderName"  -> defenderName,
+            "state"         -> Json.toJson(web),
+            "sessionId"     -> sid.value
           )
         )
       }
