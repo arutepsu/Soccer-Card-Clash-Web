@@ -1,13 +1,24 @@
-// /assets/javascripts/api/gameEventStream.js
+// frontend/src/api/gameEventStream.ts
 
-function unwrapToState(msg) {
+export interface StreamHandle {
+  type: 'sse' | 'comet' | 'none';
+  close(): void;
+}
+
+export interface StreamClient {
+  open(onState: (state: any) => void): StreamHandle;
+}
+
+type StateLike = any;
+
+function unwrapToState(msg: any): StateLike {
   if (!msg) return msg;
   if (msg.state) return msg.state;
   if (msg.payload && msg.payload.state) return msg.payload.state;
   return msg;
 }
 
-function getEventId(msg) {
+function getEventId(msg: any): number | null {
   if (!msg) return null;
   if (msg.payload && typeof msg.payload.eventId === 'number') {
     return msg.payload.eventId;
@@ -27,11 +38,12 @@ function getEventId(msg) {
  *
  * All transports call `onState(WebGameState)` with normalized state objects.
  *
- * NOTE: WebSocket is *not* used here anymore. WS is reserved for commands only.
+ * NOTE: WebSocket is *not* used here. WS is reserved for commands only.
  */
-export function createGameEventStream() {
-
-  function startSseStream(onState) {
+export function createGameEventStream(): StreamClient {
+  function startSseStream(
+    onState: (state: StateLike) => void,
+  ): StreamHandle | null {
     if (typeof window === 'undefined' || !window.EventSource) {
       console.warn('[STREAM][SSE] EventSource not available in this environment');
       return null;
@@ -42,7 +54,7 @@ export function createGameEventStream() {
 
     const es = new EventSource(url, { withCredentials: true });
 
-    es.onmessage = (e) => {
+    es.onmessage = (e: MessageEvent<string>) => {
       try {
         const msg = JSON.parse(e.data);
         const state = unwrapToState(msg);
@@ -64,7 +76,7 @@ export function createGameEventStream() {
     };
   }
 
-  function startCometStream(onState) {
+  function startCometStream(onState: (state: StateLike) => void): StreamHandle {
     let aborted = false;
     let lastEventId = 0;
 
@@ -120,7 +132,7 @@ export function createGameEventStream() {
       }
     }
 
-    loop();
+    void loop();
 
     return {
       type: 'comet',
@@ -130,14 +142,7 @@ export function createGameEventStream() {
     };
   }
 
-  /**
-   * Public: open the best available stream and return a handle:
-   *
-   *   const stream = eventStream.open((state) => { ... });
-   *   // later:
-   *   stream.close();
-   */
-  function open(onState) {
+  function open(onState: (state: StateLike) => void): StreamHandle {
     // 1) SSE
     const sseStream = startSseStream(onState);
     if (sseStream) {
@@ -152,7 +157,9 @@ export function createGameEventStream() {
       return cometStream;
     }
 
-    console.warn('[STREAM] no streaming transport available; returning dummy handle');
+    console.warn(
+      '[STREAM] no streaming transport available; returning dummy handle',
+    );
     return {
       type: 'none',
       close() {},
