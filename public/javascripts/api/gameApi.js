@@ -1,12 +1,13 @@
-// /assets/javascripts/api/gameApi.js
-export function createGameApi() {
+export function createGameApi({ streamClient } = {}) {
+
   const csrf =
     document.querySelector('meta[name="csrf-token"]')?.content ||
-    document.querySelector('input[name="csrfToken"]')?.value;
+    document.querySelector('input[name="csrfToken"]')?.value ||
+    null;
 
   const commonHeaders = {
     'Content-Type': 'application/json',
-    ...(csrf ? { 'Csrf-Token': csrf } : { 'Csrf-Token': 'nocheck' })
+    ...(csrf ? { 'Csrf-Token': csrf } : { 'Csrf-Token': 'nocheck' }),
   };
 
   async function postJSON(url, payload = {}) {
@@ -16,11 +17,19 @@ export function createGameApi() {
       headers: commonHeaders,
       body: JSON.stringify(payload),
     });
+
     if (!res.ok) {
-      throw new Error(`${url} failed: ${res.status} — ${await res.text()}`);
+      const text = await res.text().catch(() => '');
+      throw new Error(`${url} failed: ${res.status} — ${text}`);
     }
-    const txt = await res.text();
-    try { return txt ? JSON.parse(txt) : null; } catch { return txt; }
+
+    const txt = await res.text().catch(() => '');
+    if (!txt) return null;
+    try {
+      return JSON.parse(txt);
+    } catch {
+      return txt;
+    }
   }
 
   async function getJSON(url) {
@@ -29,65 +38,111 @@ export function createGameApi() {
       credentials: 'same-origin',
       headers: commonHeaders,
     });
-    if (!res.ok) throw new Error(`${url} failed: ${res.status} — ${await res.text()}`);
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`${url} failed: ${res.status} — ${text}`);
+    }
+
     return res.json();
   }
-  
-  function openStream(onMessage) {
-    const es = new EventSource('/api/stream', { withCredentials: true });
-    es.onmessage = (e) => { if (onMessage) onMessage(JSON.parse(e.data)); };
-    es.onerror = (e) => { /* you can log or reconnect here */ };
-    return es;
+
+  function openStream(onState) {
+    if (streamClient && typeof streamClient.open === 'function') {
+      return streamClient.open(onState);
+    }
+
+    console.warn('[GameApi] streamClient is not provided, streaming disabled');
+    return {
+      type: 'none',
+      close() {},
+    };
+  }
+
+  function fetchGameState() {
+    return getJSON('/api/state');
+  }
+
+  function restart(attackerName, defenderName) {
+    const body = {};
+    if (attackerName) body.attackerName = attackerName;
+    if (defenderName) body.defenderName = defenderName;
+    return postJSON('/api/restart', body);
+  }
+
+  function singleAttackDefender(index) {
+    const idx = Number(index);
+    if (!Number.isInteger(idx)) {
+      return Promise.reject(new Error(`singleAttackDefender: invalid index ${index}`));
+    }
+    return postJSON('/api/attack/single', { target: 'defender', index: idx });
+  }
+
+  function singleAttackGoalkeeper() {
+    return postJSON('/api/attack/single', { target: 'goalkeeper' });
+  }
+
+  function doubleAttack(index) {
+    const idx = Number(index);
+    if (!Number.isInteger(idx)) {
+      return Promise.reject(new Error(`doubleAttack: invalid index ${index}`));
+    }
+    return postJSON('/api/attack/double', { index: idx });
+  }
+
+  function boost(payload) {
+    if (!payload || typeof payload !== 'object') {
+      return Promise.reject(new Error('boost: missing payload'));
+    }
+
+    if (payload.target === 'defender') {
+      const idx = Number(payload.index);
+      if (!Number.isInteger(idx)) {
+        return Promise.reject(new Error(`boost: invalid defender index ${payload.index}`));
+      }
+    }
+
+    return postJSON('/api/boost', payload);
+  }
+
+  function swap(index) {
+    const idx = Number(index);
+    if (!Number.isInteger(idx)) {
+      return Promise.reject(new Error(`swap: invalid index ${index}`));
+    }
+    return postJSON('/api/swap', { index: idx });
+  }
+
+  function reverseSwap() {
+    return postJSON('/api/swap/reverse', {});
+  }
+
+  function undo() {
+    return postJSON('/api/undo', {});
+  }
+
+  function redo() {
+    return postJSON('/api/redo', {});
+  }
+
+  function executeAI(action) {
+    return postJSON('/api/ai/execute', action);
   }
 
   return {
-    fetchGameState: () => getJSON('/api/state'),
-    openStream,
-    restart: async (attackerName, defenderName) => {
-      const body = {};
-      if (attackerName) body.attackerName = attackerName;
-      if (defenderName) body.defenderName = defenderName;
-      return postJSON(`/api/restart`, body);
-    },
-
-    singleAttackDefender(index) {
-      const idx = Number(index);
-      if (!Number.isInteger(idx)) return Promise.reject(new Error(`singleAttackDefender: invalid index ${index}`));
-      return postJSON('/api/attack/single', { target: 'defender', index: idx });
-    },
-    singleAttackGoalkeeper() {
-      return postJSON('/api/attack/single', { target: 'goalkeeper' });
-    },
-    doubleAttack(index) {
-      const idx = Number(index);
-      if (!Number.isInteger(idx)) return Promise.reject(new Error(`doubleAttack: invalid index ${index}`));
-      return postJSON('/api/attack/double', { index: idx });
-    },
-
-    boost(payload) {
-
-      if (!payload || typeof payload !== 'object') {
-        return Promise.reject(new Error('boost: missing payload'));
-      }
-      if (payload.target === 'defender') {
-        const idx = Number(payload.index);
-        if (!Number.isInteger(idx)) return Promise.reject(new Error(`boost: invalid defender index ${payload.index}`));
-      }
-      return postJSON('/api/boost', payload);
-    },
-
-    swap(index) {
-      const idx = Number(index);
-      if (!Number.isInteger(idx)) return Promise.reject(new Error(`swap: invalid index ${index}`));
-      return postJSON('/api/swap', { index: idx });
-    },
-    reverseSwap: () => postJSON('/api/swap/reverse', {}),
-    undo: () => postJSON('/api/undo', {}),
-    redo: () => postJSON('/api/redo', {}),
-
-    executeAI: (action) => postJSON('/api/ai/execute', action),
-
     postJSON,
     getJSON,
+    openStream,
+    fetchGameState,
+    restart,
+    singleAttackDefender,
+    singleAttackGoalkeeper,
+    doubleAttack,
+    boost,
+    swap,
+    reverseSwap,
+    undo,
+    redo,
+    executeAI,
   };
 }
