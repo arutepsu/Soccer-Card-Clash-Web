@@ -1,4 +1,6 @@
 import type { WebGameState } from '../types/WebGameState';
+import type { Overlay } from '../ui/overlay';
+import type {createGameAlert} from '../ui/gameAlert';
 
 export abstract class Scene {
   protected readonly root: HTMLElement;
@@ -11,15 +13,13 @@ export abstract class Scene {
   abstract destroy(): void;
 
   refresh?(state: WebGameState): void;
-
   onPushMessage?(env: any): void;
 }
 
 export interface SceneBuildContext {
   api?: any;
   push?: any;
-  overlay?: any;
-  createGameAlert?: (opts: { message: string }) => HTMLElement & {
-    cleanup?: () => void;
-  };
-}
+  overlay?: Overlay | null;
+  createGameAlert?: typeof createGameAlert;
+};
+

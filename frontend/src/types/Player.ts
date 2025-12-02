@@ -1,9 +1,10 @@
-// src/types/Player.ts
 export interface AiPlayerTypeShape {
-  kind: 'AI';
+  kind?: string;
+  type?: string;
   strategy?: string;
   [key: string]: unknown;
 }
+
 export type PlayerType = 'Human' | AiPlayerTypeShape | string;
 
 export interface PlayerLike {

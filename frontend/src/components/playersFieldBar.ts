@@ -1,12 +1,7 @@
+import type { WebGameState, PlayerLike } from '../types/WebGameState';
+import type { GameStateLike } from '../scenes/playingField/playingFieldTypes';
 
-export interface PlayerRef {
-  id: string;
-  name: string;
-}
-
-export interface GameStateLike {
-  [key: string]: any;
-}
+export type PlayerRef = PlayerLike;
 
 export interface FieldSelectionOptions {
   selectedIndex: number | null;
@@ -17,13 +12,13 @@ export interface FieldSelectionOptions {
 
 export interface FieldRendererCompat {
   createDefenderRow(
-    player: PlayerRef,
+    player: PlayerLike,
     getGameState: () => GameStateLike,
     opts?: FieldSelectionOptions,
   ): HTMLElement;
 
   createGoalkeeperRow(
-    player: PlayerRef,
+    player: PlayerLike,
     getGameState: () => GameStateLike,
     opts?: FieldSelectionOptions,
   ): HTMLElement;
@@ -35,8 +30,9 @@ export interface PlayersFieldBar {
   selectedDefenderIndex(): number | null;
   isGoalkeeperSelected(): boolean;
   resetSelectedDefender(): void;
+  selectedTarget(): { kind: 'goalkeeper' | 'defender'; index?: number } | null;
+  clearSelection(): void;
 }
-
 export function createPlayersFieldBar(
   player: PlayerRef,
   getGameState: () => GameStateLike,
@@ -62,19 +58,22 @@ export function createPlayersFieldBar(
         : gs?.cards?.defenderGoalkeeper) ?? null;
 
     const three = [...def].slice(0, 3);
-    while (three.length < 3) three.push({ card: null });
+    while (three.length < 3) three.push({
+      card: null,
+      id: ''
+    });
 
     const defPart = three
       .map((s: any) => s?.card?.fileName ?? '')
       .join('|');
-    const gkPart = gk?.fileName ?? '';
+    const gkPart = (gk as any)?.fileName ?? '';
     return `${defPart}#${gkPart}`;
   }
 
-  function labelElement(name: string): HTMLElement {
+  function labelElement(name?: string): HTMLElement {
     const div = document.createElement('div');
     div.className = 'player-label';
-    div.textContent = `${name}'s Field`;
+    div.textContent = `${name ?? 'Player'}'s Field`;
     return div;
   }
 
@@ -199,14 +198,13 @@ export function createPlayersFieldBar(
     root.classList.add('players-field-bar');
 
     const gs = getGameState();
-    defenderRow = buildDefenderRow(gs);
-    goalieRow = buildGoalkeeperRow(gs);
+    const defender = buildDefenderRow(gs);
+    const goalie = buildGoalkeeperRow(gs);
 
-    root.replaceChildren(
-      labelElement(player.name),
-      defenderRow,
-      goalieRow,
-    );
+    root.replaceChildren(labelElement(player.name), defender, goalie);
+    defenderRow = defender;
+    goalieRow = goalie;
+
     prevSig = fieldSig(gs, player.id);
   }
 
@@ -235,6 +233,24 @@ export function createPlayersFieldBar(
     applySelectionClasses(defenderRow);
     applySelectionClasses(goalieRow);
   }
+  function selectedTarget():
+    | { kind: 'goalkeeper' | 'defender'; index?: number }
+    | null {
+    if (goalkeeperSelected) {
+      return { kind: 'goalkeeper' };
+    }
+    if (selectedIndex != null) {
+      return { kind: 'defender', index: selectedIndex };
+    }
+    return null;
+  }
+
+  function clearSelection(): void {
+    selectedIndex = null;
+    goalkeeperSelected = false;
+    applySelectionClasses(defenderRow);
+    applySelectionClasses(goalieRow);
+  }
 
   return {
     mount,
@@ -242,5 +258,7 @@ export function createPlayersFieldBar(
     selectedDefenderIndex,
     isGoalkeeperSelected,
     resetSelectedDefender,
+    selectedTarget,
+    clearSelection,
   };
 }

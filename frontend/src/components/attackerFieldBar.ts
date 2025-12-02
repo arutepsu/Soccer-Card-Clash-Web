@@ -1,4 +1,5 @@
-import type { PlayerLike, WebGameState } from '../types/WebGameState';
+import type { WebGameState } from '../types/WebGameState';
+import type { PlayerLike } from '../types/Player';
 
 export type GetGameState = () => WebGameState | null;
 
@@ -133,6 +134,7 @@ export function createAttackerFieldBar(
       });
     }
 
+    // re-apply selection if still valid
     if (selected?.kind === 'defender') {
       const selEl = defRow.querySelector<HTMLElement>(
         `.field-card[data-index="${selected.index}"]`,

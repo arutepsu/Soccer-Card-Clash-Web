@@ -1,12 +1,6 @@
 declare const $: any;
 
-export interface OverlayInstance {
-  show(
-    content: HTMLElement,
-    opts?: { autoHide?: boolean; onHide?: () => void },
-  ): void;
-  hide?(): void;
-}
+import type { Overlay } from '../ui/overlay';
 
 export interface ActionButtonBarHoverEvent {
   type: 'hover';
@@ -14,7 +8,7 @@ export interface ActionButtonBarHoverEvent {
 }
 
 export interface ActionButtonBarOptions {
-  overlay?: OverlayInstance | null;
+  overlay?: Overlay | null;
 }
 
 export interface ActionButtonBar {
@@ -88,7 +82,7 @@ export function createActionButtonBar(
   }
 
   function openInfoDialog(key: string = 'GAME_INFO'): void {
-    if (!overlay || !overlay.show) return;
+    if (!overlay) return;
 
     const node = document.createElement('div');
     node.className = 'overlay-textflow';
@@ -102,12 +96,11 @@ export function createActionButtonBar(
       </div>
     `;
 
-    node.querySelector<HTMLElement>('[data-close-overlay]')?.addEventListener(
-      'click',
-      () => {
-        overlay.hide?.();
-      },
-    );
+    node
+      .querySelector<HTMLElement>('[data-close-overlay]')
+      ?.addEventListener('click', () => {
+        overlay.hide();
+      });
 
     overlay.show(node, { autoHide: false });
   }
