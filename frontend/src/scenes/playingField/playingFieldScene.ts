@@ -15,7 +15,6 @@ import { createPlayersHandBar } from '../../components/playersHandBar';
 import { UIActionScheduler } from '../../ui/uiActionScheduler';
 import type { Overlay } from '../../ui/overlay';
 import { createComparisonDialogHandler } from './comparisonDialogHandler';
-
 import * as ComparisonDialogGenerator from './comparisonDialogGenerator';
 import {
   buildSceneViewFromWeb,
@@ -116,14 +115,9 @@ export class PlayingFieldScene extends Scene {
           },
         }),
       },
-      onAutoClose: async () => {
-        try {
-          const fresh = await this.api.fetchGameState();
-          this.applyUiFromWeb(fresh);
-          this.controller?.updateFromServerContext(fresh);
-        } catch (err) {
-          console.warn('[CMP auto-refresh failed]', err);
-        }
+      onAutoClose: () => {
+        // ⚠️ orchestration: after dialog closes, apply buffered state
+        this.orchestrator.applyBufferedStateAfterOverlay();
       },
       generator: comparison,
     });
@@ -187,11 +181,9 @@ export class PlayingFieldScene extends Scene {
         console.error('[Stream Error]', err);
       }
     });
-
     try {
       const initial = await this.api.fetchGameState();
-      this.applyUiFromWeb(initial);
-      this.controller?.updateFromServerContext(initial);
+      this.orchestrator.handleStreamWeb(initial);
     } catch (err) {
       console.error('Initial state fetch failed', err);
       if (this.overlay && this.createGameAlert) {
@@ -296,8 +288,7 @@ export class PlayingFieldScene extends Scene {
   }
 
   refresh(state: WebGameState): void {
-    this.applyUiFromWeb(state);
-    this.controller?.updateFromServerContext(state);
+    this.orchestrator.handleStreamWeb(state);
   }
 
   destroy(): void {
