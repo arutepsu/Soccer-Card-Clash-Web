@@ -1,18 +1,17 @@
+import type { PlayerLike, WebGameState } from '../types/WebGameState';
 import type {
-  CurrentAttacker,
+  FieldCardRenderer,
   GetGameState,
-  FieldRenderer,
 } from './attackerFieldBar';
 import {
   createCardAnimations,
   type CardAnimations,
 } from '../utils/cardAnimations';
 
-const anim: CardAnimations = createCardAnimations();
-
 export interface FieldCardRendererAssets {
   defeatedImg?: string;
   cardBaseUrl?: string;
+  boostImg?: string;
 }
 
 export interface FieldCardData {
@@ -35,27 +34,43 @@ function isFieldSlot(v: SlotLike): v is FieldSlot {
 
 export function createDefaultFieldCardRenderer(
   assets: FieldCardRendererAssets = {},
-): FieldRenderer {
+): FieldCardRenderer {
   const defeatedImg =
     assets.defeatedImg || '/assets/images/cards/defeated.png';
   const cardBaseUrl = assets.cardBaseUrl || '/assets/images/cards/';
+
+  const anim: CardAnimations = assets.boostImg
+    ? createCardAnimations({ boostImg: assets.boostImg })
+    : createCardAnimations();
 
   function fileNameToUrl(fileName?: string | null): string | null {
     return fileName ? `${cardBaseUrl}${fileName}.png` : null;
   }
 
-  function defendersOf(gs: any, pid: string): FieldSlot[] {
+  function defendersOf(gs: WebGameState | null, pid: string): FieldSlot[] {
     if (!gs?.cards) return [];
+
+    const cardsAny = gs.cards as WebGameState['cards'] & {
+      attackerField?: FieldSlot[];
+      defenderField?: FieldSlot[];
+    };
+
     return pid === 'att'
-      ? gs.cards.attackerField || []
-      : gs.cards.defenderField || [];
+      ? cardsAny.attackerField ?? []
+      : cardsAny.defenderField ?? [];
   }
 
-  function gkOf(gs: any, pid: string): FieldSlot | null {
+  function gkOf(gs: WebGameState | null, pid: string): FieldSlot | null {
     if (!gs?.cards) return null;
+
+    const cardsAny = gs.cards as WebGameState['cards'] & {
+      attackerGoalkeeper?: FieldCardData | null;
+      defenderGoalkeeper?: FieldCardData | null;
+    };
+
     return pid === 'att'
-      ? gs.cards.attackerGoalkeeper || null
-      : gs.cards.defenderGoalkeeper || null;
+      ? cardsAny.attackerGoalkeeper ?? null
+      : cardsAny.defenderGoalkeeper ?? null;
   }
 
   function paintCardEl(el: HTMLElement, cardLike: SlotLike): void {
@@ -84,7 +99,7 @@ export function createDefaultFieldCardRenderer(
   }
 
   function createDefenderRow(
-    player: CurrentAttacker,
+    player: PlayerLike,
     getGameState: GetGameState,
   ): HTMLElement {
     const gs = getGameState?.();
@@ -111,7 +126,7 @@ export function createDefaultFieldCardRenderer(
   }
 
   function createGoalkeeperRow(
-    player: CurrentAttacker,
+    player: PlayerLike,
     getGameState: GetGameState,
   ): HTMLElement {
     const gs = getGameState?.();

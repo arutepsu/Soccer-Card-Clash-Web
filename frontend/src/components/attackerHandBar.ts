@@ -1,12 +1,9 @@
-// frontend/src/components/attackerHandBar.ts
+import type { WebGameState } from '../types/WebGameState';
 
 export interface CurrentAttacker {
   id: string;
   name?: string | null;
 }
-
-export type GetCurrentAttacker = () => CurrentAttacker | null | undefined;
-export type GetGameState = () => any;
 
 export interface HandCardLike {
   imgFront?: string;
@@ -14,6 +11,9 @@ export interface HandCardLike {
   img?: string;
   fileName?: string;
 }
+
+export type GetCurrentAttacker = () => CurrentAttacker | null | undefined;
+export type GetGameState = () => WebGameState | null;
 
 export interface HandRenderer {
   applyOverlapSpacing?(row: HTMLElement, count: number): void;
@@ -38,20 +38,45 @@ export function createAttackerHandBar(
   let selectedIndex = -1;
   let lastAttackerName: string | null = null;
 
-  const safeState = () =>
+  const safeState = (): WebGameState | null =>
     typeof getGameState === 'function' ? getGameState() : null;
 
-  const handsOf = (gs: any, pid: string): HandCardLike[] =>
-    gs?.cards?.hands?.[pid] ??
-    gs?.gameCards?.hands?.[pid] ??
-    [];
+  const handsOf = (gs: WebGameState | null, pid: string): HandCardLike[] => {
+    if (!gs) return [];
+
+    const cardsAny = gs.cards as (typeof gs.cards) & {
+      hands?: Record<string, HandCardLike[]>;
+      attackerHand?: HandCardLike[];
+      defenderHand?: HandCardLike[];
+    };
+
+    const gameCardsAny = (gs as any).gameCards as
+      | {
+          hands?: Record<string, HandCardLike[]>;
+          [key: string]: unknown;
+        }
+      | undefined;
+
+    const fromHands =
+      cardsAny?.hands?.[pid] ??
+      gameCardsAny?.hands?.[pid];
+
+    if (fromHands) return fromHands;
+
+    if (pid === 'att') return cardsAny?.attackerHand ?? [];
+    if (pid === 'def') return cardsAny?.defenderHand ?? [];
+
+    return [];
+  };
 
   const clearCssSelection = (rowEl: HTMLElement | null) => {
     if (!rowEl) return;
-    rowEl.querySelectorAll<HTMLElement>('.hand-card.is-selected').forEach((card) => {
-      card.classList.remove('is-selected');
-      card.setAttribute('aria-selected', 'false');
-    });
+    rowEl
+      .querySelectorAll<HTMLElement>('.hand-card.is-selected')
+      .forEach((card) => {
+        card.classList.remove('is-selected');
+        card.setAttribute('aria-selected', 'false');
+      });
   };
 
   const currentAttacker = (): CurrentAttacker => {
@@ -59,6 +84,7 @@ export function createAttackerHandBar(
       ? getCurrentAttacker()
       : null;
     if (att) return att;
+
     const st = safeState();
     return { id: 'att', name: st?.roles?.attacker || 'Attacker' };
   };

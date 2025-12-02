@@ -44,9 +44,29 @@ export interface AllowedActionsView {
   defender: ActionLimitsView;
 }
 
+export interface AiPlayerTypeShape {
+  kind?: string;
+  type?: string;
+  strategy?: string;
+  [key: string]: unknown;
+}
+
+export type PlayerType = 'Human' | string | AiPlayerTypeShape;
+
+export interface PlayerLike {
+  id: string;
+  name?: string;
+  playerType?: PlayerType;
+}
+
 export interface WebGameState {
   roles: RolesView;
   scores: ScoresView;
   cards: CardsView;
   allowed: AllowedActionsView;
+
+  players?: {
+    attacker?: PlayerLike;
+    defender?: PlayerLike;
+  };
 }
