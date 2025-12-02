@@ -17,6 +17,7 @@ export interface FieldCardRendererAssets {
 export interface FieldCardData {
   fileName?: string;
   isBoosted?: boolean;
+  // can contain more raw card data (kind, type, cardType, boosted, etc.)
   [key: string]: unknown;
 }
 
@@ -73,6 +74,19 @@ export function createDefaultFieldCardRenderer(
       : cardsAny.defenderGoalkeeper ?? null;
   }
 
+  function isBoostedCard(data?: FieldCardData | null): boolean {
+    if (!data) return false;
+    const anyData = data as any;
+
+    return (
+      !!data.isBoosted ||
+      !!anyData.boosted ||
+      anyData.kind === 'BoostedCard' ||
+      anyData.type === 'BoostedCard' ||
+      anyData.cardType === 'BoostedCard'
+    );
+  }
+
   function paintCardEl(el: HTMLElement, cardLike: SlotLike): void {
     const data: FieldCardData | undefined = isFieldSlot(cardLike)
       ? (cardLike.card ?? undefined)
@@ -91,7 +105,8 @@ export function createDefaultFieldCardRenderer(
     el.style.backgroundSize = 'cover';
     el.style.backgroundPosition = 'center';
 
-    if (data?.isBoosted) {
+    // 🔥 central boost detection & animation
+    if (isBoostedCard(data)) {
       anim.applyBoostEffect(el);
     } else {
       anim.removeBoostEffect(el);

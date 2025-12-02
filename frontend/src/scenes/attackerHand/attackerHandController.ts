@@ -21,12 +21,6 @@ interface GameApiLike {
   reverseSwap?(): Promise<WebGameState>;
 }
 
-interface PushClientLike {
-  isConnected?(): boolean;
-  swap?(index: number): void;
-  reverseSwap?(): void;
-}
-
 interface OverlayLike {
   show?(
     content: HTMLElement,
@@ -57,14 +51,13 @@ interface AttackerHandControllerEls {
   attackerBar?: AttackerBarComponent | null;
 }
 
+
 export interface AttackerHandControllerDeps {
-  api?: GameApiLike | null;
-  push?: PushClientLike | null;
+  api: GameApiLike;
   els: AttackerHandControllerEls;
   createGameAlert?: CreateGameAlertFn;
   onNavigateBack?: () => void;
 }
-
 export interface AttackerHandController {
   initWithServerState(initialWebState?: WebGameState | null): Promise<void>;
   updateFromServerContext(web: WebGameState): void;
@@ -133,7 +126,6 @@ function buildMapWebToScene(
 
 export function createAttackerHandController({
   api,
-  push,
   els: {
     elHand,
     btnRegularSwap,
@@ -168,7 +160,7 @@ export function createAttackerHandController({
 
     const web: WebGameState | null =
       initialWeb ??
-      (api && typeof api.fetchGameState === 'function'
+      (api
         ? await api.fetchGameState().catch(() => null)
         : null);
 
@@ -194,6 +186,7 @@ export function createAttackerHandController({
 
     wireButtons();
   }
+
 
   function wireButtons(): void {
     btnInfo?.addEventListener('click', () => {
@@ -222,7 +215,7 @@ export function createAttackerHandController({
     attackerBar?.updateFromWebState?.(web);
   }
 
-  async function onSwapSelected(): Promise<void> {
+ async function onSwapSelected(): Promise<void> {
     if (busy || !handBar) return;
     const idx = handBar.selectedHandIndex?.();
     if (idx == null || idx < 0) {
@@ -230,22 +223,22 @@ export function createAttackerHandController({
       return;
     }
 
+    if (!api || typeof api.swap !== 'function') {
+      console.warn('[AttackerHandController] api.swap not available');
+      showAlert('Swap is currently unavailable.');
+      return;
+    }
+
     try {
       busy = true;
 
-      if (push && typeof push.swap === 'function' && push.isConnected?.()) {
-        // WebSocket
-        push.swap(idx);
-      } else if (api && typeof api.swap === 'function') {
-        // REST
-        const web = await api.swap(idx);
+      const web = await api.swap(idx);
+
+      // REST fallback path → apply immediately
+      if (web) {
         applyWeb(web);
-      } else {
-        console.warn(
-          '[AttackerHandController] No push.swap or api.swap available',
-        );
-        showAlert('Swap is currently unavailable.');
       }
+      // WS path → web === null, SSE will deliver new WebGameState
     } catch (err) {
       console.error('[AttackerHandController] Swap failed:', err);
       showAlert('Swap failed. Try again.');
@@ -258,24 +251,21 @@ export function createAttackerHandController({
   async function onReverseSwap(): Promise<void> {
     if (busy) return;
 
+    if (!api || typeof api.reverseSwap !== 'function') {
+      console.warn('[AttackerHandController] api.reverseSwap not available');
+      showAlert('Reverse swap is currently unavailable.');
+      return;
+    }
+
     try {
       busy = true;
 
-      if (
-        push &&
-        typeof push.reverseSwap === 'function' &&
-        push.isConnected?.()
-      ) {
-        push.reverseSwap();
-      } else if (api && typeof api.reverseSwap === 'function') {
-        const web = await api.reverseSwap();
+      const web = await api.reverseSwap();
+
+      if (web) {
         applyWeb(web);
-      } else {
-        console.warn(
-          '[AttackerHandController] No push.reverseSwap or api.reverseSwap available',
-        );
-        showAlert('Reverse swap is currently unavailable.');
       }
+      // else: WS path, SSE updates
     } catch (err) {
       console.error('[AttackerHandController] Reverse swap failed:', err);
       showAlert('Reverse swap failed. Try again.');
@@ -283,6 +273,7 @@ export function createAttackerHandController({
       busy = false;
     }
   }
+
 
   function showAlert(message: string): void {
     if (!overlay || !createGameAlert) {

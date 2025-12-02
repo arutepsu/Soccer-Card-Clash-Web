@@ -27,45 +27,8 @@ function assignAvatarsFrom(
   registry.assignAvatarsInOrder([attacker, defender]);
 }
 
-function mapWebToScene(st: any): any {
-  if (!st) return st;
-
-  const m = (c: any) => {
-    if (!c) return null;
-    const boosted =
-      !!c.isBoosted ||
-      !!c.boosted ||
-      c.kind === 'BoostedCard' ||
-      c.type === 'BoostedCard' ||
-      c.cardType === 'BoostedCard';
-
-    return {
-      fileName: c.fileName,
-      isBoosted: boosted,
-    };
-  };
-
-  return {
-    ...st,
-    cards: {
-      ...st.cards,
-      attackerField: (st.cards?.attackerField ?? []).map((slot: any) => ({
-        ...slot,
-        card: m(slot?.card),
-      })),
-      defenderField: (st.cards?.defenderField ?? []).map((slot: any) => ({
-        ...slot,
-        card: m(slot?.card),
-      })),
-      attackerGoalkeeper: m(st.cards?.attackerGoalkeeper),
-      defenderGoalkeeper: m(st.cards?.defenderGoalkeeper),
-    },
-  };
-}
-
 class AttackerDefendersScene extends Scene {
   private readonly api: SceneBuildContext['api'];
-  private readonly push: SceneBuildContext['push'];
   private readonly overlay: SceneBuildContext['overlay'];
   private readonly createGameAlert: SceneBuildContext['createGameAlert'];
 
@@ -76,7 +39,6 @@ class AttackerDefendersScene extends Scene {
   constructor(root: HTMLElement, ctx: SceneBuildContext) {
     super(root);
     this.api = ctx.api;
-    this.push = ctx.push;
     this.overlay = ctx.overlay;
     this.createGameAlert = ctx.createGameAlert;
   }
@@ -87,7 +49,6 @@ class AttackerDefendersScene extends Scene {
     const btnBoost = document.getElementById('btn-boost') as HTMLButtonElement | null;
     const btnInfo  = document.getElementById('btn-info') as (HTMLButtonElement | HTMLAnchorElement | null);
     const btnBack  = document.getElementById('btn-back') as (HTMLButtonElement | HTMLAnchorElement | null);
-
 
     if (!fieldEl || !playerBarEl) {
       console.error(
@@ -126,7 +87,6 @@ class AttackerDefendersScene extends Scene {
 
     this.controller = createAttackerDefendersController({
       api: this.api,
-      push: this.push,
       els: {
         fieldEl,
         btnBoost,
@@ -139,7 +99,6 @@ class AttackerDefendersScene extends Scene {
         window.location.href = '/playing-field';
       },
       createGameAlert: this.createGameAlert,
-      mapWebToScene,
       onPlayersChange: (state: WebGameState) => {
         assignAvatarsFrom(avatarRegistry, state);
         this.attackerBar?.updateFromWebState?.(state);
@@ -169,23 +128,16 @@ class AttackerDefendersScene extends Scene {
     try {
       this.streamHandle?.close?.();
     } catch {
-      // ignore
     }
 
     this.streamHandle = null;
     this.controller = null;
   }
 
-  /**
-   * called by WebSceneManager when a fresh WebGameState arrives.
-   */
   override refresh(state: WebGameState): void {
     this.controller?.updateFromServerContext?.(state);
   }
-
-  // onPushMessage?(env: any): void { ... } // not needed here, but available
 }
-
 
 export async function build(ctx: SceneBuildContext): Promise<Scene> {
   const root = document.getElementById('app') as HTMLElement | null;
