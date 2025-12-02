@@ -11,11 +11,7 @@ interface BoostPayload {
 
 interface GameApiLike {
   fetchGameState?(): Promise<WebGameState | null>;
-  boost?(payload: BoostPayload): Promise<unknown>;
-}
-
-interface PushClientLike {
-  boost?(target: BoostTarget, index?: number | null): void;
+  boost?(payload: BoostPayload): Promise<WebGameState | null>;
 }
 
 interface OverlayLike {
@@ -55,8 +51,6 @@ interface AttackerFieldBar {
   clearSelection?(): void;
 }
 
-type MapWebToSceneFn = (base: WebGameState) => WebGameState;
-
 interface AttackerDefendersControllerEls {
   fieldEl: HTMLElement | null;
   overlay: OverlayLike | null;
@@ -68,11 +62,9 @@ interface AttackerDefendersControllerEls {
 
 interface AttackerDefendersControllerDeps {
   api?: GameApiLike | null;
-  push?: PushClientLike | null;
   els: AttackerDefendersControllerEls;
   onNavigateBack?: () => void;
   createGameAlert: CreateGameAlertFn;
-  mapWebToScene?: MapWebToSceneFn;
   onPlayersChange?: (state: WebGameState) => void;
 }
 
@@ -84,11 +76,9 @@ export interface AttackerDefendersController {
 
 export function createAttackerDefendersController({
   api,
-  push,
   els: { fieldEl, overlay, btnBoost, btnInfo, btnBack, attackerBar },
   onNavigateBack,
   createGameAlert,
-  mapWebToScene,
   onPlayersChange,
 }: AttackerDefendersControllerDeps): AttackerDefendersController {
   let webState: WebGameState | null = null;
@@ -133,7 +123,7 @@ export function createAttackerDefendersController({
 
   function paintBars(): void {
     if (!webState) return;
-    attackerBar?.updateFromWebState?.((rawWeb ?? webState) as WebGameState);
+    attackerBar?.updateFromWebState?.(webState as WebGameState);
     fieldBar?.updateBar?.();
     updateBoostButtonState();
   }
@@ -141,7 +131,7 @@ export function createAttackerDefendersController({
   function applyServerState(base: WebGameState | null): void {
     if (!base) return;
     rawWeb = base;
-    webState = mapWebToScene ? mapWebToScene(base) : base;
+    webState = base;
 
     mountIfNeeded();
     onPlayersChange?.(base);
@@ -212,32 +202,26 @@ export function createAttackerDefendersController({
       return;
     }
 
-    try {
-      if (push?.boost) {
-        if (sel.kind === 'defender') {
-          push.boost('defender', sel.index);
-        } else {
-          push.boost('goalkeeper');
-        }
-        fieldBar?.clearSelection?.();
-        return;
-      }
+    if (!api?.boost) {
+      console.warn(
+        '[AttDefCtrl] No api.boost available for Boost action',
+      );
+      showAlert('Boost is currently unavailable.');
+      return;
+    }
 
-      if (!api?.boost) {
-        console.warn(
-          '[AttDefCtrl] No push or api.boost available for Boost action',
-        );
-        showAlert('Boost is currently unavailable.');
-        return;
-      }
+    try {
+      let web: WebGameState | null = null;
 
       if (sel.kind === 'defender') {
-        await api.boost({ target: 'defender', index: sel.index });
+        web = await api.boost({ target: 'defender', index: sel.index });
       } else {
-        await api.boost({ target: 'goalkeeper' });
+        web = await api.boost({ target: 'goalkeeper' });
       }
 
-      await refresh();
+      if (web) {
+        applyServerState(web);
+      }
       fieldBar?.clearSelection?.();
     } catch (e) {
       console.error('[AttDefCtrl] Boost failed:', e);

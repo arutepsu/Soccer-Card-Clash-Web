@@ -121,7 +121,43 @@ export class PlayingFieldScene extends Scene {
       },
       generator: comparison,
     });
+    function markBoostedCards(st: WebGameState | null): WebGameState | null {
+      if (!st) return st;
 
+      const mark = (c: any) => {
+        if (!c) return null;
+        const boosted =
+          !!c.isBoosted ||
+          !!c.boosted ||
+          c.kind === 'BoostedCard' ||
+          c.type === 'BoostedCard' ||
+          c.cardType === 'BoostedCard';
+
+        return {
+          ...c,
+          isBoosted: boosted,
+        };
+      };
+
+      const cards: any = (st as any).cards ?? {};
+
+      return {
+        ...(st as any),
+        cards: {
+          ...cards,
+          attackerField: (cards.attackerField ?? []).map((slot: any) => ({
+            ...slot,
+            card: mark(slot?.card),
+          })),
+          defenderField: (cards.defenderField ?? []).map((slot: any) => ({
+            ...slot,
+            card: mark(slot?.card),
+          })),
+          attackerGoalkeeper: mark(cards.attackerGoalkeeper),
+          defenderGoalkeeper: mark(cards.defenderGoalkeeper),
+        },
+      } as WebGameState;
+    }
     this.controller = createPlayingFieldController({
       api: this.api,
       fieldRenderer,

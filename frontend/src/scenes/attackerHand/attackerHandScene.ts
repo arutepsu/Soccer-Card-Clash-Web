@@ -111,7 +111,6 @@ export class AttackerHandScene extends Scene {
 
     this.controller = createAttackerHandController({
       api: this.api,
-      push: this.push,
       els: {
         elHand: handEl,
         btnRegularSwap,
@@ -130,18 +129,21 @@ export class AttackerHandScene extends Scene {
     await this.controller.initWithServerState(initial ?? undefined);
 
     if (this.api && typeof this.api.openStream === 'function') {
-      this.streamHandle = this.api.openStream((web: WebGameState | null) => {
-        if (!web) return;
-        if (this.avatarRegistry && this.attackerBar) {
-          assignAvatarsFrom(this.avatarRegistry, web);
-          this.attackerBar.updateFromWebState?.(web);
-        }
-        this.controller?.updateFromServerContext(web);
+      this.streamHandle = this.api.openStream((state: WebGameState) => {
+        this.refresh(state);
       });
     }
+
   }
 
   refresh(state: WebGameState): void {
+    if (!state) return;
+
+    if (this.avatarRegistry && this.attackerBar) {
+      assignAvatarsFrom(this.avatarRegistry, state);
+      this.attackerBar.updateFromWebState?.(state);
+    }
+
     this.controller?.updateFromServerContext(state);
   }
 
