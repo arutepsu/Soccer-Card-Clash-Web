@@ -5,8 +5,13 @@ import type {
   ComparisonEvent,
 } from './comparisonDialogHandler';
 import type { UIActionScheduler } from '../../ui/uiActionScheduler';
+import type { GameApi } from '../../api/gameApi';
 
-type CardLikeForTie = Pick<CardView, 'fileName'> | { fileName?: string | null } | null | undefined;
+type CardLikeForTie =
+  | Pick<CardView, 'fileName'>
+  | { fileName?: string | null }
+  | null
+  | undefined;
 
 function valueFromFileName(card: CardLikeForTie): number | null {
   const fn = card?.fileName ?? null;
@@ -32,16 +37,16 @@ function isSingleTie(atkCard: CardLikeForTie, defCard: CardLikeForTie): boolean 
   return av != null && dv != null && av === dv;
 }
 
-function isDoubleTie(atk1: CardLikeForTie, atk2: CardLikeForTie, def: CardLikeForTie): boolean {
+function isDoubleTie(
+  atk1: CardLikeForTie,
+  atk2: CardLikeForTie,
+  def: CardLikeForTie,
+): boolean {
   const v1 = valueFromFileName(atk1);
   const v2 = valueFromFileName(atk2);
   const vd = valueFromFileName(def);
   if (v1 == null || v2 == null || vd == null) return false;
   return v1 + v2 === vd;
-}
-
-export interface GameApiLike {
-  fetchGameState?(): Promise<WebGameState | null>;
 }
 
 export interface ActionNameMap {
@@ -76,8 +81,7 @@ export interface SoundManagerLike {
 }
 
 export interface OrchestratorDeps {
-  api: GameApiLike;
-  push?: unknown;
+  api: GameApi;
   overlay?: {
     show?(
       content: HTMLElement,
@@ -121,7 +125,6 @@ interface CurrentComparison {
 
 export function createComparisonOrchestrator({
   api,
-  push,
   overlay,
   scheduler,
   comparisonHandler,
@@ -170,13 +173,17 @@ export function createComparisonOrchestrator({
     const defHand = Array.isArray(cards.defenderHand) ? cards.defenderHand : [];
     const defField = Array.isArray(cards.defenderField) ? cards.defenderField : [];
 
-    const last = <T>(arr: T[]): T | null => (arr.length > 0 ? arr[arr.length - 1] : null);
-    const secondLast = <T>(arr: T[]): T | null => (arr.length > 1 ? arr[arr.length - 2] : null);
+    const last = <T>(arr: T[]): T | null =>
+      arr.length > 0 ? arr[arr.length - 1] : null;
+    const secondLast = <T>(arr: T[]): T | null =>
+      arr.length > 1 ? arr[arr.length - 2] : null;
 
     const attLast = last(attHand);
     const attPrev = secondLast(attHand);
 
-    const dSlotIndex = Number.isInteger(meta?.defenderIndex) ? (meta!.defenderIndex as number) : -1;
+    const dSlotIndex = Number.isInteger(meta?.defenderIndex)
+      ? (meta!.defenderIndex as number)
+      : -1;
     const dSlot = dSlotIndex >= 0 ? defField[dSlotIndex] : null;
     const defFieldCard = (dSlot && (dSlot as any).card) || dSlot || null;
 
@@ -343,7 +350,7 @@ export function createComparisonOrchestrator({
         try {
           soundManager.play('attack', { volume: 0.7 });
           const fresh =
-            latestStreamWeb || (await api.fetchGameState?.()) || null;
+            latestStreamWeb || (await api.fetchGameState()) || null;
           latestStreamWeb = null;
           applyUiFromWeb(fresh);
           updateFromServerContext(fresh);
@@ -361,7 +368,10 @@ export function createComparisonOrchestrator({
     scheduler.runSequence(...seq);
   }
 
-  function afterServerApply(serverWeb: WebGameState | null | undefined, meta?: ActionMeta) {
+  function afterServerApply(
+    serverWeb: WebGameState | null | undefined,
+    meta?: ActionMeta,
+  ) {
     currentComparison = null;
 
     const cmp: ComparisonEvent[] = extractComparisonEvents(serverWeb as any);
@@ -466,7 +476,6 @@ export function createComparisonOrchestrator({
         extraAtkCardTie,
         extraDefCardTie,
       } = getAttackAndDefendCardsFromState(source, meta);
-
 
       console.log(
         '[CMP] synth DOUBLE from PRE-ACTION state (last 2 cards):',

@@ -19,13 +19,16 @@ import app.session.IGameSessionService
 import app.mapping.IViewStateMapper
 import app.session._
 import app.domain.commands.GameCommand
+import app.api.services.GameEventHub
 
 @Singleton
 class GamePushService @Inject()(
   sessionService: IGameSessionService,
-  viewStateMapper: IViewStateMapper
+  viewStateMapper: IViewStateMapper,
+  eventHub: GameEventHub
 )(implicit system: ActorSystem, mat: Materializer)
   extends IGamePushService {
+
 
   private val (queue, hub) = {
     val src = Source.queue[Envelope](bufferSize = 256, OverflowStrategy.dropTail)
@@ -39,6 +42,10 @@ class GamePushService @Inject()(
 
   private def pushState(id: GameSessionId, ctx: GameContext, requestId: Option[String]): Unit = {
     val web: WebGameState = viewStateMapper.toWebState(ctx)
+
+    //publish to GameEventHub so SSE/Comet can see this update
+    eventHub.publish(id, web)
+
     queue.offer(
       Envelope(
         kind      = "event",
@@ -50,6 +57,7 @@ class GamePushService @Inject()(
       )
     )
   }
+
 
   private def pushError(id: GameSessionId, msg: String, requestId: Option[String]): Unit =
     queue.offer(

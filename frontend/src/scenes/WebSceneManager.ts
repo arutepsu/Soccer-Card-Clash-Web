@@ -50,17 +50,21 @@ export class WebSceneManager implements GlobalObserver {
 
     this.api = createGameApi({
       streamClient: this.streamClient,
+      pushClient: this.push,
     });
 
-    this.api.openStream((state) => {
-      if (this.current?.refresh) {
-        try {
-          this.current.refresh(state);
-        } catch (e) {
-          console.error('[WebSceneManager] refresh() error:', e);
+    if (this.api) {
+      this.api.openStream((state) => {
+        if (this.current?.refresh) {
+          try {
+            this.current.refresh(state);
+          } catch (e) {
+            console.error('[WebSceneManager] refresh() error:', e);
+          }
         }
-      }
-    });
+      });
+    }
+
 
     const overlayEl = document.getElementById('overlay');
     this.overlay = overlayEl

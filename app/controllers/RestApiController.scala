@@ -21,13 +21,17 @@ import app.session.GameSessionId
 import de.htwg.se.soccercardclash.controller.contextHolder.IGameContextHolder
 import controllers.dto._
 import de.htwg.se.soccercardclash.util.AIAction
+import app.api.services.GameEventHub
 
 @Singleton
 class GameApiController @Inject()(
   cc: ControllerComponents,
   ctxHolder: IGameContextHolder,
-  gameUseCases: IGameUseCases
-)(implicit ec: ExecutionContext) extends AbstractController(cc) {
+  gameUseCases: IGameUseCases,
+  eventHub: GameEventHub,
+)(implicit ec: ExecutionContext)
+  extends AbstractController(cc) {
+
 
   private val JSON = "application/json"
 
@@ -58,23 +62,26 @@ class GameApiController @Inject()(
   def state: Action[AnyContent] = Action { implicit req =>
     withSid { sid =>
       gameUseCases.state(sid) match {
-        case Right(web) => Ok(Json.toJson(web)).as(JSON)
+        case Right(web) =>
+          eventHub.publish(sid, web)
+          Ok(Json.toJson(web)).as(JSON)
         case Left(err)  => NotFound(Json.obj("error" -> err.message))
       }
     }
   }
 
-  def stream: Action[AnyContent] = Action { implicit req =>
-    withSid { sid =>
-      val src = Source
-        .tick(0.seconds, 200.millis, ())
-        .map(_ => gameUseCases.state(sid))
-        .collect { case Right(web) => web }
-        .map(web => Json.stringify(Json.toJson(web)))
 
-      Ok.chunked(src.via(EventSource.flow)).as(ContentTypes.EVENT_STREAM)
-    }
-  }
+  // def stream: Action[AnyContent] = Action { implicit req =>
+  //   withSid { sid =>
+  //     val src = Source
+  //       .tick(0.seconds, 200.millis, ())
+  //       .map(_ => gameUseCases.state(sid))
+  //       .collect { case Right(web) => web }
+  //       .map(web => Json.stringify(Json.toJson(web)))
+
+  //     Ok.chunked(src.via(EventSource.flow)).as(ContentTypes.EVENT_STREAM)
+  //   }
+  // }
 
   /** Single attack via JSON:
     * { "target": "goalkeeper" }  -> GK attack
@@ -89,19 +96,26 @@ class GameApiController @Inject()(
 
           case Right(AttackTarget.Goalkeeper) =>
             gameUseCases.singleAttack(-1, sid) match {
-              case Right(web) => Ok(Json.toJson(web)).as(JSON)
-              case Left(err)  => BadRequest(Json.obj("error" -> err.message))
+              case Right(web) =>
+                eventHub.publish(sid, web)      // <-- NEW
+                Ok(Json.toJson(web)).as(JSON)
+              case Left(err)  =>
+                BadRequest(Json.obj("error" -> err.message))
             }
 
           case Right(AttackTarget.DefenderAt(i)) =>
             gameUseCases.singleAttack(i, sid) match {
-              case Right(web) => Ok(Json.toJson(web)).as(JSON)
-              case Left(err)  => BadRequest(Json.obj("error" -> err.message))
+              case Right(web) =>
+                eventHub.publish(sid, web)      // <-- NEW
+                Ok(Json.toJson(web)).as(JSON)
+              case Left(err)  =>
+                BadRequest(Json.obj("error" -> err.message))
             }
         }
       )
     }
   }
+
 
   /** Boost defender or goalkeeper.
     * { "target": "goalkeeper" } or { "target": "defender", "index": 1 }
@@ -113,7 +127,9 @@ class GameApiController @Inject()(
         dto => dto.target.toLowerCase match {
           case "goalkeeper" =>
             gameUseCases.boost(-1, sid, goalkeeper = true) match {
-              case Right(web) => Ok(Json.toJson(web)).as(JSON)
+              case Right(web) =>
+                 eventHub.publish(sid, web)
+                 Ok(Json.toJson(web)).as(JSON)
               case Left(err)  => BadRequest(Json.obj("error" -> err.message))
             }
 
@@ -121,7 +137,10 @@ class GameApiController @Inject()(
             dto.index match {
               case Some(i) if i >= 0 && i <= 2 =>
                 gameUseCases.boost(i, sid, goalkeeper = false) match {
-                  case Right(web) => Ok(Json.toJson(web)).as(JSON)
+                  case Right(web) =>
+                    eventHub.publish(sid, web)
+                    Ok(Json.toJson(web)).as(JSON)
+
                   case Left(err)  => BadRequest(Json.obj("error" -> err.message))
                 }
 
@@ -147,7 +166,9 @@ class GameApiController @Inject()(
         dto =>
           if (dto.index >= 0 && dto.index <= 2) {
             gameUseCases.doubleAttack(dto.index, sid) match {
-              case Right(web) => Ok(Json.toJson(web)).as(JSON)
+              case Right(web) =>
+              eventHub.publish(sid, web)
+              Ok(Json.toJson(web)).as(JSON)
               case Left(err)  => BadRequest(Json.obj("error" -> err.message))
             }
           } else {
@@ -165,7 +186,9 @@ class GameApiController @Inject()(
       req.body.validate[SwapDto].fold(
         bad => BadRequest(Json.obj("error" -> JsError.toJson(bad))),
         dto => gameUseCases.swap(dto.index, sid) match {
-          case Right(web) => Ok(Json.toJson(web)).as(JSON)
+          case Right(web) =>
+          eventHub.publish(sid, web) 
+          Ok(Json.toJson(web)).as(JSON)
           case Left(err)  => BadRequest(Json.obj("error" -> err.message))
         }
       )
@@ -176,7 +199,9 @@ class GameApiController @Inject()(
   def reverseSwap: Action[AnyContent] = Action { implicit req =>
     withSid { sid =>
       gameUseCases.reverseSwap(sid) match {
-        case Right(web) => Ok(Json.toJson(web)).as(JSON)
+        case Right(web) =>
+        eventHub.publish(sid, web)
+        Ok(Json.toJson(web)).as(JSON)
         case Left(err)  => BadRequest(Json.obj("error" -> err.message))
       }
     }
@@ -186,7 +211,9 @@ class GameApiController @Inject()(
   def undo: Action[AnyContent] = Action { implicit req =>
     withSid { sid =>
       gameUseCases.undo(sid) match {
-        case Right(web) => Ok(Json.toJson(web)).as(JSON)
+        case Right(web) =>
+        eventHub.publish(sid, web)
+        Ok(Json.toJson(web)).as(JSON)
         case Left(err)  => BadRequest(Json.obj("error" -> err.message))
       }
     }
@@ -196,7 +223,9 @@ class GameApiController @Inject()(
   def redo: Action[AnyContent] = Action { implicit req =>
     withSid { sid =>
       gameUseCases.redo(sid) match {
-        case Right(web) => Ok(Json.toJson(web)).as(JSON)
+        case Right(web) =>
+        eventHub.publish(sid, web)
+        Ok(Json.toJson(web)).as(JSON)
         case Left(err)  => BadRequest(Json.obj("error" -> err.message))
       }
     }
@@ -207,7 +236,9 @@ class GameApiController @Inject()(
       req.body.validate[AIAction].fold(
         bad => BadRequest(Json.obj("error" -> JsError.toJson(bad))),
         action => gameUseCases.executeAI(action, sid) match {
-          case Right(web) => Ok(Json.toJson(web)).as(JSON)
+          case Right(web) =>
+          eventHub.publish(sid, web)
+          Ok(Json.toJson(web)).as(JSON)
           case Left(err)  => BadRequest(Json.obj("error" -> err.message))
         }
       )
