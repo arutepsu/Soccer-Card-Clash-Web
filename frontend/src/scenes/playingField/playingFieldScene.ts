@@ -350,3 +350,13 @@ export class PlayingFieldScene extends Scene {
     // TODO: close stream handle if you start storing it
   }
 }
+export async function build(ctx: SceneBuildContext): Promise<PlayingFieldScene> {
+  const root = document.getElementById('scene-root') as HTMLElement | null;
+  if (!root) {
+    throw new Error('[PlayingFieldScene] Missing #scene-root element');
+  }
+
+  const scene = new PlayingFieldScene(root, ctx);
+  await scene.build();
+  return scene;
+}

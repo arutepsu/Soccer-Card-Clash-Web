@@ -1,12 +1,8 @@
-export interface PlayerRef {
-  id: string;
-  name?: string;
-}
+import type { GameStateLike } from '../scenes/playingField/playingFieldTypes';
+import type { WebGameState, PlayerLike } from '../types/WebGameState';
 
-export interface GameStateLike {
-  [key: string]: any;
-}
 
+export type PlayerRef = PlayerLike;
 export interface HandRendererCompat {
   applyOverlapSpacing(rowEl: HTMLElement, handSize: number): void;
   createHandCardRow(
@@ -18,37 +14,75 @@ export interface HandRendererCompat {
 export interface PlayersHandBar {
   mount(el: HTMLElement | string): void;
   updateBar(newGameState: GameStateLike | (() => GameStateLike)): void;
-  selectedCardIndex(): number | null;
+
+  selectedHandIndex(): number | null;
+  resetSelectedHand(): void;
 }
 
-function resolveState(getOrState: GameStateLike | (() => GameStateLike)): GameStateLike {
+// ---------------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------------
+
+function resolveState(
+  getOrState: GameStateLike | (() => GameStateLike),
+): GameStateLike {
   return typeof getOrState === 'function'
     ? (getOrState as () => GameStateLike)()
     : (getOrState as GameStateLike);
 }
+type CardStateLike = {
+  cards?: {
+    hands?: Record<string, any[]>;
+    attackerHand?: any[];
+    defenderHand?: any[];
+    [key: string]: unknown;
+  };
+  gameCards?: {
+    hands?: Record<string, any[]>;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
 
-function handsOf(gs: GameStateLike | null | undefined, pid: string): any[] {
+function handsOf(
+  gs: GameStateLike | null | undefined,
+  pid: string,
+): any[] {
   if (!gs) return [];
+
+  const s = gs as unknown as CardStateLike;
+
   const fromHands =
-    gs.cards?.hands?.[pid] ?? gs.gameCards?.hands?.[pid];
+    s.cards?.hands?.[pid] ?? s.gameCards?.hands?.[pid];
+
   if (fromHands) return fromHands;
-  if (pid === 'att') return gs.cards?.attackerHand ?? [];
-  if (pid === 'def') return gs.cards?.defenderHand ?? [];
+
+  if (pid === 'att') return s.cards?.attackerHand ?? [];
+  if (pid === 'def') return s.cards?.defenderHand ?? [];
+
   return [];
 }
 
-function handSig(gs: GameStateLike | null | undefined, pid: string): string {
+function handSig(
+  gs: GameStateLike | null | undefined,
+  pid: string,
+): string {
   if (!gs) return '';
+
+  const s = gs as unknown as CardStateLike;
+
   if (pid === 'att') {
-    return (gs.cards?.attackerHand ?? [])
+    return (s.cards?.attackerHand ?? [])
       .map((c: any) => c?.fileName ?? '')
       .join('|');
   }
+
   if (pid === 'def') {
-    return (gs.cards?.defenderHand ?? [])
+    return (s.cards?.defenderHand ?? [])
       .map((c: any) => c?.fileName ?? '')
       .join('|');
   }
+
   return '';
 }
 
@@ -67,6 +101,67 @@ export function createPlayersHandBar(
 
   let prevSig: string | null = null;
 
+  // selection state
+  let selectedIndex: number | null = null;
+
+  function applySelectionClasses(row: HTMLElement | null): void {
+    if (!row) return;
+    row.querySelectorAll<HTMLElement>('[data-index]').forEach((el) => {
+      const idx = Number(el.dataset.index);
+      if (Number.isNaN(idx)) return;
+
+      const isSelected = selectedIndex === idx;
+      el.classList.toggle('is-selected', isSelected);
+      el.setAttribute('aria-selected', String(isSelected));
+    });
+  }
+
+  function setSelectedIndex(next: number | null): void {
+    // toggle selection if same index clicked
+    selectedIndex = selectedIndex === next ? null : next;
+    applySelectionClasses(currentRow);
+  }
+
+  function wireSelectable(row: HTMLElement | null): void {
+    if (!row) return;
+
+    // remove old listeners by cloning nodes
+    row.querySelectorAll<HTMLElement>('[data-index]').forEach((el) => {
+      const idx = Number(el.dataset.index);
+      if (Number.isNaN(idx)) return;
+
+      el.style.cursor = 'pointer';
+
+      const clone = el.cloneNode(true) as HTMLElement;
+      el.replaceWith(clone);
+    });
+
+    // attach fresh listeners
+    row.querySelectorAll<HTMLElement>('[data-index]').forEach((el) => {
+      const idx = Number(el.dataset.index);
+      if (Number.isNaN(idx)) return;
+
+      el.addEventListener('click', () => setSelectedIndex(idx));
+
+      el.addEventListener('keydown', (e: KeyboardEvent) => {
+        const key = e.key;
+        if (key === 'Enter' || key === ' ') {
+          e.preventDefault();
+          setSelectedIndex(idx);
+        }
+      });
+
+      el.setAttribute('role', 'option');
+      el.setAttribute('tabindex', '0');
+      el.setAttribute(
+        'aria-selected',
+        String(selectedIndex === idx),
+      );
+    });
+
+    applySelectionClasses(row);
+  }
+
   function afterRowInserted(row: HTMLElement): void {
     try {
       const gs = resolveState(getState);
@@ -74,8 +169,12 @@ export function createPlayersHandBar(
       renderer.applyOverlapSpacing(row, size);
       prevSig = handSig(gs, player.id);
     } catch {
+      // ignore spacing errors
     }
 
+    wireSelectable(row);
+
+    // simple fade-in animation
     Array.from(row.children).forEach((node) => {
       const el = node as HTMLElement;
       el.style.opacity = '0';
@@ -110,7 +209,9 @@ export function createPlayersHandBar(
     afterRowInserted(currentRow);
   }
 
-  function updateBar(newGameState: GameStateLike | (() => GameStateLike)): void {
+  function updateBar(
+    newGameState: GameStateLike | (() => GameStateLike),
+  ): void {
     getState =
       typeof newGameState === 'function'
         ? (newGameState as () => GameStateLike)
@@ -118,8 +219,13 @@ export function createPlayersHandBar(
 
     const gs = resolveState(getState);
     const next = handSig(gs, player.id);
-    if (prevSig === next) return;
+    if (prevSig === next) {
+      // cards identical → keep current DOM and just reapply selection
+      applySelectionClasses(currentRow);
+      return;
+    }
 
+    // little “shake / slide” animation before rerender
     Array.from(currentRow?.children ?? []).forEach((node) => {
       const el = node as HTMLElement;
       try {
@@ -134,6 +240,7 @@ export function createPlayersHandBar(
           },
         );
       } catch {
+        // ignore animation errors
       }
     });
 
@@ -146,9 +253,19 @@ export function createPlayersHandBar(
     }, 500);
   }
 
-  function selectedCardIndex(): number | null {
-    return null;
+  function selectedHandIndex(): number | null {
+    return selectedIndex;
   }
 
-  return { mount, updateBar, selectedCardIndex };
+  function resetSelectedHand(): void {
+    selectedIndex = null;
+    applySelectionClasses(currentRow);
+  }
+
+  return {
+    mount,
+    updateBar,
+    selectedHandIndex,
+    resetSelectedHand,
+  };
 }
