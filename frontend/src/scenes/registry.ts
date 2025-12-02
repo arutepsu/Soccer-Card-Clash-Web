@@ -1,19 +1,19 @@
 // frontend/src/scenes/registry.ts
 
-import * as PlayingField          from './../playingFieldScene.js';
-import * as AttackerHandCards     from './../attackerHandScene.js';
-import * as AttackerDefenderCards from './../attackerDefendersScene.js';
+import * as PlayingField          from './playingField/playingFieldScene';
+import * as AttackerHandCards     from './attackerHand/attackerHandScene';
+import * as AttackerDefenderCards from './attackerDefenders/attackerDefenderScene';
 
-import * as MainMenu     from './../mainMenuScene.js';
-import * as Multiplayer  from './../multiplayerScene.js';
-import * as SinglePlayer from './../singleplayerScene.js';
-import * as AISelection  from './../aiSelectionScene.js';
-import * as LoadGame     from './../loadGameScene.js';
+import * as MainMenu     from './mainMenuScene';
+import * as Multiplayer  from './multiplayerScene';
+import * as SinglePlayer from './singlePlayerScene';
+import * as AISelection  from './aiSelectionScene';
+import * as LoadGame     from './loadGameScene';
 
 import type { SceneBuildContext } from './Scene';
 
 export interface SceneModule {
-  build(ctx: SceneBuildContext): Promise<any> | any;
+  build(ctx: SceneBuildContext): Promise<unknown> | unknown;
 }
 
 export const SceneSwitchEvent = {

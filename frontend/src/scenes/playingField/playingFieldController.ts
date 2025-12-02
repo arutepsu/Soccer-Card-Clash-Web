@@ -268,7 +268,7 @@ export function createPlayingFieldController({
 
   async function onSwapSelected() {
     if (busy || !attackerHandBar) return;
-    const idx = attackerHandBar.selectedCardIndex?.();
+    const idx = attackerHandBar.selectedHandIndex?.();
     if (idx == null) return;
     try {
       busy = true;

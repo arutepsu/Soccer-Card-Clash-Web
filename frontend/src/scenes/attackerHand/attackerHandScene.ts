@@ -157,3 +157,15 @@ export class AttackerHandScene extends Scene {
     this.controller = null;
   }
 }
+export async function build(
+  ctx: SceneBuildContext,
+): Promise<AttackerHandScene> {
+  const root = document.getElementById('scene-root') as HTMLElement | null;
+  if (!root) {
+    throw new Error('[AttackerHandScene] Missing #scene-root element');
+  }
+
+  const scene = new AttackerHandScene(root, ctx);
+  await scene.build();
+  return scene;
+}
