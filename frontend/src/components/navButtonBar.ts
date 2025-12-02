@@ -1,7 +1,7 @@
 import { fileIOApi } from '../api/fileIoApi';
 import type { GameApi } from '../api/gameApi';
 import type { PushClient } from '../api/serverPushClient';
-import type { OverlayInstance } from './actionButtonBar';
+import type { Overlay } from '../ui/overlay';
 
 export interface SoundManager {
   play(name: string, opts?: { volume?: number; loop?: boolean }): void;
@@ -16,11 +16,10 @@ export type SceneEvent =
 export interface NavButtonBarOptions {
   navigate?: NavigateFn;
   api?: GameApi;
-  push?: PushClient; // currently unused
-  overlay?: OverlayInstance | null;
+  push?: PushClient;
+  overlay?: Overlay | null;
   soundManager?: SoundManager | null;
 }
-
 export interface NavButtonBar {
   mount(el: HTMLElement): void;
   onSceneEvent(fn: (ev: SceneEvent) => void): void;
@@ -41,7 +40,6 @@ export function createNavButtonBar(
     const btns = root?.querySelectorAll<HTMLElement>('[data-pause-action]');
     btns?.forEach((b) => b.setAttribute('disabled', 'true'));
     try {
-      // REST API
       if (api?.restart) {
         await api.restart();
       } else {
@@ -140,6 +138,7 @@ export function createNavButtonBar(
         try {
           previouslyFocused.focus();
         } catch {
+          // ignore
         }
       }
     };
@@ -206,6 +205,7 @@ export function createNavButtonBar(
               try {
                 previouslyFocused.focus();
               } catch {
+                // ignore
               }
             }
 

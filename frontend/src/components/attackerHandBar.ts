@@ -80,9 +80,10 @@ export function createAttackerHandBar(
   };
 
   const currentAttacker = (): CurrentAttacker => {
-    const att = typeof getCurrentAttacker === 'function'
-      ? getCurrentAttacker()
-      : null;
+    const att =
+      typeof getCurrentAttacker === 'function'
+        ? getCurrentAttacker()
+        : null;
     if (att) return att;
 
     const st = safeState();
@@ -173,7 +174,9 @@ export function createAttackerHandBar(
       selectedIndex = selectedIndex === next ? -1 : next;
       clearCssSelection(row);
 
-      const cards = Array.from(row.querySelectorAll<HTMLElement>('.hand-card'));
+      const cards = Array.from(
+        row.querySelectorAll<HTMLElement>('.hand-card'),
+      );
       cards.forEach((cardEl, i) => {
         const isSel = i === selectedIndex;
         cardEl.classList.toggle('is-selected', isSel);
@@ -184,7 +187,12 @@ export function createAttackerHandBar(
 
     list.forEach((card, index) => {
       const isLast = index === list.length - 1;
-      const el = createSelectableHandCard({ card, index, isLast, onSelected });
+      const el = createSelectableHandCard({
+        card,
+        index,
+        isLast,
+        onSelected,
+      });
       el.setAttribute('aria-selected', String(selectedIndex === index));
       row.appendChild(el);
     });
