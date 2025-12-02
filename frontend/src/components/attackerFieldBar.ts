@@ -1,21 +1,16 @@
-export interface CurrentAttacker {
-  id: string;
-  name?: string | null;
-}
+import type { PlayerLike, WebGameState } from '../types/WebGameState';
 
-export type GetCurrentAttacker = () => CurrentAttacker | null | undefined;
-export type GetGameState = () => any;
+export type GetGameState = () => WebGameState | null;
 
-export interface FieldRenderer {
+export interface FieldCardRenderer {
   createDefenderRow(
-    attacker: CurrentAttacker,
+    player: PlayerLike,
     getGameState: GetGameState,
-  ): HTMLElement | string | null | undefined;
-
+  ): HTMLElement;
   createGoalkeeperRow(
-    attacker: CurrentAttacker,
+    player: PlayerLike,
     getGameState: GetGameState,
-  ): HTMLElement | string | null | undefined;
+  ): HTMLElement;
 }
 
 export type SelectedTarget =
@@ -31,38 +26,51 @@ export interface AttackerFieldBar {
   clearSelection(): void;
 }
 
+export type GetCurrentAttacker =
+  | (() => PlayerLike | null | undefined)
+  | PlayerLike;
+
 export function createAttackerFieldBar(
   getCurrentAttacker: GetCurrentAttacker,
   getGameState: GetGameState,
-  fieldRenderer: FieldRenderer,
+  fieldRenderer: FieldCardRenderer,
 ): AttackerFieldBar {
   let root: HTMLElement | null = null;
   let mounted = false;
   let selected: SelectedTarget = null;
   let lastAttackerName: string | null = null;
 
-  const cssSelect = (el: Element) => el.classList.add('is-selected');
-
-  const cssUnselectAll = () => {
-    if (!root) return;
-    root.querySelectorAll('.field-card.is-selected').forEach((card) => {
-      card.classList.remove('is-selected');
-    });
-  };
-
-  const canPick = (el: Element) => !el.classList.contains('is-defeated');
-
-  const safeState = () =>
+  const safeState = (): WebGameState | null =>
     typeof getGameState === 'function' ? getGameState() : null;
 
-  const currentAttacker = (): CurrentAttacker => {
+  const currentAttacker = (): PlayerLike => {
     if (typeof getCurrentAttacker === 'function') {
       const att = getCurrentAttacker();
       if (att) return att;
+    } else if (getCurrentAttacker && typeof getCurrentAttacker === 'object') {
+      return getCurrentAttacker as PlayerLike;
     }
+
     const st = safeState();
-    return { id: 'att', name: st?.roles?.attacker };
+    return {
+      id: 'att',
+      name: st?.roles?.attacker,
+    };
   };
+
+  const cssSelect = (el: HTMLElement) => el.classList.add('is-selected');
+
+  const cssUnselectAll = () => {
+    if (!root) return;
+    root
+      .querySelectorAll<HTMLElement>('.field-card.is-selected')
+      .forEach((card) => {
+        card.classList.remove('is-selected');
+      });
+  };
+
+  const canPick = (el: HTMLElement) =>
+    !el.classList.contains('is-defeated');
 
   function normalizeRow(
     row: HTMLElement | string | null | undefined,

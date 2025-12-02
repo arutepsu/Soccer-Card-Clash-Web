@@ -1,41 +1,25 @@
-import type { WebGameState } from '../types/WebGameState';
-
-export interface AvatarPlayer {
-  id: string;
-  name?: string | null;
-  playerType?: string;
-}
+import type {
+  WebGameState,
+  PlayerLike,
+  ActionLimitsView,
+} from '../types/WebGameState';
 
 export interface AvatarRegistry {
-  getAvatarFileName(player: AvatarPlayer): string;
-  assignAvatarsInOrder(players: AvatarPlayer[]): void;
-  getAvatarUrl(player: AvatarPlayer): string;
+  getAvatarFileName(player: PlayerLike): string;
+  assignAvatarsInOrder(players: PlayerLike[]): void;
+  getAvatarUrl(player: PlayerLike): string;
 }
-
-interface PlayerState {
-  name?: string | null;
-  playerType?: string | null;
-}
-
-type ExtendedWebGameState = WebGameState & {
-  players?: {
-    attacker?: PlayerState;
-    defender?: PlayerState;
-    [key: string]: PlayerState | undefined;
-  };
-  allowed: WebGameState['allowed'] & {
-    [key: string]: any;
-  };
-};
 
 export interface AttackerBarComponent {
   mount(el: HTMLElement | string): void;
-  updateFromWebState(web: ExtendedWebGameState): void;
+  updateFromWebState(web: WebGameState): void;
 }
 
-export function createAttackerBar(avatarRegistry: AvatarRegistry): AttackerBarComponent {
+export function createAttackerBar(
+  avatarRegistry: AvatarRegistry,
+): AttackerBarComponent {
   let root: HTMLElement | null = null;
-  let webState: ExtendedWebGameState | null = null;
+  let webState: WebGameState | null = null;
 
   function mount(el: HTMLElement | string): void {
     if (el instanceof HTMLElement) {
@@ -61,20 +45,30 @@ export function createAttackerBar(avatarRegistry: AvatarRegistry): AttackerBarCo
     `;
   }
 
-  function currentAttackerFrom(st: ExtendedWebGameState | null): AvatarPlayer {
-    const pa = st?.players?.attacker;
+  function currentAttackerFrom(st: WebGameState | null): PlayerLike {
+    const pa = (st as any)?.players?.attacker as PlayerLike | undefined;
+
     if (pa) {
       return {
         id: 'att',
-        name: pa.name ?? st?.roles?.attacker,
+        name: pa.name ?? st?.roles.attacker,
         playerType: pa.playerType ?? 'Human',
       };
     }
+
     return {
       id: 'att',
-      name: st?.roles?.attacker,
+      name: st?.roles.attacker,
       playerType: 'Human',
     };
+  }
+
+  function getAllowedForAttacker(st: WebGameState, attackerId: string): Partial<ActionLimitsView> {
+    const base = st.allowed?.attacker as Partial<ActionLimitsView> | undefined;
+
+    const keyed = (st.allowed as any)?.[attackerId] as Partial<ActionLimitsView> | undefined;
+
+    return base ?? keyed ?? {};
   }
 
   function render(): void {
@@ -99,23 +93,20 @@ export function createAttackerBar(avatarRegistry: AvatarRegistry): AttackerBarCo
 
     const actionsEl = root.querySelector<HTMLElement>('[data-attacker-actions]');
     if (actionsEl) {
-      const lim =
-        (webState.allowed as any)?.attacker ||
-        (webState.allowed as any)?.[attacker.id] ||
-        {};
+      const lim = getAllowedForAttacker(webState, attacker.id);
 
       const toNum = (x: unknown, fallback: number = 0): number =>
         Number.isFinite(Number(x)) ? Number(x) : fallback;
 
-      const swap = toNum((lim as any).swapRemaining, 0);
-      const boost = toNum((lim as any).boostRemaining, 0);
-      const da = toNum((lim as any).doubleAttackRemaining, 0);
+      const swap = toNum(lim.swapRemaining, 0);
+      const boost = toNum(lim.boostRemaining, 0);
+      const da = toNum(lim.doubleAttackRemaining, 0);
 
       actionsEl.textContent = `Swap: ${swap}\nBoost: ${boost}\nDoubleAttack: ${da}`;
     }
   }
 
-  function updateFromWebState(web: ExtendedWebGameState): void {
+  function updateFromWebState(web: WebGameState): void {
     webState = web;
     render();
   }
