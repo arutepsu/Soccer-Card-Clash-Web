@@ -1,401 +1,484 @@
+// src/scenes/playingField/comparisonDialogGenerator.ts
+
+import {
+  UIActionScheduler,
+  delayed,
+} from '../../ui/uiActionScheduler';
+
 import type {
-  CardView,
-  PlayerLike,
-  RolesView,
-  WebGameState,
-} from '../../types/WebGameState';
+  ComparisonDialogGenerator,
+  PlayerInfo,
+  ComparisonCard,
+} from './comparisonDialogHandler';
 
-import { UIActionScheduler, delayed } from '../../ui/uiActionScheduler';
+import type { PlayerAvatarRegistry } from '../../utils/playerAvatarRegistry';
+import type { CardImageRegistry } from '../../utils/cardImageRegistry';
 
-export interface OverlayLike {
-  show?(
-    content: HTMLElement,
-    opts?: {
-      autoHide?: boolean;
-      sizeMult?: number;
-      onHide?: () => void;
-    },
-  ): void;
-  hide?(): void;
+let avatarRegistry: PlayerAvatarRegistry | null = null;
+let cardRegistry: CardImageRegistry | null = null;
+
+export interface ComparisonDialogConfig {
+  avatarRegistry?: PlayerAvatarRegistry | null;
+  cardRegistry?: CardImageRegistry | null;
 }
 
-export type PlayerInfo = PlayerLike;
+export function configure(opts: ComparisonDialogConfig = {}): void {
+  avatarRegistry = opts.avatarRegistry ?? avatarRegistry;
+  cardRegistry = opts.cardRegistry ?? cardRegistry;
+}
 
-export interface Roles {
+function px(n: number): string {
+  return `${n}px`;
+}
+
+function fadeInNode(node: HTMLElement, durationMs = 500): void {
+  node.style.opacity = '0';
+  node.style.transition = `opacity ${durationMs}ms`;
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      node.style.opacity = '1';
+    });
+  });
+}
+
+function slideInNode(
+  node: HTMLElement,
+  fromX = -200,
+  durationMs = 700,
+): void {
+  node.style.transform = `translateX(${px(fromX)})`;
+  node.style.transition = `transform ${durationMs}ms cubic-bezier(0.16, 1, 0.3, 1)`; // EaseOut-ish
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      node.style.transform = 'translateX(0)';
+    });
+  });
+}
+
+interface TextOpts {
+  fontSize: number;
+  weight?: string;
+  color?: string;
+  fontFamily?: string;
+  opacity?: number;
+}
+
+function createText(
+  text: string,
+  {
+    fontSize,
+    weight = 'bold',
+    color = 'white',
+    fontFamily = 'Rajdhani, sans-serif',
+    opacity = 0,
+  }: TextOpts,
+): HTMLDivElement {
+  const el = document.createElement('div');
+  el.textContent = text;
+  el.style.fontSize = px(fontSize);
+  el.style.fontWeight = weight;
+  el.style.color = color;
+  el.style.fontFamily = fontFamily;
+  el.style.opacity = String(opacity);
+  return el;
+}
+
+function showResultText(el: HTMLElement, durationMs = 500): void {
+  el.style.transition = `opacity ${durationMs}ms`;
+  requestAnimationFrame(() => {
+    el.style.opacity = '1';
+  });
+}
+
+function showWinnerText(el: HTMLElement, durationMs = 500): void {
+  el.style.transition = `opacity ${durationMs}ms`;
+  requestAnimationFrame(() => {
+    el.style.opacity = '1';
+  });
+}
+
+function toPlayerName(p: unknown): string {
+  if (typeof p === 'string') return p;
+  if (p && typeof p === 'object' && 'name' in p) {
+    const anyP = p as { name?: string | null };
+    return anyP.name ?? 'Player';
+  }
+  return 'Player';
+}
+
+function getAvatarView(player: PlayerInfo, scale = 1): HTMLElement {
+  if (!avatarRegistry) {
+    const ph = document.createElement('div');
+    ph.textContent = toPlayerName(player);
+    ph.style.padding = '6px 10px';
+    ph.style.borderRadius = '999px';
+    ph.style.background = 'rgba(255,255,255,0.15)';
+    return ph;
+  }
+
+  try {
+    if (typeof (avatarRegistry as any).getAvatarImg === 'function') {
+      return (avatarRegistry as any).getAvatarImg(player, { scale }) as HTMLElement;
+    }
+
+    if (typeof avatarRegistry.getAvatarUrl === 'function') {
+      const img = document.createElement('img');
+      img.src = avatarRegistry.getAvatarUrl(player);
+      img.alt = toPlayerName(player);
+      img.draggable = false;
+      img.className = 'cmp-avatar neon-avatar';
+
+      const baseSize = 500; // px
+      img.style.width = `${baseSize * scale}px`;
+      img.style.height = `${baseSize * scale}px`;
+      img.style.objectFit = 'cover';
+      img.style.borderRadius = '999px';
+      return img;
+    }
+  } catch (e) {
+    console.warn('[CDG] failed to resolve avatar', player, e);
+  }
+
+  const ph = document.createElement('div');
+  ph.textContent = toPlayerName(player);
+  ph.style.padding = '6px 10px';
+  ph.style.borderRadius = '999px';
+  ph.style.background = 'rgba(255,255,255,0.15)';
+  return ph;
+}
+
+function getCardUrlFromFileName(fileName?: string | null): string {
+  if (!fileName) return '/assets/images/cards/unknown.png';
+
+  if ((cardRegistry as any)?.getImageUrl) {
+    return (cardRegistry as any).getImageUrl(`${fileName}.png`);
+  }
+  if ((cardRegistry as any)?.getImageForCard) {
+    return (cardRegistry as any).getImageForCard(fileName);
+  }
+  return `/assets/images/cards/${fileName}.png`;
+}
+
+function createCardImageView(card: ComparisonCard | null | undefined, scale = 0.7): HTMLImageElement {
+  const url = getCardUrlFromFileName(card?.fileName);
+  const img = document.createElement('img');
+  img.src = url || '';
+  img.alt = card?.fileName || 'card';
+  img.style.width = px(325 * scale);
+  img.style.height = px(275 * scale);
+  img.style.objectFit = 'contain';
+  img.style.imageRendering = 'auto';
+  img.draggable = false;
+  return img;
+}
+
+interface CardFrameOpts {
+  highlightGreen?: boolean;
+  highlightRed?: boolean;
+  slideFrom?: number;
+}
+
+function createCardFrame(
+  imageEl: HTMLElement,
+  {
+    highlightGreen = false,
+    highlightRed = false,
+    slideFrom = -100,
+  }: CardFrameOpts = {},
+): HTMLDivElement {
+  const frame = document.createElement('div');
+  frame.className = 'cmp-card-frame';
+  frame.style.position = 'relative';
+  frame.style.display = 'inline-block';
+
+  const border = document.createElement('div');
+  border.style.position = 'absolute';
+  border.style.left = '0';
+  border.style.top = '0';
+  border.style.right = '0';
+  border.style.bottom = '0';
+  border.style.border = '3px solid transparent';
+  border.style.borderRadius = '8px';
+  border.style.pointerEvents = 'none';
+
+  frame.append(imageEl, border);
+
+  slideInNode(frame, slideFrom, 700);
+
+  setTimeout(() => {
+    if (highlightGreen) border.style.borderColor = 'limegreen';
+    else if (highlightRed) border.style.borderColor = 'red';
+  }, 1000);
+
+  return frame;
+}
+
+function hbox(gap = 10, children: (HTMLElement | null | undefined)[] = []): HTMLDivElement {
+  const box = document.createElement('div');
+  box.style.display = 'flex';
+  box.style.flexDirection = 'row';
+  box.style.alignItems = 'center';
+  box.style.justifyContent = 'center';
+  box.style.gap = px(gap);
+  children.forEach(ch => ch && box.append(ch));
+  return box;
+}
+
+function vbox(gap = 10, children: (HTMLElement | null | undefined)[] = []): HTMLDivElement {
+  const box = document.createElement('div');
+  box.style.display = 'flex';
+  box.style.flexDirection = 'column';
+  box.style.alignItems = 'center';
+  box.style.justifyContent = 'center';
+  box.style.gap = px(gap);
+  children.forEach(ch => ch && box.append(ch));
+  return box;
+}
+
+interface ComparisonUIParams {
   attacker: PlayerInfo;
   defender: PlayerInfo;
+  attackingCard1: ComparisonCard | null;
+  attackingCard2: ComparisonCard | null;
+  defendingCard: ComparisonCard | null;
+  attackSuccess: boolean;
+  extraAttackerCard: ComparisonCard | null;
+  extraDefenderCard: ComparisonCard | null;
+  sceneWidth?: number;
 }
 
-export type ComparisonCard = CardView;
+function showComparisonUI({
+  attacker,
+  defender,
+  attackingCard1,
+  attackingCard2,
+  defendingCard,
+  attackSuccess,
+  extraAttackerCard,
+  extraDefenderCard,
+  sceneWidth,
+}: ComparisonUIParams): HTMLElement {
+  const baseWidth = 1200.0;
+  const width =
+    sceneWidth ??
+    (typeof window !== 'undefined' ? window.innerWidth : baseWidth);
+  const scaleFactor = Math.max(0.7, Math.min(1.5, width / baseWidth));
 
-export interface ComparisonDialogGenerator {
-  showSingleComparison(
-    attacker: PlayerInfo,
-    defender: PlayerInfo,
-    attackingCard: ComparisonCard,
-    defendingCard: ComparisonCard,
-    attackSuccess: boolean,
-  ): HTMLElement;
+  const resultMessage = attackSuccess
+    ? 'Attack Successful!'
+    : 'Attack Failed!';
 
-  showTieComparison(
-    attacker: PlayerInfo,
-    defender: PlayerInfo,
-    attackingCard: ComparisonCard,
-    defendingCard: ComparisonCard,
-    extraAttackerCard: ComparisonCard,
-    extraDefenderCard: ComparisonCard,
-  ): HTMLElement;
+  const resultText = createText(resultMessage, {
+    fontSize: 16 * scaleFactor,
+    weight: 'bold',
+    color: 'white',
+  });
 
-  showDoubleComparison(
-    attacker: PlayerInfo,
-    defender: PlayerInfo,
-    attackingCard1: ComparisonCard,
-    attackingCard2: ComparisonCard,
-    defendingCard: ComparisonCard,
-    attackSuccess: boolean,
-  ): HTMLElement;
+  const leftAvatar = getAvatarView(attacker, 0.7 * scaleFactor);
+  const rightAvatar = getAvatarView(defender, 0.7 * scaleFactor);
 
-  showDoubleTieComparison(
-    attacker: PlayerInfo,
-    defender: PlayerInfo,
-    attackingCard1: ComparisonCard,
-    attackingCard2: ComparisonCard,
-    defendingCard: ComparisonCard,
-    extraAttackerCard: ComparisonCard,
-    extraDefenderCard: ComparisonCard,
-  ): HTMLElement;
-}
+  const attackerWins = !!attackSuccess;
+  const leftWins = attackerWins;
+  const rightWins = !attackerWins;
 
-export interface GameContextLike {
-  state?: WebGameState;
-  roles?: RolesView;
-}
+  const leftHighlightGreen = leftWins;
+  const leftHighlightRed = !leftWins;
+  const rightHighlightGreen = rightWins;
+  const rightHighlightRed = !rightWins;
 
-export interface ContextHolderLike {
-  get?(): GameContextLike | WebGameState;
-  state?: WebGameState;
-  roles?: RolesView;
-  [key: string]: unknown;
-}
+  const atkFrame1 = attackingCard1
+    ? createCardFrame(createCardImageView(attackingCard1, 0.7), {
+        highlightGreen: leftHighlightGreen,
+        highlightRed: leftHighlightRed,
+        slideFrom: -100,
+      })
+    : null;
 
-export type AttackActionEventType = 'RegularAttack' | 'DoubleAttack';
+  const atkFrame2 = attackingCard2
+    ? createCardFrame(createCardImageView(attackingCard2, 0.7), {
+        highlightGreen: leftHighlightGreen,
+        highlightRed: leftHighlightRed,
+        slideFrom: -100,
+      })
+    : null;
 
-export interface AttackActionEvent {
-  type: AttackActionEventType;
-  [key: string]: unknown;
-}
+  const extraAtkFrame = extraAttackerCard
+    ? createCardFrame(createCardImageView(extraAttackerCard, 0.7), {
+        highlightGreen: leftHighlightGreen,
+        highlightRed: leftHighlightRed,
+        slideFrom: -100,
+      })
+    : null;
 
-export type ComparisonEventType =
-  | 'ComparedCardsEvent'
-  | 'DoubleComparedCardsEvent'
-  | 'AttackResultEvent'
-  | 'TieComparisonEvent'
-  | 'DoubleTieComparisonEvent';
+  const defFrame = defendingCard
+    ? createCardFrame(createCardImageView(defendingCard, 0.7), {
+        highlightGreen: rightHighlightGreen,
+        highlightRed: rightHighlightRed,
+        slideFrom: 100,
+      })
+    : null;
 
-export interface ComparisonEvent {
-  type: ComparisonEventType;
-  attackingCard?: ComparisonCard;
-  defendingCard?: ComparisonCard;
-  attackingCard1?: ComparisonCard;
-  attackingCard2?: ComparisonCard;
-  extraAttackerCard?: ComparisonCard;
-  extraDefenderCard?: ComparisonCard;
-  attackSuccess?: boolean;
-  [key: string]: unknown;
-}
+  const extraDefFrame = extraDefenderCard
+    ? createCardFrame(createCardImageView(extraDefenderCard, 0.7), {
+        highlightGreen: rightHighlightGreen,
+        highlightRed: rightHighlightRed,
+        slideFrom: 100,
+      })
+    : null;
 
-export interface ComparisonDialogHandlerDeps {
-  controller?: unknown;
-  contextHolder?: ContextHolderLike;
-  overlay?: OverlayLike;
-  onAutoClose?: () => void;
-  generator?: ComparisonDialogGenerator;
-}
+  const winnerPlayer = attackerWins ? attacker : defender;
+  const winnerTextContent = `🏆 Winner: ${toPlayerName(winnerPlayer)}`;
 
-export interface ComparisonDialogHandler {
-  createOverlayAction: (
-    actionEvent: AttackActionEvent | null | undefined,
-  ) => ReturnType<typeof delayed> | null;
-  handleComparisonEvent: (e: ComparisonEvent | null | undefined) => void;
-  resetLastCards: () => void;
-  runOverlayFor: (actionEvent: AttackActionEvent | null | undefined) => {
-    cancel: () => void;
-  };
-  debug: {
-    readonly lastAttackingCard: ComparisonCard | undefined;
-    readonly lastDefendingCard: ComparisonCard | undefined;
-    readonly lastAttackSuccess: boolean | undefined;
-    readonly lastExtraAttackerCard: ComparisonCard | undefined;
-    readonly lastExtraDefenderCard: ComparisonCard | undefined;
-  };
-}
+  const winnerText = createText(winnerTextContent, {
+    fontSize: 30 * scaleFactor,
+    weight: 'bold',
+    color: 'limegreen',
+  });
 
-export function createComparisonDialogHandler({
-  controller,
-  contextHolder,
-  overlay,
-  onAutoClose,
-  generator,
-}: ComparisonDialogHandlerDeps): ComparisonDialogHandler {
-  let lastAttackingCard: ComparisonCard | undefined;
-  let lastAttackingCard1: ComparisonCard | undefined;
-  let lastAttackingCard2: ComparisonCard | undefined;
-  let lastDefendingCard: ComparisonCard | undefined;
-  let lastExtraAttackerCard: ComparisonCard | undefined;
-  let lastExtraDefenderCard: ComparisonCard | undefined;
-  let lastAttackSuccess: boolean | undefined;
+  const leftCards = [atkFrame1, atkFrame2, extraAtkFrame].filter(
+    Boolean,
+  ) as HTMLElement[];
+  const rightCards = [defFrame, extraDefFrame].filter(
+    Boolean,
+  ) as HTMLElement[];
+
+  const leftSpacing = leftCards.length >= 2 ? 5 : 10;
+  const rightSpacing = rightCards.length >= 2 ? 5 : 10;
+
+  const leftCardsBox = hbox(leftSpacing, leftCards);
+  const rightCardsBox = hbox(rightSpacing, rightCards);
+
+  const cardImagesHBox = hbox(20, [leftCardsBox, rightCardsBox]);
+  const cardImagesBox = vbox(10, [cardImagesHBox]);
+
+  if (extraAtkFrame || extraDefFrame) {
+    const tiebreaker = hbox(10, [
+      extraAtkFrame,
+      extraDefFrame,
+    ].filter(Boolean) as HTMLElement[]);
+    cardImagesBox.append(tiebreaker);
+  }
+
+  const cardImagesBoxPadded = vbox(20, [cardImagesBox]);
+  cardImagesBoxPadded.style.padding = '0 80px';
+
+  const playerInfoBox = hbox(10, [
+    vbox(5, [leftAvatar]),
+    cardImagesBoxPadded,
+    vbox(5, [rightAvatar]),
+  ]);
+
+  const root = vbox(10, [playerInfoBox, winnerText, resultText]);
+  root.style.padding = '15px';
+  root.style.borderRadius = '10px';
+  root.style.backgroundColor = 'transparent';
+  root.style.backgroundSize = '100% 100%';
+  root.style.backgroundRepeat = 'no-repeat';
+  root.style.backgroundPosition = 'center';
 
   const scheduler = new UIActionScheduler();
-  const autoCloseMs = 3000;
+  scheduler.runSequence(
+    delayed(0, () => fadeInNode(root, 700)),
+    delayed(1500, () => showWinnerText(winnerText, 500)),
+    delayed(1500, () => showResultText(resultText, 500)),
+  );
 
-  function roles(): Roles {
-    const root = (contextHolder?.get?.() ?? contextHolder) as
-      | GameContextLike
-      | WebGameState
-      | undefined;
+  fadeInNode(root, 700);
 
-    const fromState =
-      (root as GameContextLike)?.state ??
-      (root as WebGameState | undefined);
-
-    const rolesView: RolesView | undefined =
-      fromState?.roles ?? (root as GameContextLike)?.roles;
-
-    const players = fromState?.players;
-
-    const attacker: PlayerInfo =
-      players?.attacker ?? {
-        id: 'att',
-        name: rolesView?.attacker ?? 'Attacker',
-        playerType: 'Human',
-      };
-
-    const defender: PlayerInfo =
-      players?.defender ?? {
-        id: 'def',
-        name: rolesView?.defender ?? 'Defender',
-        playerType: 'Human',
-      };
-
-    return { attacker, defender };
-  }
-
-  function safeShow(
-    node: HTMLElement,
-    opts: { autoHide?: boolean; sizeMult?: number } = {},
-  ): void {
-    if (!overlay || !overlay.show) {
-      console.warn('[overlay] missing overlay instance for comparison dialog');
-      return;
-    }
-
-    const { autoHide = false, sizeMult } = opts;
-
-    overlay.show(node, {
-      autoHide,
-      sizeMult,
-    });
-  }
-
-  function safeHide(): void {
-    if (!overlay || !overlay.hide) return;
-    overlay.hide();
-  }
-
-  function showThenAutoClose(
-    node: HTMLElement,
-    opts: { sizeMult?: number } = {},
-  ): void {
-    const { sizeMult } = opts;
-
-    safeShow(node, { autoHide: false, sizeMult });
-
-    setTimeout(() => {
-      safeHide();
-      onAutoClose?.();
-    }, autoCloseMs);
-  }
-
-  function createOverlayAction(actionEvent: AttackActionEvent | null | undefined) {
-    const { attacker, defender } = roles();
-
-    const gen = generator;
-    if (!gen) {
-      console.warn('[CMP] comparisonDialogHandler: no generator provided');
-      return null;
-    }
-
-    switch (actionEvent?.type) {
-      case 'RegularAttack': {
-        if (!lastAttackingCard || !lastDefendingCard) return null;
-
-        const hasTieExtras = !!(
-          lastExtraAttackerCard && lastExtraDefenderCard
-        );
-
-        return delayed(0, () => {
-          const node = hasTieExtras
-            ? gen.showTieComparison(
-                attacker,
-                defender,
-                lastAttackingCard,
-                lastDefendingCard,
-                lastExtraAttackerCard as ComparisonCard,
-                lastExtraDefenderCard as ComparisonCard,
-              )
-            : gen.showSingleComparison(
-                attacker,
-                defender,
-                lastAttackingCard,
-                lastDefendingCard,
-                lastAttackSuccess ?? false,
-              );
-
-          showThenAutoClose(node, { sizeMult: 1.7 });
-        });
-      }
-
-      case 'DoubleAttack': {
-        if (
-          !lastAttackingCard1 ||
-          !lastAttackingCard2 ||
-          !lastDefendingCard
-        ) {
-          return null;
-        }
-
-        const hasTieExtras = !!(
-          lastExtraAttackerCard && lastExtraDefenderCard
-        );
-
-        return delayed(0, () => {
-          const node = hasTieExtras
-            ? gen.showDoubleTieComparison(
-                attacker,
-                defender,
-                lastAttackingCard1,
-                lastAttackingCard2,
-                lastDefendingCard,
-                lastExtraAttackerCard as ComparisonCard,
-                lastExtraDefenderCard as ComparisonCard,
-              )
-            : gen.showDoubleComparison(
-                attacker,
-                defender,
-                lastAttackingCard1,
-                lastAttackingCard2,
-                lastDefendingCard,
-                lastAttackSuccess ?? false,
-              );
-
-          showThenAutoClose(node, { sizeMult: 1.7 });
-        });
-      }
-
-      default:
-        return null;
-    }
-  }
-
-  function handleComparisonEvent(
-    e: ComparisonEvent | null | undefined,
-  ): void {
-    switch (e?.type) {
-      case 'ComparedCardsEvent':
-        if (e.attackingCard && e.defendingCard) {
-          lastAttackingCard = e.attackingCard;
-          lastDefendingCard = e.defendingCard;
-        }
-        break;
-
-      case 'DoubleComparedCardsEvent':
-        if (e.attackingCard1 && e.attackingCard2 && e.defendingCard) {
-          lastAttackingCard1 = e.attackingCard1;
-          lastAttackingCard2 = e.attackingCard2;
-          lastDefendingCard = e.defendingCard;
-        }
-        break;
-
-      case 'AttackResultEvent':
-        if (typeof e.attackSuccess === 'boolean') {
-          lastAttackSuccess = e.attackSuccess;
-        }
-        break;
-
-      case 'TieComparisonEvent':
-        if (
-          e.attackingCard &&
-          e.defendingCard &&
-          e.extraAttackerCard &&
-          e.extraDefenderCard
-        ) {
-          lastAttackingCard = e.attackingCard;
-          lastDefendingCard = e.defendingCard;
-          lastExtraAttackerCard = e.extraAttackerCard;
-          lastExtraDefenderCard = e.extraDefenderCard;
-        }
-        break;
-
-      case 'DoubleTieComparisonEvent':
-        if (
-          e.attackingCard1 &&
-          e.attackingCard2 &&
-          e.defendingCard &&
-          e.extraAttackerCard &&
-          e.extraDefenderCard
-        ) {
-          lastAttackingCard1 = e.attackingCard1;
-          lastAttackingCard2 = e.attackingCard2;
-          lastDefendingCard = e.defendingCard;
-          lastExtraAttackerCard = e.extraAttackerCard;
-          lastExtraDefenderCard = e.extraDefenderCard;
-        }
-        break;
-
-      default:
-        break;
-    }
-  }
-
-  function resetLastCards(): void {
-    lastAttackingCard =
-      lastAttackingCard1 =
-      lastAttackingCard2 =
-      lastDefendingCard =
-      lastExtraAttackerCard =
-      lastExtraDefenderCard =
-      undefined;
-    lastAttackSuccess = undefined;
-  }
-
-  function runOverlayFor(
-    actionEvent: AttackActionEvent | null | undefined,
-  ) {
-    const action = createOverlayAction(actionEvent);
-    return action ? scheduler.runSequence(action) : { cancel() {} };
-  }
-
-  return {
-    createOverlayAction,
-    handleComparisonEvent,
-    resetLastCards,
-    runOverlayFor,
-    debug: {
-      get lastAttackingCard() {
-        return lastAttackingCard;
-      },
-      get lastDefendingCard() {
-        return lastDefendingCard;
-      },
-      get lastAttackSuccess() {
-        return lastAttackSuccess;
-      },
-      get lastExtraAttackerCard() {
-        return lastExtraAttackerCard;
-      },
-      get lastExtraDefenderCard() {
-        return lastExtraDefenderCard;
-      },
-    },
-  };
+  return root;
 }
+
+/**
+ * Public API matching ComparisonDialogGenerator
+ * (no sceneWidth parameter here; we infer width inside).
+ */
+
+export function showSingleComparison(
+  attacker: PlayerInfo,
+  defender: PlayerInfo,
+  attackingCard: ComparisonCard,
+  defendingCard: ComparisonCard,
+  attackSuccess: boolean,
+): HTMLElement {
+  return showComparisonUI({
+    attacker,
+    defender,
+    attackingCard1: attackingCard,
+    attackingCard2: null,
+    defendingCard,
+    attackSuccess,
+    extraAttackerCard: null,
+    extraDefenderCard: null,
+  });
+}
+
+export function showDoubleComparison(
+  attacker: PlayerInfo,
+  defender: PlayerInfo,
+  attackingCard1: ComparisonCard,
+  attackingCard2: ComparisonCard,
+  defendingCard: ComparisonCard,
+  attackSuccess: boolean,
+): HTMLElement {
+  return showComparisonUI({
+    attacker,
+    defender,
+    attackingCard1,
+    attackingCard2,
+    defendingCard,
+    attackSuccess,
+    extraAttackerCard: null,
+    extraDefenderCard: null,
+  });
+}
+
+export function showTieComparison(
+  attacker: PlayerInfo,
+  defender: PlayerInfo,
+  attackingCard: ComparisonCard,
+  defendingCard: ComparisonCard,
+  extraAttackerCard: ComparisonCard,
+  extraDefenderCard: ComparisonCard,
+): HTMLElement {
+  return showComparisonUI({
+    attacker,
+    defender,
+    attackingCard1: attackingCard,
+    attackingCard2: null,
+    defendingCard,
+    attackSuccess: false,
+    extraAttackerCard,
+    extraDefenderCard,
+  });
+}
+
+export function showDoubleTieComparison(
+  attacker: PlayerInfo,
+  defender: PlayerInfo,
+  attackingCard1: ComparisonCard,
+  attackingCard2: ComparisonCard,
+  defendingCard: ComparisonCard,
+  extraAttackerCard: ComparisonCard,
+  extraDefenderCard: ComparisonCard,
+): HTMLElement {
+  return showComparisonUI({
+    attacker,
+    defender,
+    attackingCard1,
+    attackingCard2,
+    defendingCard,
+    attackSuccess: false,
+    extraAttackerCard,
+    extraDefenderCard,
+  });
+}
+
+// Optional convenience object, if you want an explicit generator object
+export const generator: ComparisonDialogGenerator = {
+  showSingleComparison,
+  showTieComparison,
+  showDoubleComparison,
+  showDoubleTieComparison,
+};

@@ -137,8 +137,8 @@ export function createComparisonOrchestrator({
 }: OrchestratorDeps) {
   let pendingActionType: string | null = null;
   let isOverlayActive = false;
-  let latestStreamWeb: WebGameState | null = null;
 
+  let latestStreamWeb: WebGameState | null = null;
   let lastStableWeb: WebGameState | null = null;
   let preActionWeb: WebGameState | null = null;
 
@@ -148,6 +148,50 @@ export function createComparisonOrchestrator({
     pendingActionType = type;
     preActionWeb = lastStableWeb;
     currentComparison = null;
+    comparisonHandler.resetLastCards();
+  }
+
+  async function applyBufferedStateAfterOverlay() {
+    try {
+      soundManager.play('attack', { volume: 0.7 });
+
+      const fresh =
+        latestStreamWeb || (await api.fetchGameState()) || null;
+
+      latestStreamWeb = null;
+      lastStableWeb = fresh;
+
+      applyUiFromWeb(fresh);
+      updateFromServerContext(fresh);
+    } catch (e) {
+      console.warn('[CMP] applyBufferedStateAfterOverlay failed', e);
+    } finally {
+      comparisonHandler.resetLastCards();
+      currentComparison = null;
+      pendingActionType = null;
+      isOverlayActive = false;
+    }
+  }
+
+  function toCard(raw: any): CardView | null {
+    if (!raw) return null;
+    if (typeof raw.fileName === 'string') {
+      return { ...(raw as CardView) };
+    }
+    if (raw.card && typeof raw.card.fileName === 'string') {
+      return { ...(raw.card as CardView) };
+    }
+    if (typeof raw.id === 'string') {
+      return {
+        id: raw.id,
+        rank: '',
+        suit: '',
+        value: 0,
+        boosted: false,
+        fileName: raw.fileName ?? raw.id,
+      };
+    }
+    return null;
   }
 
   function getAttackAndDefendCardsFromState(
@@ -189,27 +233,6 @@ export function createComparisonOrchestrator({
 
     const defHandLast = last(defHand);
     const defHandPrev = secondLast(defHand);
-
-    function toCard(raw: any): CardView | null {
-      if (!raw) return null;
-      if (typeof raw.fileName === 'string') {
-        return raw as CardView;
-      }
-      if (raw.card && typeof raw.card.fileName === 'string') {
-        return raw.card as CardView;
-      }
-      if (typeof raw.id === 'string') {
-        return {
-          id: raw.id,
-          rank: '',
-          suit: '',
-          value: 0,
-          boosted: false,
-          fileName: raw.fileName ?? raw.id,
-        };
-      }
-      return null;
-    }
 
     const atkCard = toCard(attLast);
     const defCard = toCard(defFieldCard);
@@ -253,19 +276,6 @@ export function createComparisonOrchestrator({
       'hasAction=',
       !!overlayAction,
     );
-
-    const delay =
-      pendingActionType === ActionNames.RegularAttack ||
-      pendingActionType === ActionNames.DoubleAttack
-        ? 0
-        : pendingActionType === ActionNames.Undo ||
-          pendingActionType === ActionNames.Redo ||
-          pendingActionType === ActionNames.BoostDefender ||
-          pendingActionType === ActionNames.BoostGoalkeeper ||
-          pendingActionType === ActionNames.RegularSwap ||
-          pendingActionType === ActionNames.ReverseSwap
-        ? 100
-        : 0;
 
     const seq: { delay: number; block: () => void | Promise<void> }[] = [];
 
@@ -312,8 +322,8 @@ export function createComparisonOrchestrator({
           const node = generator.showSingleComparison(
             attacker,
             defender,
-            atkCard,
-            defCard,
+            { ...atkCard },
+            { ...defCard },
             success ?? false,
             width,
           );
@@ -324,10 +334,6 @@ export function createComparisonOrchestrator({
             overlay?.show?.(node, { autoHide: false });
           }
 
-          setTimeout(() => {
-            if (hostEl?.__hideOverlay) hostEl.__hideOverlay();
-            else overlay?.hide?.();
-          }, 3000);
         },
       });
     } else {
@@ -344,28 +350,9 @@ export function createComparisonOrchestrator({
       console.warn('[CMP] overlayAction null; no currentComparison');
     }
 
-    seq.push({
-      delay: 3000 + delay + 150,
-      block: async () => {
-        try {
-          soundManager.play('attack', { volume: 0.7 });
-          const fresh =
-            latestStreamWeb || (await api.fetchGameState()) || null;
-          latestStreamWeb = null;
-          applyUiFromWeb(fresh);
-          updateFromServerContext(fresh);
-        } catch (e) {
-          console.warn('delayed refresh failed', e);
-        } finally {
-          comparisonHandler.resetLastCards();
-          currentComparison = null;
-          pendingActionType = null;
-          isOverlayActive = false;
-        }
-      },
-    });
-
-    scheduler.runSequence(...seq);
+    if (seq.length > 0) {
+      scheduler.runSequence(...seq);
+    }
   }
 
   function afterServerApply(
@@ -400,8 +387,8 @@ export function createComparisonOrchestrator({
       const cmpEvt = cmp.find(e => e.type === 'ComparedCardsEvent');
       if (cmpEvt?.attackingCard && cmpEvt?.defendingCard) {
         currentComparison = {
-          atkCard: cmpEvt.attackingCard,
-          defCard: cmpEvt.defendingCard,
+          atkCard: { ...(cmpEvt.attackingCard as CardView) },
+          defCard: { ...(cmpEvt.defendingCard as CardView) },
           success: undefined,
         };
       }
@@ -430,7 +417,11 @@ export function createComparisonOrchestrator({
       if (atkCard && defCard) {
         const tie = isSingleTie(atkCard, defCard);
 
-        currentComparison = { atkCard, defCard, success: !tie };
+        currentComparison = {
+          atkCard: { ...(atkCard as CardView) },
+          defCard: { ...(defCard as CardView) },
+          success: !tie,
+        };
 
         comparisonHandler.handleComparisonEvent({
           type: 'ComparedCardsEvent',
@@ -492,8 +483,8 @@ export function createComparisonOrchestrator({
         const tie = isDoubleTie(atkCard1Double, atkCard2Double, defCard);
 
         currentComparison = {
-          atkCard: atkCard2Double,
-          defCard,
+          atkCard: { ...(atkCard2Double as CardView) },
+          defCard: { ...(defCard as CardView) },
           success: !tie,
         };
 
@@ -559,5 +550,6 @@ export function createComparisonOrchestrator({
     setPendingAction,
     afterServerApply,
     handleStreamWeb,
+    applyBufferedStateAfterOverlay,
   };
 }

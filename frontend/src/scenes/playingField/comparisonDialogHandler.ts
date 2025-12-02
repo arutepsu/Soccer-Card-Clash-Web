@@ -1,5 +1,3 @@
-// src/scenes/playingField/comparisonDialogHandler.ts
-
 import type {
   CardView,
   RolesView,
@@ -8,7 +6,7 @@ import type {
 import type { PlayerLike } from '../../types/Player';
 import { UIActionScheduler, delayed } from '../../ui/uiActionScheduler';
 import type { Overlay } from '../../ui/overlay';
-import { ComparisonControllerLike } from '../../types/Comparison';
+import type { ComparisonControllerLike } from '../../types/Comparison';
 
 export type PlayerInfo = PlayerLike;
 
@@ -57,10 +55,8 @@ export interface ComparisonDialogGenerator {
   ): HTMLElement;
 }
 
-// A "game context" that we can query for roles/players.
-// We keep this intentionally loose so it can wrap different shapes.
 export interface GameContextLike {
-  state?: WebGameState | { roles?: RolesView; players?: WebGameState['players'] };
+  state?: { roles?: RolesView };
   roles?: RolesView;
 }
 
@@ -102,8 +98,9 @@ export interface ComparisonDialogHandlerDeps {
   contextHolder?: ContextHolderLike;
   overlay?: Overlay | null;
   onAutoClose?: () => void | Promise<void>;
-  generator?: ComparisonDialogGenerator;
+  generator?: ComparisonDialogGenerator | unknown;
 }
+
 export interface ComparisonDialogHandler {
   createOverlayAction: (
     actionEvent: AttackActionEvent | null | undefined,
@@ -144,34 +141,29 @@ export function createComparisonDialogHandler({
   const autoCloseMs = 3000;
 
   function roles(): Roles {
-    const root = (contextHolder?.get?.() ?? contextHolder) as
-      | GameContextLike
-      | WebGameState
-      | undefined;
+    const root =
+      (contextHolder?.get?.() ?? contextHolder) as
+        | GameContextLike
+        | WebGameState
+        | undefined;
 
-    const fromState =
-      (root as GameContextLike | undefined)?.state ??
-      (root as WebGameState | undefined);
+    const st = root as GameContextLike | undefined;
+    const attackerName =
+      st?.state?.roles?.attacker ?? st?.roles?.attacker ?? 'Attacker';
+    const defenderName =
+      st?.state?.roles?.defender ?? st?.roles?.defender ?? 'Defender';
 
-    const rolesView: RolesView | undefined =
-      (fromState as WebGameState | undefined)?.roles ??
-      (root as GameContextLike | undefined)?.roles;
+    const attacker: PlayerInfo = {
+      id: 'att',
+      name: attackerName,
+      playerType: 'Human',
+    };
 
-    const players = (fromState as WebGameState | undefined)?.players;
-
-    const attacker: PlayerInfo =
-      players?.attacker ?? {
-        id: 'att',
-        name: rolesView?.attacker ?? 'Attacker',
-        playerType: 'Human',
-      };
-
-    const defender: PlayerInfo =
-      players?.defender ?? {
-        id: 'def',
-        name: rolesView?.defender ?? 'Defender',
-        playerType: 'Human',
-      };
+    const defender: PlayerInfo = {
+      id: 'def',
+      name: defenderName,
+      playerType: 'Human',
+    };
 
     return { attacker, defender };
   }
@@ -180,21 +172,17 @@ export function createComparisonDialogHandler({
     node: HTMLElement,
     opts: { autoHide?: boolean; sizeMult?: number } = {},
   ): void {
-    if (!overlay) {
+    if (!overlay || !overlay.show) {
       console.warn('[overlay] missing overlay instance for comparison dialog');
       return;
     }
 
     const { autoHide = false, sizeMult } = opts;
-
-    overlay.show(node, {
-      autoHide,
-      sizeMult,
-    });
+    overlay.show(node, { autoHide, sizeMult });
   }
 
   function safeHide(): void {
-    if (!overlay) return;
+    if (!overlay || !overlay.hide) return;
     overlay.hide();
   }
 
@@ -208,19 +196,29 @@ export function createComparisonDialogHandler({
 
     setTimeout(() => {
       safeHide();
-      // onAutoClose can be sync or async, we don't care here
-      void onAutoClose?.();
+      void onAutoClose?.(); // allow async or sync
     }, autoCloseMs);
   }
 
   function createOverlayAction(
     actionEvent: AttackActionEvent | null | undefined,
-  ) {
+  ): ReturnType<typeof delayed> | null {
     const { attacker, defender } = roles();
 
-    const gen = generator;
-    if (!gen) {
-      console.warn('[CMP] comparisonDialogHandler: no generator provided');
+    const rawGen = generator as any;
+    const gen: ComparisonDialogGenerator | null =
+      rawGen && typeof rawGen === 'object' && 'default' in rawGen
+        ? (rawGen.default as ComparisonDialogGenerator)
+        : (rawGen as ComparisonDialogGenerator | null);
+
+    if (
+      !gen ||
+      typeof gen.showSingleComparison !== 'function' ||
+      typeof gen.showTieComparison !== 'function' ||
+      typeof gen.showDoubleComparison !== 'function' ||
+      typeof gen.showDoubleTieComparison !== 'function'
+    ) {
+      console.warn('[CMP] comparisonDialogHandler: invalid generator', gen);
       return null;
     }
 
@@ -228,26 +226,32 @@ export function createComparisonDialogHandler({
       case 'RegularAttack': {
         if (!lastAttackingCard || !lastDefendingCard) return null;
 
-        const hasTieExtras = !!(
-          lastExtraAttackerCard && lastExtraDefenderCard
-        );
+        const hasTieExtras =
+          !!lastExtraAttackerCard && !!lastExtraDefenderCard;
+
+        // 🔒 SNAPSHOT values *now*
+        const attackingCard = lastAttackingCard;
+        const defendingCard = lastDefendingCard;
+        const extraAttackerCard = lastExtraAttackerCard;
+        const extraDefenderCard = lastExtraDefenderCard;
+        const attackSuccess = lastAttackSuccess ?? false;
 
         return delayed(0, () => {
           const node = hasTieExtras
             ? gen.showTieComparison(
                 attacker,
                 defender,
-                lastAttackingCard,
-                lastDefendingCard,
-                lastExtraAttackerCard as ComparisonCard,
-                lastExtraDefenderCard as ComparisonCard,
+                attackingCard as ComparisonCard,
+                defendingCard as ComparisonCard,
+                extraAttackerCard as ComparisonCard,
+                extraDefenderCard as ComparisonCard,
               )
             : gen.showSingleComparison(
                 attacker,
                 defender,
-                lastAttackingCard,
-                lastDefendingCard,
-                lastAttackSuccess ?? false,
+                attackingCard as ComparisonCard,
+                defendingCard as ComparisonCard,
+                attackSuccess,
               );
 
           showThenAutoClose(node, { sizeMult: 1.7 });
@@ -263,28 +267,34 @@ export function createComparisonDialogHandler({
           return null;
         }
 
-        const hasTieExtras = !!(
-          lastExtraAttackerCard && lastExtraDefenderCard
-        );
+        const hasTieExtras =
+          !!lastExtraAttackerCard && !!lastExtraDefenderCard;
+
+        const attackingCard1 = lastAttackingCard1;
+        const attackingCard2 = lastAttackingCard2;
+        const defendingCard = lastDefendingCard;
+        const extraAttackerCard = lastExtraAttackerCard;
+        const extraDefenderCard = lastExtraDefenderCard;
+        const attackSuccess = lastAttackSuccess ?? false;
 
         return delayed(0, () => {
           const node = hasTieExtras
             ? gen.showDoubleTieComparison(
                 attacker,
                 defender,
-                lastAttackingCard1,
-                lastAttackingCard2,
-                lastDefendingCard,
-                lastExtraAttackerCard as ComparisonCard,
-                lastExtraDefenderCard as ComparisonCard,
+                attackingCard1 as ComparisonCard,
+                attackingCard2 as ComparisonCard,
+                defendingCard as ComparisonCard,
+                extraAttackerCard as ComparisonCard,
+                extraDefenderCard as ComparisonCard,
               )
             : gen.showDoubleComparison(
                 attacker,
                 defender,
-                lastAttackingCard1,
-                lastAttackingCard2,
-                lastDefendingCard,
-                lastAttackSuccess ?? false,
+                attackingCard1 as ComparisonCard,
+                attackingCard2 as ComparisonCard,
+                defendingCard as ComparisonCard,
+                attackSuccess,
               );
 
           showThenAutoClose(node, { sizeMult: 1.7 });
@@ -363,13 +373,13 @@ export function createComparisonDialogHandler({
       lastDefendingCard =
       lastExtraAttackerCard =
       lastExtraDefenderCard =
-      undefined;
+        undefined;
     lastAttackSuccess = undefined;
   }
 
   function runOverlayFor(
     actionEvent: AttackActionEvent | null | undefined,
-  ) {
+  ): { cancel: () => void } {
     const action = createOverlayAction(actionEvent);
     return action ? scheduler.runSequence(action) : { cancel() {} };
   }
