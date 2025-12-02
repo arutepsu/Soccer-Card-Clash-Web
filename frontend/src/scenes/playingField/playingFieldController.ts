@@ -1,37 +1,22 @@
 import type { WebGameState, PlayerLike } from '../../types/WebGameState';
 import type { GameStateLike } from './playingFieldTypes';
-import type { PlayersFieldBar } from '../../components/playersFieldBar'; 
-import type { PlayersHandBar } from '../../components/playersHandBar'; 
+import type { PlayersFieldBar } from '../../components/playersFieldBar';
+import type { PlayersHandBar } from '../../components/playersHandBar';
 import { SceneView } from './sceneMapping';
 
 export interface PlayingFieldApiLike {
-  singleAttackDefender?(index: number): Promise<WebGameState>;
-  singleAttackGoalkeeper?(): Promise<WebGameState>;
-  doubleAttack?(index: number): Promise<WebGameState>;
-  swap?(index: number): Promise<WebGameState>;
-  reverseSwap?(): Promise<WebGameState>;
-  undo?(): Promise<WebGameState>;
-  redo?(): Promise<WebGameState>;
+  singleAttackDefender?(index: number): Promise<WebGameState | null>;
+  singleAttackGoalkeeper?(): Promise<WebGameState | null>;
+  doubleAttack?(index: number): Promise<WebGameState | null>;
+  swap?(index: number): Promise<WebGameState | null>;
+  reverseSwap?(): Promise<WebGameState | null>;
+  undo?(): Promise<WebGameState | null>;
+  redo?(): Promise<WebGameState | null>;
   boost?(
     payload:
       | { target: 'goalkeeper' }
       | { target: 'defender'; index: number },
-  ): Promise<WebGameState>;
-}
-
-export interface PushClientLike {
-  isConnected?(): boolean;
-
-  regularAttack?(
-    target: 'defender' | 'goalkeeper',
-    index: number | null,
-  ): void;
-  doubleAttack?(index: number): void;
-  swap?(index: number): void;
-  reverseSwap?(): void;
-  undo?(): void;
-  redo?(): void;
-  boost?(target: 'goalkeeper' | 'defender', index?: number): void;
+  ): Promise<WebGameState | null>;
 }
 
 export type FieldRenderer = unknown;
@@ -53,10 +38,8 @@ export type AfterServerApplyFn = (
   meta: AfterServerApplyMeta,
 ) => void;
 
-
 export interface CreatePlayingFieldControllerDeps {
-  api?: PlayingFieldApiLike;
-  push?: PushClientLike;
+  api: PlayingFieldApiLike;
 
   fieldRenderer: FieldRenderer;
   handRenderer: HandRenderer;
@@ -82,7 +65,6 @@ export interface CreatePlayingFieldControllerDeps {
 
 export function createPlayingFieldController({
   api,
-  push,
   fieldRenderer,
   handRenderer,
   createPlayersFieldBar,
@@ -102,7 +84,9 @@ export function createPlayingFieldController({
   function mapState(
     webOrMapped: WebGameState | SceneView | null | undefined,
   ): GameStateLike {
-    return mapWebToScene ? mapWebToScene(webOrMapped as WebGameState) : (webOrMapped as any);
+    return mapWebToScene
+      ? mapWebToScene(webOrMapped as WebGameState)
+      : (webOrMapped as any);
   }
 
   function applyWeb(web: WebGameState | null) {
@@ -157,6 +141,7 @@ export function createPlayingFieldController({
     return { players: { attacker, defender } } as SceneView;
   }
 
+
   async function onSingleAttackDefender() {
     if (busy || !defenderFieldBar) return;
 
@@ -166,19 +151,9 @@ export function createPlayingFieldController({
     try {
       busy = true;
 
-      if (push && typeof push.regularAttack === 'function' && push.isConnected?.()) {
-        push.regularAttack('defender', idx);
-
-        afterServerApply?.(null, {
-          action: 'RegularAttack',
-          defenderIndex: idx,
-        });
-        return;
-      }
-
       if (!api || typeof api.singleAttackDefender !== 'function') {
         console.warn(
-          '[PlayingFieldCtrl] No push or api.singleAttackDefender available',
+          '[PlayingFieldCtrl] api.singleAttackDefender not available',
         );
         return;
       }
@@ -200,20 +175,9 @@ export function createPlayingFieldController({
     try {
       busy = true;
 
-      if (push && typeof push.regularAttack === 'function' && push.isConnected?.()) {
-        push.regularAttack('goalkeeper', null);
-
-        afterServerApply?.(null, {
-          action: 'RegularAttack',
-          defenderIndex: null,
-          target: 'goalkeeper',
-        });
-        return;
-      }
-
       if (!api || typeof api.singleAttackGoalkeeper !== 'function') {
         console.warn(
-          '[PlayingFieldCtrl] No push or api.singleAttackGoalkeeper available',
+          '[PlayingFieldCtrl] api.singleAttackGoalkeeper not available',
         );
         return;
       }
@@ -239,18 +203,8 @@ export function createPlayingFieldController({
     try {
       busy = true;
 
-      if (push && typeof push.doubleAttack === 'function' && push.isConnected?.()) {
-        push.doubleAttack(idx);
-
-        afterServerApply?.(null, {
-          action: 'DoubleAttack',
-          defenderIndex: idx,
-        });
-        return;
-      }
-
       if (!api || typeof api.doubleAttack !== 'function') {
-        console.warn('[PlayingFieldCtrl] No push or api.doubleAttack available');
+        console.warn('[PlayingFieldCtrl] api.doubleAttack not available');
         return;
       }
 
@@ -270,17 +224,12 @@ export function createPlayingFieldController({
     if (busy || !attackerHandBar) return;
     const idx = attackerHandBar.selectedHandIndex?.();
     if (idx == null) return;
+
     try {
       busy = true;
 
-      if (push && typeof push.swap === 'function' && push.isConnected?.()) {
-        push.swap(idx);
-        afterServerApply?.(null, { action: 'RegularSwap' });
-        return;
-      }
-
       if (!api || typeof api.swap !== 'function') {
-        console.warn('[PlayingFieldCtrl] No push or api.swap available');
+        console.warn('[PlayingFieldCtrl] api.swap not available');
         return;
       }
 
@@ -297,14 +246,8 @@ export function createPlayingFieldController({
     try {
       busy = true;
 
-      if (push && typeof push.reverseSwap === 'function' && push.isConnected?.()) {
-        push.reverseSwap();
-        afterServerApply?.(null, { action: 'ReverseSwap' });
-        return;
-      }
-
       if (!api || typeof api.reverseSwap !== 'function') {
-        console.warn('[PlayingFieldCtrl] No push or api.reverseSwap available');
+        console.warn('[PlayingFieldCtrl] api.reverseSwap not available');
         return;
       }
 
@@ -320,14 +263,8 @@ export function createPlayingFieldController({
     try {
       busy = true;
 
-      if (push && typeof push.undo === 'function' && push.isConnected?.()) {
-        push.undo();
-        afterServerApply?.(null, { action: 'Undo' });
-        return;
-      }
-
       if (!api || typeof api.undo !== 'function') {
-        console.warn('[PlayingFieldCtrl] No push or api.undo available');
+        console.warn('[PlayingFieldCtrl] api.undo not available');
         return;
       }
 
@@ -343,14 +280,8 @@ export function createPlayingFieldController({
     try {
       busy = true;
 
-      if (push && typeof push.redo === 'function' && push.isConnected?.()) {
-        push.redo();
-        afterServerApply?.(null, { action: 'Redo' });
-        return;
-      }
-
       if (!api || typeof api.redo !== 'function') {
-        console.warn('[PlayingFieldCtrl] No push or api.redo available');
+        console.warn('[PlayingFieldCtrl] api.redo not available');
         return;
       }
 
@@ -368,28 +299,12 @@ export function createPlayingFieldController({
     try {
       busy = true;
 
-      const isGK = sel && sel.kind === 'goalkeeper';
-
-      if (push && typeof push.boost === 'function' && push.isConnected?.()) {
-        if (isGK) {
-          push.boost('goalkeeper');
-          afterServerApply?.(null, { action: 'BoostGoalkeeper' });
-        } else {
-          const idx =
-            sel?.kind === 'defender'
-              ? sel.index
-              : defenderFieldBar.selectedDefenderIndex?.();
-          if (idx == null) return;
-          push.boost('defender', idx);
-          afterServerApply?.(null, { action: 'BoostDefender' });
-        }
-        return;
-      }
-
       if (!api || typeof api.boost !== 'function') {
-        console.warn('[PlayingFieldCtrl] No push or api.boost available');
+        console.warn('[PlayingFieldCtrl] api.boost not available');
         return;
       }
+
+      const isGK = sel && sel.kind === 'goalkeeper';
 
       if (isGK) {
         const web = await api.boost({ target: 'goalkeeper' });
@@ -400,6 +315,7 @@ export function createPlayingFieldController({
             ? sel.index
             : defenderFieldBar.selectedDefenderIndex?.();
         if (idx == null) return;
+
         const web = await api.boost({ target: 'defender', index: idx });
         afterServerApply?.(web, { action: 'BoostDefender' });
       }

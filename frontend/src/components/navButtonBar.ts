@@ -1,6 +1,5 @@
 import { fileIOApi } from '../api/fileIoApi';
 import type { GameApi } from '../api/gameApi';
-import type { PushClient } from '../api/serverPushClient';
 import type { Overlay } from '../ui/overlay';
 
 export interface SoundManager {
@@ -16,7 +15,6 @@ export type SceneEvent =
 export interface NavButtonBarOptions {
   navigate?: NavigateFn;
   api?: GameApi;
-  push?: PushClient;
   overlay?: Overlay | null;
   soundManager?: SoundManager | null;
 }
@@ -26,7 +24,7 @@ export interface NavButtonBar {
 }
 
 export function createNavButtonBar(
-  { navigate, api, push, overlay, soundManager }: NavButtonBarOptions = {},
+  { navigate, api, overlay, soundManager }: NavButtonBarOptions = {},
 ): NavButtonBar {
   let root: HTMLElement | null = null;
   let onEvent: (ev: SceneEvent) => void = () => {};

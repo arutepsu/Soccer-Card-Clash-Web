@@ -1,4 +1,4 @@
-// frontend/src/api/gameEventStream.ts
+import type { WebGameState } from '../types/WebGameState';
 
 export interface StreamHandle {
   type: 'sse' | 'comet' | 'none';
@@ -6,16 +6,14 @@ export interface StreamHandle {
 }
 
 export interface StreamClient {
-  open(onState: (state: any) => void): StreamHandle;
+  open(onState: (state: WebGameState) => void): StreamHandle;
 }
 
-type StateLike = any;
-
-function unwrapToState(msg: any): StateLike {
-  if (!msg) return msg;
-  if (msg.state) return msg.state;
-  if (msg.payload && msg.payload.state) return msg.payload.state;
-  return msg;
+function unwrapToState(msg: any): WebGameState | null {
+  if (!msg) return null;
+  if (msg.state) return msg.state as WebGameState;
+  if (msg.payload && msg.payload.state) return msg.payload.state as WebGameState;
+  return null;
 }
 
 function getEventId(msg: any): number | null {
@@ -29,23 +27,13 @@ function getEventId(msg: any): number | null {
   return null;
 }
 
-/**
- * Creates a unified event stream for game updates.
- *
- * It chooses the best available transport:
- *  1) SSE (/sseEvents) if EventSource is supported
- *  2) Comet long-poll (/cometEvents?lastEventId=...) as a last resort
- *
- * All transports call `onState(WebGameState)` with normalized state objects.
- *
- * NOTE: WebSocket is *not* used here. WS is reserved for commands only.
- */
 export function createGameEventStream(): StreamClient {
   function startSseStream(
-    onState: (state: StateLike) => void,
+    onState: (state: WebGameState) => void,
+    onFatalError: () => void,
   ): StreamHandle | null {
     if (typeof window === 'undefined' || !window.EventSource) {
-      console.warn('[STREAM][SSE] EventSource not available in this environment');
+      console.warn('[STREAM][SSE] EventSource not available');
       return null;
     }
 
@@ -53,8 +41,11 @@ export function createGameEventStream(): StreamClient {
     console.log('[STREAM][SSE] connecting to', url);
 
     const es = new EventSource(url, { withCredentials: true });
+    let closed = false;
+    let gotAnyMessage = false;
 
     es.onmessage = (e: MessageEvent<string>) => {
+      gotAnyMessage = true;
       try {
         const msg = JSON.parse(e.data);
         const state = unwrapToState(msg);
@@ -66,37 +57,61 @@ export function createGameEventStream(): StreamClient {
 
     es.onerror = (e) => {
       console.warn('[STREAM][SSE] error:', e);
+      if (es.readyState === EventSource.CLOSED && !closed) {
+        closed = true;
+        es.close();
+        // Only treat as fatal if we never got a message (e.g. 404/500 at startup)
+        if (!gotAnyMessage) {
+          onFatalError();
+        }
+      }
     };
 
     return {
       type: 'sse',
       close() {
+        closed = true;
         es.close();
       },
     };
   }
 
-  function startCometStream(onState: (state: StateLike) => void): StreamHandle {
+  function startCometStream(
+    onState: (state: WebGameState) => void,
+  ): StreamHandle {
     let aborted = false;
     let lastEventId = 0;
+    let consecutiveErrors = 0;
 
     console.log('[STREAM][COMET] starting long-poll loop');
 
     async function pollOnce() {
+      if (aborted) return;
+
       const url = `/cometEvents?lastEventId=${encodeURIComponent(lastEventId)}`;
       try {
         const res = await fetch(url, {
           method: 'GET',
           credentials: 'same-origin',
-          headers: {
-            Accept: 'application/json',
-          },
+          headers: { Accept: 'application/json' },
         });
 
         if (!res.ok) {
           console.warn('[STREAM][COMET] response not OK:', res.status);
+          consecutiveErrors += 1;
+
+          // If endpoint doesn't exist (404), or keeps failing, stop polling
+          if (res.status === 404 || consecutiveErrors >= 5) {
+            console.warn(
+              '[STREAM][COMET] disabling Comet – endpoint missing or repeatedly failing',
+            );
+            aborted = true;
+          }
           return;
         }
+
+        // success -> reset error counter
+        consecutiveErrors = 0;
 
         const text = await res.text();
         if (!text) return;
@@ -122,13 +137,22 @@ export function createGameEventStream(): StreamClient {
         }
       } catch (err) {
         console.warn('[STREAM][COMET] poll failed:', err);
+        consecutiveErrors += 1;
+        if (consecutiveErrors >= 5) {
+          console.warn(
+            '[STREAM][COMET] disabling Comet – too many polling failures',
+          );
+          aborted = true;
+        }
       }
     }
 
     async function loop() {
       while (!aborted) {
         await pollOnce();
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        if (!aborted) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
       }
     }
 
@@ -142,28 +166,24 @@ export function createGameEventStream(): StreamClient {
     };
   }
 
-  function open(onState: (state: StateLike) => void): StreamHandle {
-    // 1) SSE
-    const sseStream = startSseStream(onState);
-    if (sseStream) {
-      console.log('[STREAM] using SSE /sseEvents');
-      return sseStream;
-    }
+  function open(onState: (state: WebGameState) => void): StreamHandle {
+    let current: StreamHandle | null = null;
 
-    // 2) Fallback to Comet
-    const cometStream = startCometStream(onState);
-    if (cometStream) {
+    const startComet = () => {
+      current = startCometStream(onState);
       console.log('[STREAM] using Comet /cometEvents');
-      return cometStream;
+    };
+
+    // 1) Try SSE first
+    current = startSseStream(onState, startComet);
+    if (current) {
+      console.log('[STREAM] using SSE /sseEvents');
+      return current;
     }
 
-    console.warn(
-      '[STREAM] no streaming transport available; returning dummy handle',
-    );
-    return {
-      type: 'none',
-      close() {},
-    };
+    // 2) If SSE is not available at all, fall back immediately to Comet
+    startComet();
+    return current!;
   }
 
   return { open };

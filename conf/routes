@@ -29,7 +29,6 @@ POST    /api/ai/execute              controllers.GameApiController.executeAI
 POST    /api/save              controllers.TuiController.save()
 GET     /api/show-saves        controllers.TuiController.showSaves()
 POST    /api/load-select/:idx   controllers.TuiController.loadSelect(idx: Int)
-GET     /api/stream             controllers.GameApiController.stream
 
 GET     /api/files/list              controllers.FileIOController.listSavedGames()
 POST    /api/files/load              controllers.FileIOController.loadGameFromFile()
@@ -44,6 +43,6 @@ POST   /api/restart    controllers.UiController.restart
 GET     /assets/*file           controllers.Assets.versioned(path="/public", file: Asset)
 
 GET   /ws/game                 controllers.GamePushController.wsGame
-GET   /sse/events              controllers.GamePushController.sseEvents
-GET   /comet/events            controllers.GamePushController.cometEvents(lastEventId: Long ?= 0)
+GET   /sseEvents               controllers.GamePushController.sseEvents
+GET   /cometEvents             controllers.GamePushController.cometEvents(lastEventId: Long ?= 0)
 POST  /api/push/command        controllers.GamePushController.postCommand()
