@@ -6,22 +6,8 @@
 
 @views.html.components.navBar()
 
-<div class="scene scene--singleplayer is-active" aria-hidden="false">
-  <img class="logo-image"
-       src='@routes.Assets.versioned("images/logo/logo0.5k.png")'
-       alt="Soccer Card Clash Logo" />
+<div id="app"></div>
 
-  <div class="titles">
-    <h1 class="title">Create Players</h1>
-    <p class="subtitle">Enter Player Names</p>
-  </div>
-
-  <input class="inputplayer" type="text" id="p1name" name="player1" placeholder="Player 1" />
-
-  <div class="buttons">
-    <a class="gbtn btn btn-start" href='@routes.UiController.ai()'>Start</a>
-    <a class="gbtn btn btn-back" href='@routes.UiController.mainMenu()'>Back</a>
-  </div>
-</div>
+<script type="module" src='@routes.Assets.versioned("javascripts/app.js")'></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes">

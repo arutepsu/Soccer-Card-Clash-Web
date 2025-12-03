@@ -1,8 +1,8 @@
 // frontend/src/app/router.ts
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 
-import MainMenuView from '../views/MainMenuView.vue';
-import MultiplayerView from '../views/MultiplayerView.vue';
+import MainMenuView from '../views/MainMenuView.vue'
+import MultiplayerView from '../views/MultiPlayerView.vue';
 import SinglePlayerView from '../views/SinglePlayerView.vue';
 import AISelectionView from '../views/AISelectionView.vue';
 import LoadGameView from '../views/LoadGameView.vue';
