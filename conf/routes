@@ -13,6 +13,8 @@ GET     /scene/switch/:to        controllers.UiController.switchScene(to: String
 GET     /scene/current           controllers.UiController.sceneCurrent()
 GET     /rules                   controllers.RulesController.rules
 GET     /rules/full              controllers.FullGameRulesController.fullRules
+GET     /login                   controllers.UiController.loginPage()
+POST    /login                   controllers.UiController.doLogin()
 GET     /tui                     controllers.TuiController.tui
 POST    /tui/submit              controllers.TuiController.submit
 
@@ -29,16 +31,11 @@ POST    /api/ai/execute              controllers.GameApiController.executeAI
 POST    /api/save              controllers.TuiController.save()
 GET     /api/show-saves        controllers.TuiController.showSaves()
 POST    /api/load-select/:idx   controllers.TuiController.loadSelect(idx: Int)
-GET     /api/stream             controllers.GameApiController.stream
 
-# FileIO Endpoints
 GET     /api/files/list              controllers.FileIOController.listSavedGames()
 POST    /api/files/load              controllers.FileIOController.loadGameFromFile()
 POST    /api/files/save              controllers.FileIOController.saveGameToFile()
 DELETE  /api/files/delete            controllers.FileIOController.deleteGameFile()
-
-# Session inspection
-GET     /api/session/keys            controllers.SessionController.keys()
 
 
 POST   /multiplayer/start    controllers.UiController.startMultiplayerGame
@@ -48,6 +45,6 @@ POST   /api/restart    controllers.UiController.restart
 GET     /assets/*file           controllers.Assets.versioned(path="/public", file: Asset)
 
 GET   /ws/game                 controllers.GamePushController.wsGame
-GET   /sse/events              controllers.GamePushController.sseEvents
-GET   /comet/events            controllers.GamePushController.cometEvents(lastEventId: Long ?= 0)
+GET   /sseEvents               controllers.GamePushController.sseEvents
+GET   /cometEvents             controllers.GamePushController.cometEvents(lastEventId: Long ?= 0)
 POST  /api/push/command        controllers.GamePushController.postCommand()
