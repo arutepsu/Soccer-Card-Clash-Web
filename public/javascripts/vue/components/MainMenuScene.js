@@ -14,7 +14,7 @@ export default {
       { label: 'Load Game', href: '/load-game', type: 'link' },
       { label: 'About', type: 'button', action: () => showOverlay.value = true },
       { label: 'Game Information', href: '/rules', type: 'link' },
-      { label: 'Quit', href: '/main-menu', type: 'link' }
+      { label: 'Logout', href: '/login', type: 'link' }
     ];
     const aboutContent = `<p><strong>Soccer Card Clash</strong> is a fast-paced, strategic 2-player card game where soccer meets tactical mind games!</p>
       <p>Each player takes turns attacking and defending using a hand of soccer-themed cards. Every card represents a player with unique strengths. You must outmaneuver your opponent by choosing the right card at the right moment!</p>
