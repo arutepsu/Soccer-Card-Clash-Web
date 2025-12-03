@@ -9,6 +9,7 @@ import * as Multiplayer  from './multiplayerScene';
 import * as SinglePlayer from './singlePlayerScene';
 import * as AISelection  from './aiSelectionScene';
 import * as LoadGame     from './loadGameScene';
+import * as Login        from './loginScene'
 
 import type { SceneBuildContext } from './Scene';
 
@@ -25,6 +26,7 @@ export const SceneSwitchEvent = {
   PlayingField: 'PlayingField',
   AttackerHandCards: 'AttackerHandCards',
   AttackerDefenderCards: 'AttackerDefenderCards',
+  Login: 'Login',
 } as const;
 
 export type SceneId = (typeof SceneSwitchEvent)[keyof typeof SceneSwitchEvent];
@@ -38,4 +40,5 @@ export const SceneRegistry: Record<SceneId, SceneModule> = {
   [SceneSwitchEvent.PlayingField]: PlayingField,
   [SceneSwitchEvent.AttackerHandCards]: AttackerHandCards,
   [SceneSwitchEvent.AttackerDefenderCards]: AttackerDefenderCards,
+  [SceneSwitchEvent.Login]: Login,
 };
