@@ -1,352 +1,316 @@
-import type { WebGameState, PlayerLike } from '../../types/WebGameState';
-import type { SceneBuildContext } from '../Scene';
-import { Scene } from '../Scene';
+// import type { WebGameState, PlayerLike } from '../../types/WebGameState';
+// import type { SceneBuildContext } from '../Scene';
+// import { Scene } from '../Scene';
 
-import { createPlayerAvatarRegistry } from '../../utils/playerAvatarRegistry';
-import { createPlayersBar } from '../../components/playersBar';
-import { createNavButtonBar } from '../../components/navButtonBar';
-import { createActionButtonBar } from '../../components/actionButtonBar';
-import { createCardImageRegistry } from '../../utils/cardImageRegistry';
-import { createDefaultFieldCardRenderer } from '../../components/fieldCardRenderer';
-import { createPlayersFieldBar } from '../../components/playersFieldBar';
-import { createDefaultHandCardRenderer } from '../../components/handCardRenderer';
-import { createPlayersHandBar } from '../../components/playersHandBar';
+// import { createPlayerAvatarRegistry } from '../../utils/playerAvatarRegistry';
+// import { createPlayersBar } from '../../components/playersBar';
+// import { createNavButtonBar } from '../../components/navButtonBar';
+// import { createActionButtonBar } from '../../components/actionButtonBar';
+// import { createCardImageRegistry } from '../../utils/cardImageRegistry';
+// import { createDefaultFieldCardRenderer } from '../../components/fieldCardRenderer';
+// import { createPlayersFieldBar } from '../../components/playersFieldBar';
+// import { createDefaultHandCardRenderer } from '../../components/handCardRenderer';
+// import { createPlayersHandBar } from '../../components/playersHandBar';
 
-import { UIActionScheduler } from '../../ui/uiActionScheduler';
-import type { Overlay } from '../../ui/overlay';
-import { createComparisonDialogHandler } from './comparisonDialogHandler';
-import * as ComparisonDialogGenerator from './comparisonDialogGenerator';
-import {
-  buildSceneViewFromWeb,
-  assignAvatarsFrom,
-} from './sceneMapping';
+// import { UIActionScheduler } from '../../ui/uiActionScheduler';
+// import type { Overlay } from '../../ui/overlay';
+// import { createComparisonDialogHandler } from './comparisonDialogHandler';
+// import * as ComparisonDialogGenerator from './comparisonDialogGenerator';
+// import {
+//   buildSceneViewFromWeb,
+//   assignAvatarsFrom,
+// } from './sceneMapping';
 
-import { createComparisonOrchestrator } from './comparisonOrchestrator';
-import { createPlayingFieldController } from './playingFieldController';
-import { createSoundManager } from '../../utils/soundManager';
-import { GameApi } from '../../api/gameApi';
-import { StreamHandle } from '../../api/gameEventStream';
+// import { createComparisonOrchestrator } from './comparisonOrchestrator';
+// import { createPlayingFieldController } from './playingFieldController';
+// import { createSoundManager } from '../../utils/soundManager';
+// import { GameApi } from '../../api/gameApi';
+// import { StreamHandle } from '../../api/gameEventStream';
 
 
-export class PlayingFieldScene extends Scene {
-  private api: GameApi;
-  private overlay: Overlay | undefined;
-  private createGameAlert: any;
+// export class PlayingFieldScene extends Scene {
+//   private api: GameApi;
+//   private overlay: Overlay | undefined;
+//   private createGameAlert: any;
 
-  private controller: ReturnType<typeof createPlayingFieldController> | null = null;
-  private orchestrator: any;
-  private comparisonHandler: any;
+//   private controller: ReturnType<typeof createPlayingFieldController> | null = null;
+//   private orchestrator: any;
+//   private comparisonHandler: any;
 
-  private playersBar: any;
-  private navBar: any;
-  private actionBar: any;
+//   private playersBar: any;
+//   private navBar: any;
+//   private actionBar: any;
 
-  private avatarRegistry: any;
-  private cardRegistry: any;
-  private soundManager: any;
+//   private avatarRegistry: any;
+//   private cardRegistry: any;
+//   private soundManager: any;
 
-  private streamHandle: StreamHandle | null = null;
+//   private streamHandle: StreamHandle | null = null;
 
-  private lastRoles = { attacker: '', defender: '' };
+//   private lastRoles = { attacker: '', defender: '' };
 
-  constructor(root: HTMLElement, ctx: SceneBuildContext) {
-    super(root);
-    this.api = ctx.api as GameApi;
-    this.overlay = ctx.overlay as Overlay | undefined;
-    this.createGameAlert = ctx.createGameAlert;
-  }
+//   constructor(root: HTMLElement, ctx: SceneBuildContext) {
+//     super(root);
+//     this.api = ctx.api as GameApi;
+//     this.overlay = ctx.overlay as Overlay | undefined;
+//     this.createGameAlert = ctx.createGameAlert;
+//   }
 
-  async build(): Promise<void> {
-    this.avatarRegistry = createPlayerAvatarRegistry({
-      avatarsPath: '/assets/images/players/',
-      fileNames: [
-        'player1.jpg', 'player2.jpg', 'ai.jpg',
-        'taka.jpg', 'defendra.jpg', 'bitstrom.jpg', 'meta.jpg',
-      ],
-    });
+//   async build(): Promise<void> {
+//     this.avatarRegistry = createPlayerAvatarRegistry({
+//       avatarsPath: '/assets/images/players/',
+//       fileNames: [
+//         'player1.jpg', 'player2.jpg', 'ai.jpg',
+//         'taka.jpg', 'defendra.jpg', 'bitstrom.jpg', 'meta.jpg',
+//       ],
+//     });
 
-    this.cardRegistry = createCardImageRegistry();
+//     this.cardRegistry = createCardImageRegistry();
 
-    await Promise.all([
-      this.avatarRegistry.preloadAvatars().catch(() => {}),
-      this.cardRegistry.preloadAll().catch(() => {}),
-    ]);
+//     await Promise.all([
+//       this.avatarRegistry.preloadAvatars().catch(() => {}),
+//       this.cardRegistry.preloadAll().catch(() => {}),
+//     ]);
 
-    const comparison = ComparisonDialogGenerator as any;
-    comparison.configure?.({
-      avatarRegistry: this.avatarRegistry,
-      cardRegistry: this.cardRegistry,
-    });
+//     const comparison = ComparisonDialogGenerator as any;
+//     comparison.configure?.({
+//       avatarRegistry: this.avatarRegistry,
+//       cardRegistry: this.cardRegistry,
+//     });
 
-    this.soundManager = createSoundManager({ basePath: '/assets/sounds/' });
-    this.soundManager.preload('attack', 'attack.wav');
-    this.soundManager.preload('hover', 'hover.wav');
+//     this.soundManager = createSoundManager({ basePath: '/assets/sounds/' });
+//     this.soundManager.preload('attack', 'attack.wav');
+//     this.soundManager.preload('hover', 'hover.wav');
 
-    this.playersBar = createPlayersBar(this.avatarRegistry);
-    this.playersBar.mount(this.root.querySelector('#players-bar'));
+//     this.playersBar = createPlayersBar(this.avatarRegistry);
+//     this.playersBar.mount(this.root.querySelector('#players-bar'));
 
-    this.navBar = createNavButtonBar({
-      api: this.api,
-      overlay: this.overlay ?? null,
-      soundManager: this.soundManager,
-    });
-    this.navBar.mount(this.root.querySelector('#nav-bar') as HTMLElement);
+//     this.navBar = createNavButtonBar({
+//       api: this.api,
+//       overlay: this.overlay ?? null,
+//       soundManager: this.soundManager,
+//     });
+//     this.navBar.mount(this.root.querySelector('#nav-bar') as HTMLElement);
 
-    this.actionBar = createActionButtonBar({ overlay: this.overlay ?? null });
-    this.actionBar.mount(this.root.querySelector('#action-bar') as HTMLElement);
+//     this.actionBar = createActionButtonBar({ overlay: this.overlay ?? null });
+//     this.actionBar.mount(this.root.querySelector('#action-bar') as HTMLElement);
 
-    const fieldRenderer = createDefaultFieldCardRenderer({
-      defeatedImg: this.cardRegistry.getDefeatedImage(),
-    });
+//     const fieldRenderer = createDefaultFieldCardRenderer({
+//       defeatedImg: this.cardRegistry.getDefeatedImage(),
+//     });
 
-    const handRenderer = createDefaultHandCardRenderer();
+//     const handRenderer = createDefaultHandCardRenderer();
 
-    const elField = this.root.querySelector('#field') as HTMLElement;
-    const elHand  = this.root.querySelector('#hand') as HTMLElement;
+//     const elField = this.root.querySelector('#field') as HTMLElement;
+//     const elHand  = this.root.querySelector('#hand') as HTMLElement;
 
-    this.comparisonHandler = createComparisonDialogHandler({
-      controller: null,
-      overlay: this.overlay ?? null,
-      contextHolder: {
-        get: () => ({
-          roles: {
-            attacker: this.lastRoles.attacker,
-            defender: this.lastRoles.defender,
-          },
-        }),
-      },
-      onAutoClose: () => {
-        // ⚠️ orchestration: after dialog closes, apply buffered state
-        this.orchestrator.applyBufferedStateAfterOverlay();
-      },
-      generator: comparison,
-    });
-    function markBoostedCards(st: WebGameState | null): WebGameState | null {
-      if (!st) return st;
+//     this.comparisonHandler = createComparisonDialogHandler({
+//       controller: null,
+//       overlay: this.overlay ?? null,
+//       contextHolder: {
+//         get: () => ({
+//           roles: {
+//             attacker: this.lastRoles.attacker,
+//             defender: this.lastRoles.defender,
+//           },
+//         }),
+//       },
+//       onAutoClose: () => {
+//         // ⚠️ orchestration: after dialog closes, apply buffered state
+//         this.orchestrator.applyBufferedStateAfterOverlay();
+//       },
+//       generator: comparison,
+//     });
 
-      const mark = (c: any) => {
-        if (!c) return null;
-        const boosted =
-          !!c.isBoosted ||
-          !!c.boosted ||
-          c.kind === 'BoostedCard' ||
-          c.type === 'BoostedCard' ||
-          c.cardType === 'BoostedCard';
+//     this.controller = createPlayingFieldController({
+//       api: this.api,
+//       fieldRenderer,
+//       handRenderer,
+//       createPlayersFieldBar,
+//       createPlayersHandBar,
+//       elField,
+//       elHand,
+//       mapWebToScene: (web) => buildSceneViewFromWeb(web, this.cardRegistry),
+//       afterServerApply: (payload, meta) =>
+//         this.orchestrator.afterServerApply(payload, meta),
+//     });
+//     (this.comparisonHandler as any).controller = this.controller;
 
-        return {
-          ...c,
-          isBoosted: boosted,
-        };
-      };
+//     this.orchestrator = createComparisonOrchestrator({
+//       api: this.api,
+//       overlay: this.overlay ?? null,
+//       scheduler: new UIActionScheduler(),
+//       comparisonHandler: this.comparisonHandler,
+//       ActionNames: {
+//         RegularAttack: 'RegularAttack',
+//         DoubleAttack: 'DoubleAttack',
+//         Undo: 'Undo',
+//         Redo: 'Redo',
+//         BoostDefender: 'BoostDefender',
+//         BoostGoalkeeper: 'BoostGoalkeeper',
+//         RegularSwap: 'RegularSwap',
+//         ReverseSwap: 'ReverseSwap',
+//       },
+//       getRoles: () => this.lastRoles,
+//       applyUiFromWeb: (web) => this.applyUiFromWeb(web),
+//       updateFromServerContext: (web) =>
+//         this.controller?.updateFromServerContext(web),
+//       generator: comparison,
+//       soundManager: this.soundManager,
+//     });
 
-      const cards: any = (st as any).cards ?? {};
+//     this.navBar.onSceneEvent((ev: any) => {
+//       if (!ev) return;
+//       if (ev.type === 'PauseDialogAction') {
+//         if (ev.action === 'undo') this.controller?.onUndo?.();
+//         if (ev.action === 'redo') this.controller?.onRedo?.();
+//       }
+//     });
 
-      return {
-        ...(st as any),
-        cards: {
-          ...cards,
-          attackerField: (cards.attackerField ?? []).map((slot: any) => ({
-            ...slot,
-            card: mark(slot?.card),
-          })),
-          defenderField: (cards.defenderField ?? []).map((slot: any) => ({
-            ...slot,
-            card: mark(slot?.card),
-          })),
-          attackerGoalkeeper: mark(cards.attackerGoalkeeper),
-          defenderGoalkeeper: mark(cards.defenderGoalkeeper),
-        },
-      } as WebGameState;
-    }
-    this.controller = createPlayingFieldController({
-      api: this.api,
-      fieldRenderer,
-      handRenderer,
-      createPlayersFieldBar,
-      createPlayersHandBar,
-      elField,
-      elHand,
-      mapWebToScene: (web) => buildSceneViewFromWeb(web, this.cardRegistry),
-      afterServerApply: (payload, meta) =>
-        this.orchestrator.afterServerApply(payload, meta),
-    });
-    (this.comparisonHandler as any).controller = this.controller;
+//     this.actionBar.onClick((action: any) => this.handleActionClick(action));
+//     this.actionBar.onHoverEvent?.((e: any) => {
+//       if (e?.type === 'hover') {
+//         this.soundManager.play('hover', { volume: 0.5 });
+//       }
+//     });
 
-    this.orchestrator = createComparisonOrchestrator({
-      api: this.api,
-      overlay: this.overlay ?? null,
-      scheduler: new UIActionScheduler(),
-      comparisonHandler: this.comparisonHandler,
-      ActionNames: {
-        RegularAttack: 'RegularAttack',
-        DoubleAttack: 'DoubleAttack',
-        Undo: 'Undo',
-        Redo: 'Redo',
-        BoostDefender: 'BoostDefender',
-        BoostGoalkeeper: 'BoostGoalkeeper',
-        RegularSwap: 'RegularSwap',
-        ReverseSwap: 'ReverseSwap',
-      },
-      getRoles: () => this.lastRoles,
-      applyUiFromWeb: (web) => this.applyUiFromWeb(web),
-      updateFromServerContext: (web) =>
-        this.controller?.updateFromServerContext(web),
-      generator: comparison,
-      soundManager: this.soundManager,
-    });
+//     this.streamHandle = this.api.openStream((web: WebGameState) => {
+//       try {
+//         this.orchestrator.handleStreamWeb(web);
+//       } catch (err) {
+//         console.error('[Stream Error]', err);
+//       }
+//     });
+//     try {
+//       const initial = await this.api.fetchGameState();
+//       this.orchestrator.handleStreamWeb(initial);
+//     } catch (err) {
+//       console.error('Initial state fetch failed', err);
+//       if (this.overlay && this.createGameAlert) {
+//         const alert = this.createGameAlert({
+//           message: 'Failed to load game state.',
+//         });
+//         this.overlay.show(alert, { onHide: () => alert.cleanup?.() });
+//       }
+//     }
+//   }
 
-    this.navBar.onSceneEvent((ev: any) => {
-      if (!ev) return;
-      if (ev.type === 'PauseDialogAction') {
-        if (ev.action === 'undo') this.controller?.onUndo?.();
-        if (ev.action === 'redo') this.controller?.onRedo?.();
-      }
-    });
+//   private applyUiFromWeb(web: WebGameState | null): void {
+//     if (!web) return;
 
-    this.actionBar.onClick((action: any) => this.handleActionClick(action));
-    this.actionBar.onHoverEvent?.((e: any) => {
-      if (e?.type === 'hover') {
-        this.soundManager.play('hover', { volume: 0.5 });
-      }
-    });
+//     assignAvatarsFrom(this.avatarRegistry, web);
+//     this.playersBar.updateFromWebState(web);
 
-    this.streamHandle = this.api.openStream((web: WebGameState) => {
-      try {
-        this.orchestrator.handleStreamWeb(web);
-      } catch (err) {
-        console.error('[Stream Error]', err);
-      }
-    });
-    try {
-      const initial = await this.api.fetchGameState();
-      this.orchestrator.handleStreamWeb(initial);
-    } catch (err) {
-      console.error('Initial state fetch failed', err);
-      if (this.overlay && this.createGameAlert) {
-        const alert = this.createGameAlert({
-          message: 'Failed to load game state.',
-        });
-        this.overlay.show(alert, { onHide: () => alert.cleanup?.() });
-      }
-    }
-  }
+//     this.lastRoles.attacker = web.roles.attacker || '';
+//     this.lastRoles.defender = web.roles.defender || '';
 
-  private applyUiFromWeb(web: WebGameState | null): void {
-    if (!web) return;
+//     const avatarBox = this.root.querySelector('#attacker-avatar-box');
+//     if (avatarBox) {
+//       const attackerRef: PlayerLike = {
+//         id: 'att',
+//         name: web.roles.attacker,
+//         playerType: 'Human',
+//       };
 
-    assignAvatarsFrom(this.avatarRegistry, web);
-    this.playersBar.updateFromWebState(web);
+//       avatarBox.innerHTML = `
+//         <span class="attacker-label">Attacker:</span>
+//         <img class="attacker-avatar neon-avatar"
+//              src="${this.avatarRegistry.getAvatarUrl(attackerRef)}" />
+//         <span class="attacker-name">${attackerRef.name ?? ''}</span>
+//       `;
+//     }
+//   }
 
-    this.lastRoles.attacker = web.roles.attacker || '';
-    this.lastRoles.defender = web.roles.defender || '';
+//   private handleActionClick(action: any): void {
+//     const key =
+//       typeof action === 'string'
+//         ? action
+//         : action?.id || action?.type;
 
-    const avatarBox = this.root.querySelector('#attacker-avatar-box');
-    if (avatarBox) {
-      const attackerRef: PlayerLike = {
-        id: 'att',
-        name: web.roles.attacker,
-        playerType: 'Human',
-      };
+//     switch (key) {
+//       case 'attack-regular':
+//       case 'attack-defender':
+//       case 'attack':
+//       case 'single-attack':
+//       case 'singleAttack':
+//         this.orchestrator.setPendingAction('RegularAttack');
+//         this.controller?.onSingleAttackDefender?.();
+//         return;
 
-      avatarBox.innerHTML = `
-        <span class="attacker-label">Attacker:</span>
-        <img class="attacker-avatar neon-avatar"
-             src="${this.avatarRegistry.getAvatarUrl(attackerRef)}" />
-        <span class="attacker-name">${attackerRef.name ?? ''}</span>
-      `;
-    }
-  }
+//       case 'attack-goalkeeper':
+//       case 'attack-gk':
+//       case 'single-attack-gk':
+//         this.orchestrator.setPendingAction('RegularAttack');
+//         this.controller?.onSingleAttackGoalkeeper?.();
+//         return;
 
-  private handleActionClick(action: any): void {
-    const key =
-      typeof action === 'string'
-        ? action
-        : action?.id || action?.type;
+//       case 'double-attack':
+//       case 'attack-double':
+//         this.orchestrator.setPendingAction('DoubleAttack');
+//         this.controller?.onDoubleAttack?.();
+//         return;
 
-    switch (key) {
-      case 'attack-regular':
-      case 'attack-defender':
-      case 'attack':
-      case 'single-attack':
-      case 'singleAttack':
-        this.orchestrator.setPendingAction('RegularAttack');
-        this.controller?.onSingleAttackDefender?.();
-        return;
+//       case 'swap':
+//       case 'swap-regular':
+//         this.orchestrator.setPendingAction('RegularSwap');
+//         this.controller?.onSwapSelected?.();
+//         return;
 
-      case 'attack-goalkeeper':
-      case 'attack-gk':
-      case 'single-attack-gk':
-        this.orchestrator.setPendingAction('RegularAttack');
-        this.controller?.onSingleAttackGoalkeeper?.();
-        return;
+//       case 'swap-reverse':
+//       case 'reverse-swap':
+//         this.orchestrator.setPendingAction('ReverseSwap');
+//         this.controller?.onReverseSwap?.();
+//         return;
 
-      case 'double-attack':
-      case 'attack-double':
-        this.orchestrator.setPendingAction('DoubleAttack');
-        this.controller?.onDoubleAttack?.();
-        return;
+//       case 'boost':
+//       case 'boost-selected':
+//         this.orchestrator.setPendingAction('BoostDefender');
+//         this.controller?.onBoostSelected?.();
+//         return;
 
-      case 'swap':
-      case 'swap-regular':
-        this.orchestrator.setPendingAction('RegularSwap');
-        this.controller?.onSwapSelected?.();
-        return;
+//       case 'undo':
+//         this.orchestrator.setPendingAction('Undo');
+//         this.controller?.onUndo?.();
+//         return;
 
-      case 'swap-reverse':
-      case 'reverse-swap':
-        this.orchestrator.setPendingAction('ReverseSwap');
-        this.controller?.onReverseSwap?.();
-        return;
+//       case 'redo':
+//         this.orchestrator.setPendingAction('Redo');
+//         this.controller?.onRedo?.();
+//         return;
 
-      case 'boost':
-      case 'boost-selected':
-        this.orchestrator.setPendingAction('BoostDefender');
-        this.controller?.onBoostSelected?.();
-        return;
+//       default:
+//         window.dispatchEvent(
+//           new CustomEvent('pf:event', {
+//             detail: { type: 'GameAction', action: key },
+//           }),
+//         );
+//     }
+//   }
 
-      case 'undo':
-        this.orchestrator.setPendingAction('Undo');
-        this.controller?.onUndo?.();
-        return;
+//   refresh(state: WebGameState): void {
+//     this.orchestrator.handleStreamWeb(state);
+//   }
 
-      case 'redo':
-        this.orchestrator.setPendingAction('Redo');
-        this.controller?.onRedo?.();
-        return;
+//   destroy(): void {
+//     try {
+//       this.actionBar.onClick(() => {});
+//     } catch {
+//       // ignore
+//     }
+//     if (this.streamHandle) {
+//       this.streamHandle.close();
+//       this.streamHandle = null;
+//     }
+//   }
+// }
 
-      default:
-        window.dispatchEvent(
-          new CustomEvent('pf:event', {
-            detail: { type: 'GameAction', action: key },
-          }),
-        );
-    }
-  }
+// export async function build(ctx: SceneBuildContext): Promise<PlayingFieldScene> {
+//   const root = document.getElementById('scene-root') as HTMLElement | null;
+//   if (!root) {
+//     throw new Error('[PlayingFieldScene] Missing #scene-root element');
+//   }
 
-  refresh(state: WebGameState): void {
-    this.orchestrator.handleStreamWeb(state);
-  }
-
-  destroy(): void {
-    try {
-      this.actionBar.onClick(() => {});
-    } catch {
-      // ignore
-    }
-    if (this.streamHandle) {
-      this.streamHandle.close();
-      this.streamHandle = null;
-    }
-  }
-}
-
-export async function build(ctx: SceneBuildContext): Promise<PlayingFieldScene> {
-  const root = document.getElementById('scene-root') as HTMLElement | null;
-  if (!root) {
-    throw new Error('[PlayingFieldScene] Missing #scene-root element');
-  }
-
-  const scene = new PlayingFieldScene(root, ctx);
-  await scene.build();
-  return scene;
-}
+//   const scene = new PlayingFieldScene(root, ctx);
+//   await scene.build();
+//   return scene;
+// }

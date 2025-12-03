@@ -1,4 +1,3 @@
-<!-- frontend/src/views/MainMenuView.vue -->
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
@@ -20,10 +19,7 @@ const soundManager: SoundManager = createSoundManager({
 let unlockAudioHandler: ((e: Event) => void) | null = null;
 
 function registerButton(el: HTMLButtonElement | null) {
-  if (!el) return;
-  if (!buttons.value.includes(el)) {
-    buttons.value.push(el);
-  }
+  if (el && !buttons.value.includes(el)) buttons.value.push(el);
 }
 
 function onButtonHover() {
@@ -37,9 +33,7 @@ function onButtonClick() {
 function openAbout() {
   if (!show) return;
 
-  if (!overlayHost.value) {
-    overlayHost.value = document.getElementById('overlay');
-  }
+  if (!overlayHost.value) overlayHost.value = document.getElementById('overlay');
   const host = overlayHost.value;
   if (!host) return;
 
@@ -66,17 +60,12 @@ function onKeydown(e: KeyboardEvent): void {
   switch (e.key) {
     case 'ArrowDown':
     case 'ArrowRight':
-      e.preventDefault();
-      moveFocus(+1);
-      break;
+      e.preventDefault(); moveFocus(+1); break;
     case 'ArrowUp':
     case 'ArrowLeft':
-      e.preventDefault();
-      moveFocus(-1);
-      break;
+      e.preventDefault(); moveFocus(-1); break;
     case 'Escape':
-      hide?.();
-      break;
+      hide?.(); break;
   }
 }
 
@@ -97,13 +86,14 @@ function goLoadGame() {
 
 function onGameInfoClick() {
   onButtonClick();
-  window.location.href = '/rules';
+  router.push({ name: 'Rules' });
 }
 
 function onLogoutClick() {
   onButtonClick();
-  window.location.href = '/logout';
+  router.push({ name: 'Login' });
 }
+
 
 onMounted(() => {
   soundManager.preload('hover', 'hover.wav');
@@ -115,24 +105,19 @@ onMounted(() => {
     window.removeEventListener('keydown', unlockAudioHandler!);
     unlockAudioHandler = null;
   };
+
   window.addEventListener('pointerdown', unlockAudioHandler);
   window.addEventListener('keydown', unlockAudioHandler);
 
-  setTimeout(() => soundManager.debug?.(), 1000);
-
   overlayHost.value = document.getElementById('overlay');
 
-  nextTick(() => {
-    const first = buttons.value[0];
-    first?.focus?.();
-  });
+  nextTick(() => buttons.value[0]?.focus?.());
 });
 
 onUnmounted(() => {
   if (unlockAudioHandler) {
     window.removeEventListener('pointerdown', unlockAudioHandler);
     window.removeEventListener('keydown', unlockAudioHandler);
-    unlockAudioHandler = null;
   }
   buttons.value = [];
 });
@@ -163,7 +148,7 @@ onUnmounted(() => {
                 <button
                   class="gbtn"
                   type="button"
-                  ref="registerButton"
+                  :ref="registerButton"
                   @mouseenter="onButtonHover"
                   @click="goSinglePlayer"
                 >
@@ -173,7 +158,7 @@ onUnmounted(() => {
                 <button
                   class="gbtn"
                   type="button"
-                  ref="registerButton"
+                  :ref="registerButton"
                   @mouseenter="onButtonHover"
                   @click="goMultiplayer"
                 >
@@ -183,7 +168,7 @@ onUnmounted(() => {
                 <button
                   class="gbtn"
                   type="button"
-                  ref="registerButton"
+                  :ref="registerButton"
                   @mouseenter="onButtonHover"
                   @click="goLoadGame"
                 >
@@ -193,7 +178,7 @@ onUnmounted(() => {
                 <button
                   class="gbtn"
                   type="button"
-                  ref="registerButton"
+                   :ref="registerButton"
                   data-open-overlay
                   @mouseenter="onButtonHover"
                   @click="openAbout"
@@ -204,7 +189,7 @@ onUnmounted(() => {
                 <button
                   class="gbtn"
                   type="button"
-                  ref="registerButton"
+                  :ref="registerButton"
                   @mouseenter="onButtonHover"
                   @click="onGameInfoClick"
                 >
@@ -214,7 +199,7 @@ onUnmounted(() => {
                 <button
                   class="gbtn"
                   type="button"
-                  ref="registerButton"
+                  :ref="registerButton"
                   @mouseenter="onButtonHover"
                   @click="onLogoutClick"
                 >

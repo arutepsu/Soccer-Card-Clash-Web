@@ -1,8 +1,9 @@
 // frontend/src/composables/useGameContext.ts
-import { ref, computed, type Ref } from 'vue';
+import { ref, computed, watch, type Ref } from 'vue';
 import type { WebGameState } from '../types/WebGameState';
 import { useAppServices } from '../app/appServices';
-import { useGameStream } from './useGameStream';
+import { useGameStream, type UseGameStreamOptions } from './useGameStream';
+
 
 export interface GameContext {
   state: Ref<WebGameState | null>;
@@ -39,14 +40,18 @@ function ensureStreamStarted() {
   if (streamStarted) return;
   streamStarted = true;
 
-  // We call useGameStream once here, wiring its state into our singleton state.
   const { state: streamState } = useGameStream({ autoStart: true });
 
-  // simple link: whenever streamState changes, copy it into gameState
-  // (we avoid using watch to keep it minimal; the ref object is shared anyway
-  // if you prefer you can just reuse it directly)
-  streamState.value && (gameState.value = streamState.value);
+  // keep gameState in sync with the stream
+  watch(
+    streamState,
+    (next) => {
+      gameState.value = next;
+    },
+    { immediate: true },
+  );
 }
+
 
 /**
  * GameContext composable: central gateway for game state + commands.
