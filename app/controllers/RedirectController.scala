@@ -9,6 +9,6 @@ class RedirectController @Inject()(cc: ControllerComponents)
   extends AbstractController(cc) {
 
   def rootToGame: Action[AnyContent] = Action {
-    Redirect(routes.UiController.mainMenu())
+    Redirect(routes.UiController.loginPage())
   }
 }

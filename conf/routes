@@ -13,6 +13,8 @@ GET     /scene/switch/:to        controllers.UiController.switchScene(to: String
 GET     /scene/current           controllers.UiController.sceneCurrent()
 GET     /rules                   controllers.RulesController.rules
 GET     /rules/full              controllers.FullGameRulesController.fullRules
+GET     /login                   controllers.UiController.loginPage()
+POST    /login                   controllers.UiController.doLogin()
 GET     /tui                     controllers.TuiController.tui
 POST    /tui/submit              controllers.TuiController.submit
 
