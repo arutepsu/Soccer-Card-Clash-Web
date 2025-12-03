@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+
+@()
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -7,123 +8,15 @@
   <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/fullgamerules.css")'>
 </head>
 <body class="scene--fullgamerules">
-<section id="gamerules">
-  <h2>⚽ Game Rules</h2>
-  <ul>
-    <li>🔄 Players alternate roles each round.</li>
-    <li>🃏 The attacker always uses the last card(s) in hand.</li>
-    <li>🛡️ The defender does not act — only endures the attack.</li>
-    <li>🆚 Cards are compared — the stronger card wins.</li>
-    <li>⚠️ Exception: 2 can beat an Ace to maintain fairness.</li>
-    <li>🚫 You can't attack the goalkeeper until all defenders are defeated.</li>
-    <li>🥅 Beating the goalkeeper scores a goal and switches roles.</li>
-  </ul>
-
-  <hr>
-
-  <h3>🗡️ Attack Types</h3>
-  <ul>
-    <li>🔹 <strong>Single Attack</strong><br>
-      Uses the last card in the attacker’s hand.
-    </li>
-    <li>🔸 <strong>Double Attack</strong><br>
-      Uses the last two cards in the attacker’s hand.
-    </li>
-  </ul>
-
-  <hr>
-
-  <h3>🎯 Attack Outcomes</h3>
-  <ul>
-    <li>✅ <strong>Success:</strong><br>
-      Beaten defender(s) are added to the end of the attacker's hand.
-      The attacker continues their turn.
-    </li>
-    <li>❌ <strong>Failure:</strong><br>
-      Roles switch — the defender becomes the new attacker.
-    </li>
-    <li>🤝 <strong>Tie:</strong><br>
-      The next-to-last cards are compared.
-      The stronger pair wins the round.
-    </li>
-  </ul>
-
-  <hr>
-
-  <h3>💥 Boosting</h3>
-  <p>The attacker can boost their own defenders or goalkeeper.<br>
-    Boosting increases card strength based on the boosting card's value:</p>
-
-  <table border="1" cellspacing="0" cellpadding="6">
-    <thead>
-    <tr>
-      <th>Boost Card</th>
-      <th>Boost Value</th>
-    </tr>
-    </thead>
-    <tbody>
-    <tr><td>Two</td><td>+6</td></tr>
-    <tr><td>Three</td><td>+5</td></tr>
-    <tr><td>Four</td><td>+5</td></tr>
-    <tr><td>Five</td><td>+4</td></tr>
-    <tr><td>Six</td><td>+4</td></tr>
-    <tr><td>Seven</td><td>+3</td></tr>
-    <tr><td>Eight</td><td>+3</td></tr>
-    <tr><td>Nine</td><td>+2</td></tr>
-    <tr><td>Ten</td><td>+2</td></tr>
-    <tr><td>Jack</td><td>+1</td></tr>
-    <tr><td>Queen</td><td>+1</td></tr>
-    <tr><td>King</td><td>+1</td></tr>
-    <tr><td>Ace</td><td>+0</td></tr>
-    </tbody>
-  </table>
-
-  <ul>
-    <li>⚠️ Boosting counts as one action per turn.</li>
-    <li>❗ If no actions remain, boosting is disabled and a warning appears.</li>
-    <li>🔁 Whenever a boosted card is moved to a player's hand (whether attacker or defender), its original value is restored.</li>
-  </ul>
-
-  <hr>
-
-  <h3>🔄 Swap Mechanics</h3>
-  <ul>
-    <li>🔁 <strong>Regular Swap:</strong><br>
-      Select a card from your hand and swap it with the last card in your hand.
-    </li>
-    <li>🔃 <strong>Reverse Swap:</strong><br>
-      Instantly reverses the entire hand order.
-    </li>
-  </ul>
-
-  <hr>
-
-  <h3>📌 Notes on Actions</h3>
-  <ul>
-    <li>Every swap (regular or reverse) consumes one action.</li>
-    <li>When all actions are used up, no further actions are allowed for that turn.</li>
-  </ul>
-
-  <hr>
-
-  <h3>🧮 Action Limit</h3>
-  <p>Each turn comes with a limited number of actions. Once you've used all your actions, you won’t be able to perform any more until the next turn.</p>
-
-  <p><strong>📝 Actions that count toward the limit:</strong></p>
-  <ul>
-    <li>🔄 Regular Swap</li>
-    <li>🔁 Reverse Swap</li>
-    <li>⚡ Defender Boost</li>
-    <li>⚡ Goalkeeper Boost</li>
-    <li>⚔️ Double Attack</li>
-  </ul>
-
-  <p>⛔ Once the limit is reached, further actions are blocked for that turn.</p>
-
-  <hr>
-
-  <p><a href='@routes.UiController.mainMenu()'>⬅️ Back to Main Page</a></p>
-</section>
+  <section id="gamerules">
+    <!-- Vue FullGameRules component will be mounted here -->
+  </section>
+  <script type="module">
+    import { initFullGameRulesApp } from '@routes.Assets.versioned("javascripts/vue/FullGameRulesApp.js")';
+    document.addEventListener('DOMContentLoaded', () => {
+      initFullGameRulesApp('#gamerules');
+    });
+  </script>
 </body>
 </html>
 

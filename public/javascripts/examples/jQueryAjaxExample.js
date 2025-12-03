@@ -46,7 +46,7 @@ export function initializeAjaxExample() {
     
     ajaxHelper.post('/api/files/save', gameState)
       .done(function(response) {
-        console.log('✅ Game saved successfully:', response);
+        console.log('Game saved successfully:', response);
         uiUpdater.showNotification('Game saved!', 'success');
       })
       .fail(function(jqXHR, textStatus, errorThrown) {
