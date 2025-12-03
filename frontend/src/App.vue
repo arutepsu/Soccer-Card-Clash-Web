@@ -6,15 +6,14 @@
 
 <template>
   <div class="app-root">
-    <!--
-      This is where all route components render.
-      The <transition> replaces the old WebSceneManager.fadeIn/fadeOut.
-    -->
-    <transition name="fade" mode="out-in">
-      <router-view />
-    </transition>
+    <router-view v-slot="{ Component }">
+      <transition name="fade" mode="out-in">
+        <component :is="Component" />
+      </transition>
+    </router-view>
   </div>
 </template>
+
 
 <style scoped>
 .app-root {

@@ -6,15 +6,15 @@ import {
   createAppServices,
   AppServicesKey,
 } from './app/appServices';
-import { setupGlobalRouterObserver } from './app/globalRouterObserver';
 
 const app = createApp(App);
 
+// create the shared services once
 const services = createAppServices();
+
+// make them available to all components/composables via inject()
 app.provide(AppServicesKey, services);
 
 app.use(router);
-
-setupGlobalRouterObserver(router);
 
 app.mount('#app');
