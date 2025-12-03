@@ -1,5 +1,5 @@
 import { ref } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js';
-import { createSoundManager } from '../../utils/soundManager.js';
+import { createSoundManager } from '../../utils/SoundManager.js';
 
 export default {
   name: 'SaveGameCard',
