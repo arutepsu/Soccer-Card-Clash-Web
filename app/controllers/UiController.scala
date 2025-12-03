@@ -34,7 +34,7 @@ class UiController @Inject()(
     "LoadGame"              -> SceneSwitchEvent.LoadGame,
     "PlayingField"          -> SceneSwitchEvent.PlayingField,
     "AttackerHandCards"     -> SceneSwitchEvent.AttackerHandCards,
-    "AttackerDefenderCards" -> SceneSwitchEvent.AttackerDefenderCards
+    "AttackerDefenderCards" -> SceneSwitchEvent.AttackerDefenderCards,
   )
 
   private val prettyToInternal: Map[String, String] = Map(
@@ -139,6 +139,26 @@ class UiController @Inject()(
           .flashing("error" -> s"Failed to start: ${err.message}")
     }
   }
+  def loginPage(): Action[AnyContent] = Action { implicit req =>
+    Ok(views.html.scenes.login())
+  }
+
+  def doLogin(): Action[AnyContent] = Action { implicit req =>
+    val data = req.body.asFormUrlEncoded.getOrElse(Map.empty)
+    val username = data.get("username").flatMap(_.headOption).getOrElse("")
+    val password = data.get("password").flatMap(_.headOption).getOrElse("")
+
+    if (username.isEmpty || password.isEmpty) {
+      Redirect(routes.UiController.loginPage())
+        .flashing("error" -> "Username and password required")
+    } else {
+      //Fake auth
+      Redirect(routes.UiController.mainMenu())
+        .withSession(req.session + ("username" -> username))
+        .flashing("info" -> s"Welcome, $username")
+    }
+  }
+
 
   def restart: Action[AnyContent] = Action { implicit req =>
     val bodyNames: Option[(String, String)] = for {
