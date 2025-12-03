@@ -113,4 +113,54 @@ html, body {
   }
 }
 
+/* Overlay Styles for Vue Teleport */
+.overlay-frame {
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.65);
+  z-index: 9999;
+  background-image: var(--overlay-bg, none);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  padding: 0;
+}
+.overlay-scroll {
+  max-width: 600px;
+  width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: rgba(0,0,0,0.85);
+  border: 2px solid #7700ff;
+  border-radius: 20px;
+  box-shadow: 0 0 30px rgba(119, 0, 255, 0.6);
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.overlay-content h2 {
+  color: #f3ca04;
+  font-size: 2.2rem;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 20px;
+  text-shadow: 0 0 10px rgba(243, 202, 4, 0.8), 0 4px 8px rgba(0, 0, 0, 0.6);
+}
+.overlay-content p, .overlay-content div {
+  color: #ccc;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin: 15px 0;
+  text-align: center;
+}
+.overlay-content .gbtn {
+  margin-top: 30px !important;
+  width: 80% !important;
+  font-size: 1.2rem !important;
+}
+
 

@@ -170,35 +170,54 @@ export function createNavButtonBar({ navigate, api, push, overlay, soundManager 
 
             cleanup();
 
-            overlay.hide?.();
-            if (previouslyFocused && document.contains(previouslyFocused)) {
-              try {
-                previouslyFocused.focus();
-              } catch {}
-            }
-            const savedMsg = document.createElement('div');
-            savedMsg.className = 'save-notification';
-            savedMsg.textContent = 'Game Saved!';
-            savedMsg.style.cssText = `
-              position: fixed;
-              top: 50%;
-              left: 50%;
-              transform: translate(-50%, -50%);
-              background: #4CAF50;
-              color: white;
-              padding: 20px 40px;
-              border-radius: 10px;
-              font-size: 20px;
-              font-weight: bold;
-              z-index: 10001;
-              box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            // Show success popup
+            const successNode = document.createElement('div');
+            successNode.className = 'overlay-textflow';
+            successNode.setAttribute('role', 'alertdialog');
+            successNode.setAttribute('aria-label', 'Game Saved');
+            successNode.innerHTML = `
+              <div style="text-align: center;">
+                <h2 class="dialog-title" style="color: #ffffffff; margin-bottom: 20px;">Game Saved!</h2>
+                <button class="gbtn" data-close-success style="min-width: 120px;">OK</button>
+              </div>
             `;
-            document.body.appendChild(savedMsg);
 
-            setTimeout(() => {
-              savedMsg.remove();
-              go('/main-menu');
-            }, 1500);
+            const closeSuccess = () => {
+              if (soundManager) {
+                soundManager.play('hover', { volume: 0.6 });
+              }
+              overlay.hide?.();
+              if (previouslyFocused && document.contains(previouslyFocused)) {
+                try {
+                  previouslyFocused.focus();
+                } catch {}
+              }
+            };
+
+            const onSuccessClick = (e) => {
+              if (e.target.closest('[data-close-success]')) {
+                e.stopPropagation();
+                closeSuccess();
+              }
+            };
+
+            const onSuccessKey = (e) => {
+              if (e.key === 'Escape' || e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                closeSuccess();
+              }
+            };
+
+            successNode.addEventListener('click', onSuccessClick);
+            successNode.addEventListener('keydown', onSuccessKey);
+
+            overlay.show(successNode, { autoHide: false });
+
+            const okBtn = successNode.querySelector('[data-close-success]');
+            if (okBtn) {
+              setTimeout(() => okBtn.focus(), 100);
+            }
           })
           .catch((error) => {
             console.error('Save failed:', error);
