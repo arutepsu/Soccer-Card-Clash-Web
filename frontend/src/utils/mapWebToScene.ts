@@ -2,7 +2,7 @@
 import type { WebGameState } from '../types/WebGameState';
 import type { PlayerLike } from '../types/Player';
 import type { CardImageRegistry } from './cardImageRegistry';
-import type { HandCardLike } from '../components/attackerHandBar';
+import type { HandCardLike } from '../types/HandCards';
 
 
 export type EnrichedState = WebGameState & {

@@ -2,8 +2,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from 'vue';
 import { createCardAnimations } from '../utils/cardAnimations';
-import type { SlotLike, FieldCardLike } from '../types/FieldCards';
-import { FieldCardData, FieldSlot } from './fieldCardRenderer';
+import type { SlotLike, FieldCardLike , FieldCardData, FieldSlot} from '../types/FieldCards';
 /**
  * Types from your TS renderer:
  * - FieldCardData { fileName?: string; isBoosted?: boolean; ... }

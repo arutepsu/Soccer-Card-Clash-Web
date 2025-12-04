@@ -1,7 +1,7 @@
 <!-- frontend/src/components/AttackerHand.vue -->
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
-import type { HandCardLike } from '../components/attackerHandBar';
+import type { HandCardLike } from '../types/HandCards';
 
 const props = withDefaults(
   defineProps<{
@@ -109,7 +109,6 @@ function focusCard(index: number) {
 </script>
 
 <template>
-  <!-- root matches old: id="attacker-hand" class="hand-row" -->
   <div
     id="attacker-hand"
     class="hand-row hand-row-inner"

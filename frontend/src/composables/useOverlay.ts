@@ -1,22 +1,27 @@
 // frontend/src/composables/useOverlay.ts
-import { computed } from 'vue';
-import { useAppServices } from '../app/appServices';
-import type { Overlay } from '../ui/overlay';
+import { useOverlayStore } from '../stores/overlayStore';
 
-export function useOverlay(): {
-  overlay: Overlay | null;
-  hasOverlay: boolean;
-  show: Overlay['show'] | null;
-  hide: Overlay['hide'] | null;
-} {
-  const { overlay } = useAppServices();
+export interface OverlayShowOptions {
+  title?: string;
+  message?: string | null;
+  content?: any;
+  props?: Record<string, any> | null;
+}
 
-  const hasOverlay = computed(() => overlay != null).value;
+export function useOverlay() {
+  const store = useOverlayStore();
+
+  function show(opts: OverlayShowOptions) {
+    store.show(opts);
+  }
+
+  function hide() {
+    store.hide();
+  }
 
   return {
-    overlay,
-    hasOverlay,
-    show: overlay?.show?.bind(overlay) ?? null,
-    hide: overlay?.hide?.bind(overlay) ?? null,
+    overlayStore: store,
+    show,
+    hide,
   };
 }

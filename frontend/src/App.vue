@@ -1,7 +1,5 @@
-<!-- frontend/src/App.vue -->
 <script setup lang="ts">
-// no logic needed here (yet)
-// global wiring is done in main.ts (router, appServices, globalRouterObserver)
+import AppOverlay from './components/AppOverlay.vue';
 </script>
 
 <template>
@@ -11,9 +9,9 @@
         <component :is="Component" />
       </transition>
     </router-view>
+    <AppOverlay />
   </div>
 </template>
-
 
 <style scoped>
 .app-root {
@@ -23,7 +21,6 @@
   flex-direction: column;
 }
 
-/* simple cross-fade between routed views */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 250ms ease;

@@ -1,18 +1,15 @@
+<!-- frontend/src/views/PlayingFieldView.vue -->
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
 import { usePlayingField } from '../composables/usePlayingField';
 import PlayersBar from '../components/PlayersBar.vue';
-import NavButtonBar from '../components/NavButtonBar.vue';
+import NavButtonBarContainer from '../components/NavButtonBarContainer.vue';
 import PlayersField from '../components/PlayersField.vue';
 import PlayersHand from '../components/PlayersHand.vue';
 import ActionButtonBar from '../components/ActionButtonBar.vue';
 import { createPlayerAvatarRegistry } from '../utils/playerAvatarRegistry';
 import { useOverlay } from '../composables/useOverlay';
-import { createGameAlert } from '../ui/gameAlertFactory';
 import type { WebGameState } from '../types/WebGameState';
-
-const router = useRouter();
 
 type SelectedTarget =
   | { kind: 'defender'; index: number }
@@ -27,8 +24,6 @@ const {
   attackDefender,
   attackGoalkeeper,
   doubleAttack,
-  undo,
-  redo,
 } = usePlayingField();
 
 const webState = computed(
@@ -50,30 +45,14 @@ const avatarRegistry = createPlayerAvatarRegistry({
 
 const selectedTarget = ref<SelectedTarget>(null);
 
-// overlay composable
-const { show: showOverlay, hide: hideOverlay } = useOverlay();
+const { show, hide } = useOverlay();
 
 function showInfoAlert(message: string) {
-  // Fallback if no overlay service is available
-  if (!showOverlay) {
-    console.warn(
-      '[PlayingFieldView] showOverlay is null – using window.alert fallback',
-    );
-    window.alert(message);
-    return;
-  }
-
-  const el = createGameAlert({
+  show({
+    title: 'Info',
     message,
-    autoHideMs: 2500,
-    onOk: () => {
-      if (hideOverlay) {
-        hideOverlay();
-      }
-    },
+    content: null, // later this can be a dedicated InfoAlert component
   });
-
-  showOverlay(el, { onHide: () => el.cleanup?.() });
 }
 
 // --- selection handlers from PlayersField ---
@@ -107,14 +86,12 @@ async function handleAttackDefender() {
     return;
   }
 
-  // ✅ If goalkeeper is selected, route to goalkeeper attack
   if (sel.kind === 'goalkeeper') {
     console.log('[PlayingFieldView] primary attack routed to goalkeeper');
     await handleAttackGoalkeeper();
     return;
   }
 
-  // ✅ Defender case
   if (sel.kind !== 'defender') {
     showInfoAlert('Pick a defender card to attack.');
     return;
@@ -174,33 +151,8 @@ async function handleDoubleAttack() {
   }
 }
 
-
-async function handleUndo() {
-  await undo();
-}
-
-async function handleRedo() {
-  await redo();
-}
-
 function handleInfo() {
   showInfoAlert('Select a defender or the goalkeeper, then choose an attack.');
-}
-
-function goToDefenders() {
-  router.push({ name: 'AttackerDefenders' });
-}
-
-function goToHand() {
-  router.push({ name: 'AttackerHand' });
-}
-
-function handlePause() {
-  console.log('Pause clicked');
-}
-
-function handleHover(payload: { action: string }) {
-  // optional sound / tooltip
 }
 
 onMounted(async () => {
@@ -225,15 +177,8 @@ onMounted(async () => {
         data-href-defenders="/attacker-defenders"
         data-href-hand="/attacker-hand"
       >
-        <NavButtonBar
-          :busy="busy"
-          @pause="handlePause"
-          @go-defenders="goToDefenders"
-          @go-hand="goToHand"
-          @hover="handleHover"
-          @undo="handleUndo"
-          @redo="handleRedo"
-        />
+        <!-- container handles pause overlay + navigation + sounds -->
+        <NavButtonBarContainer :busy="busy" />
       </nav>
 
       <section id="field" aria-label="Defender Field">
@@ -246,10 +191,8 @@ onMounted(async () => {
           />
         </div>
       </section>
-      <aside
-        id="action-bar"
-        aria-label="Action buttons"
-      >
+
+      <aside id="action-bar" aria-label="Action buttons">
         <ActionButtonBar
           :busy="busy"
           @attack-defender="handleAttackDefender"
@@ -257,17 +200,7 @@ onMounted(async () => {
           @double-attack="handleDoubleAttack"
           @info="handleInfo"
         />
-
-        <!-- DEBUG button -->
-        <button
-          type="button"
-          class="gbtn"
-          @click="() => console.log('[PlayingFieldView] OUTER test button clicked')"
-        >
-          Outer Test
-        </button>
       </aside>
-
     </main>
 
     <footer id="hand-row" aria-label="Attacker Hand and Avatar">
@@ -279,15 +212,5 @@ onMounted(async () => {
         <!-- attacker avatar here later -->
       </section>
     </footer>
-
-    <!-- input blocker currently disabled -->
-    <!--
-    <div
-      id="input-blocker"
-      class="input-blocker"
-      :aria-hidden="busy ? 'false' : 'true'"
-      :class="{ 'is-active': busy }"
-    />
-    -->
   </div>
 </template>

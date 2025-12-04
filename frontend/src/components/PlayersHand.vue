@@ -3,20 +3,13 @@
 import { computed } from 'vue';
 import HandCard from './HandCard.vue';
 import type { SceneView } from '../scenes/playingField/sceneMapping';
-import type { HandCardLike } from './attackerHandBar';
+import type { HandCardLike } from '../types/HandCards';
 
 const props = defineProps<{
   scene: SceneView | null;
   busy?: boolean;
 }>();
 
-/**
- * Extract the attacker's hand from the scene view.
- * We mirror the flexible reading from the old TS:
- * - scene.gameCards.hands.att
- * - or scene.cards.hands.att
- * - or scene.cards.attackerHand
- */
 const attackerHand = computed<HandCardLike[]>(() => {
   const s: any = props.scene;
   if (!s) return [];
@@ -29,10 +22,6 @@ const attackerHand = computed<HandCardLike[]>(() => {
   return (fromHands ?? []) as HandCardLike[];
 });
 
-/**
- * Simple overlap heuristic (px).
- * If you want to be closer to the old dynamic renderer, we can refine this later.
- */
 const overlap = computed(() => {
   const n = attackerHand.value.length;
   if (n <= 1) return 0;

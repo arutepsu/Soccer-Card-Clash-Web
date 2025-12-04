@@ -1,11 +1,5 @@
 <!-- frontend/src/components/NavButtonBar.vue -->
 <script setup lang="ts">
-/**
- * Vue version of the old createNavButtonBar.
- * - No jQuery
- * - No direct overlay / API / navigation
- * - Just emits semantic events to the parent.
- */
 
 const props = defineProps<{
   busy?: boolean;
@@ -19,9 +13,11 @@ const emit = defineEmits<{
 }>();
 
 function onPauseClick() {
+  console.log('[NavButtonBar] Pause clicked, busy=', props.busy);
   if (props.busy) return;
   emit('pause');
 }
+
 
 function onShowDefendersClick() {
   if (props.busy) return;
@@ -40,7 +36,6 @@ function onHover(action: string) {
 </script>
 
 <template>
-  <!-- Mirrors old <nav id="nav-bar"> inner buttons -->
   <div class="nav-button-bar">
     <button
       class="gbtn"

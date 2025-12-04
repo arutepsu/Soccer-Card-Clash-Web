@@ -34,7 +34,6 @@ function onBack() {
 </script>
 
 <template>
-  <!-- Mirrors old .scene__buttons wrapper -->
   <div
     class="scene__buttons"
     role="group"
@@ -61,7 +60,6 @@ function onBack() {
       Info
     </button>
 
-    <!-- Back was an <a>, but we keep id+class and let Vue/router handle nav -->
     <button
       id="btn-back"
       class="gbtn"

@@ -1,4 +1,4 @@
-import { AvatarRegistry } from '../../components/attackerBar';
+import { PlayerAvatarRegistry } from '../../utils/playerAvatarRegistry';
 import type {
   WebGameState,
   PlayerLike,
@@ -11,6 +11,8 @@ export interface ScenePlayerView extends PlayerLike {
   score?: number;
   actionStates?: ActionLimitsView;
 }
+export type AvatarRegistry = PlayerAvatarRegistry;
+
 export interface SceneCardsView {
   attackerHand: CardView[];
   defenderHand: CardView[];

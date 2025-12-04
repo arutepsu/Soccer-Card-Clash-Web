@@ -2,7 +2,6 @@
   title: String = "About the Game",
   messageHtml: Html = Html(""),
   bgImagePath: String = "images/frames/overlay.png",
-  // safe-area insets (percentages) for the scroll window inside the frame
   safeTop: String = "8%",
   safeRight: String = "6%",
   safeBottom: String = "12%",
@@ -28,16 +27,7 @@
        '>
 
     <div class="overlay-scroll">
-      <div class="overlay-textflow">
-        <div class="dialog-title">@title</div>
-        <div class="dialog-message">
-          @messageHtml
-        </div>
-
-        <div class="overlay-actions">
-            <button class="gbtn" type="button" data-close-overlay>Close</button>
-        </div>
-
+      <div class="overlay-textflow" id="vue-overlay-content">
       </div>
     </div>
   </div>

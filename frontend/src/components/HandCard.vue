@@ -1,14 +1,14 @@
 <!-- frontend/src/components/HandCard.vue -->
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { HandCardLike } from '../components/attackerHandBar';
+import type { HandCardLike } from '../types/HandCards';
 
 const props = defineProps<{
   card: HandCardLike;
   index: number;
-  overlap: number;              // negative px for overlap
+  overlap: number;
   selected?: boolean;
-  clickable?: boolean;          // NEW: allow read-only cards
+  clickable?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -77,6 +77,5 @@ function onSelect() {
 }
 
 .hand-card--readonly {
-  /* subtle: no hover pop, maybe a slight dim if you like */
 }
 </style>

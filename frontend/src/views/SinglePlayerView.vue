@@ -1,13 +1,13 @@
 <!-- frontend/src/views/SinglePlayerView.vue -->
+
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { createSoundManager, type SoundManager } from '../utils/soundManager';
 import { useOverlay } from '../composables/useOverlay';
-import { createGameAlert } from '../ui/gameAlertFactory';
 
 const router = useRouter();
-const { show: showOverlay } = useOverlay();
+const { show, hide } = useOverlay();
 
 const playerName = ref('');
 const busy = ref(false);
@@ -28,12 +28,15 @@ function onButtonClick() {
 }
 
 function showAlert(msg: string): void {
-  if (showOverlay) {
-    const el = createGameAlert({ message: msg });
-    showOverlay(el, { onHide: () => el.cleanup?.() });
-  } else {
-    alert(msg);
-  }
+  show({
+    title: 'Info',
+    message: msg,
+    content: null,
+  });
+
+  window.setTimeout(() => {
+    hide();
+  }, 2500);
 }
 
 function getHumanName(): string {

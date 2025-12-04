@@ -8,12 +8,12 @@ import AttackerBar from '../components/AttackerBar.vue';
 import AttackerDefenders from '../components/AttackerDefenders.vue';
 import FieldControls from '../components/FieldControls.vue';
 import { createPlayerAvatarRegistry } from '../utils/playerAvatarRegistry';
-import { createGameAlert } from '../ui/gameAlertFactory';
 import type { WebGameState } from '../types/WebGameState';
 
-
 const router = useRouter();
-const { show: showOverlay, hide: hideOverlay } = useOverlay();
+
+// ✅ new store-based overlay
+const { show, hide } = useOverlay();
 
 const {
   gameContext,
@@ -44,12 +44,17 @@ const avatarRegistry = createPlayerAvatarRegistry({
 });
 
 function showAlert(message: string, autoHideMs = 3000) {
-  const el = createGameAlert({
+  show({
+    title: 'Info',
     message,
-    autoHideMs,
-    onOk: () => hideOverlay(),
+    content: null,
   });
-  showOverlay(el, { onHide: () => el.cleanup?.() });
+
+  if (autoHideMs > 0) {
+    window.setTimeout(() => {
+      hide();
+    }, autoHideMs);
+  }
 }
 
 async function onBoost() {
@@ -68,11 +73,14 @@ async function onBoost() {
 }
 
 function onInfo() {
-  showAlert('Boost temporarily increases the selected defender or goalkeeper.', 3000);
+  showAlert(
+    'Boost temporarily increases the selected defender or goalkeeper.',
+    3000,
+  );
 }
 
 function onBack() {
-  router.push({ name: 'PlayingField' }); // adjust route name if needed
+  router.push({ name: 'PlayingField' });
 }
 
 onMounted(async () => {
@@ -91,7 +99,7 @@ onMounted(async () => {
       class="scene-header"
     >
       <AttackerBar
-        :web="webState" 
+        :web="webState"
         :avatarRegistry="avatarRegistry"
       />
     </section>
