@@ -1,6 +1,6 @@
 <!-- frontend/src/views/MultiplayerView.vue -->
 
-<!-- wire leater the startMultiplayer from api! -->
+<!-- wire leater the startMultiplayer from api, now just restart is used -->
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -8,7 +8,7 @@ import { createSoundManager, type SoundManager } from '../utils/soundManager';
 import { setPlayers } from '../utils/playerSideRegistry';
 import { useOverlay } from '../composables/useOverlay';
 import { useGameContext } from '../composables/useGameContext';
-import { createGameAlert } from '../ui/gameAlert';
+import { createGameAlert } from '../ui/gameAlertFactory';
 
 const router = useRouter();
 const game = useGameContext();

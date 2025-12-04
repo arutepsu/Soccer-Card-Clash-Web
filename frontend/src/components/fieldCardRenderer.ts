@@ -105,7 +105,6 @@ export function createDefaultFieldCardRenderer(
     el.style.backgroundSize = 'cover';
     el.style.backgroundPosition = 'center';
 
-    // 🔥 central boost detection & animation
     if (isBoostedCard(data)) {
       anim.applyBoostEffect(el);
     } else {

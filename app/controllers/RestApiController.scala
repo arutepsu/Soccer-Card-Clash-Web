@@ -22,6 +22,16 @@ import de.htwg.se.soccercardclash.controller.contextHolder.IGameContextHolder
 import controllers.dto._
 import de.htwg.se.soccercardclash.util.AIAction
 import app.api.services.GameEventHub
+import scala.util.Try
+import app.models.state.WebGameState
+import app.models.AppError
+final case class GameRestartDto(
+    attackerName: Option[String],
+    defenderName: Option[String],
+)
+object GameRestartDto {
+    implicit val reads: Reads[GameRestartDto] = Json.reads[GameRestartDto]
+}
 
 @Singleton
 class GameApiController @Inject()(
@@ -40,6 +50,12 @@ class GameApiController @Inject()(
     final case class DefenderAt(index: Int) extends AttackTarget
     case object Goalkeeper extends AttackTarget
   }
+
+  private def getOrCreateSid(req: RequestHeader): GameSessionId =
+    req.session.get("sid") match {
+      case Some(raw) => GameSessionId(raw)
+      case None      => GameSessionId(java.util.UUID.randomUUID().toString)
+    }
 
   private def withSid(f: GameSessionId => Result)(implicit req: RequestHeader): Result =
     req.session.get("sid") match {
@@ -243,5 +259,55 @@ class GameApiController @Inject()(
         }
       )
     }
+  }
+    // 🔹 NEW: restart endpoint for SPA
+  /** Restart / create a new game for the current session.
+    *
+    * JSON body: { "attackerName": "...", "defenderName": "..." } (both optional)
+    * Falls back to previous game names, then "Player 1"/"Player 2".
+    * Returns a plain WebGameState and sets/keeps the `sid` cookie.
+    */
+  def restart: Action[JsValue] = Action(parse.json) { implicit req =>
+    // 1) read optional names from JSON
+    val bodyDto: Option[GameRestartDto] =
+      req.body.validate[GameRestartDto].asOpt
+
+    val bodyNames: Option[(String, String)] = for {
+      dto  <- bodyDto
+      att  <- dto.attackerName.filter(_.nonEmpty)
+      defn <- dto.defenderName.filter(_.nonEmpty)
+    } yield (att, defn)
+
+    // 2) or reuse names from previous context, if any
+    val prevNames: Option[(String, String)] =
+      Try {
+        val ctx = gameUseCases.holder.get
+        (ctx.state.getRoles.attacker.name, ctx.state.getRoles.defender.name)
+      }.toOption
+
+    // 3) otherwise defaults
+    val (attackerName, defenderName) =
+      bodyNames.orElse(prevNames).getOrElse(("Player 1", "Player 2"))
+
+    // 4) clear previous context
+    gameUseCases.holder.clear()
+
+    // 5) get or create sid and create game
+    val sid = getOrCreateSid(req)
+
+    val createdWeb: Either[AppError, WebGameState] =
+      gameUseCases.createGame(attackerName, defenderName, sid)
+
+    createdWeb.fold(
+      err =>
+        InternalServerError(Json.obj("error" -> err.message)),
+
+      web => {
+        eventHub.publish(sid, web)
+        Ok(Json.toJson(web))
+          .as(JSON)
+          .addingToSession("sid" -> sid.value)
+      }
+    )
   }
 }

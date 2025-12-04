@@ -128,6 +128,16 @@ export function createGameApi(options: CreateGameApiOptions = {}): GameApi {
     return getJSON<WebGameState>('/api/state');
   }
 
+  // function restart(
+  //   attackerName?: string | null,
+  //   defenderName?: string | null,
+  // ): Promise<WebGameState | null> {
+  //   const body: Record<string, unknown> = {};
+  //   if (attackerName) body.attackerName = attackerName;
+  //   if (defenderName) body.defenderName = defenderName;
+
+  //   return commandWithWsFallback('restart', '/api/restart', body);
+  // }
   function restart(
     attackerName?: string | null,
     defenderName?: string | null,
@@ -136,8 +146,11 @@ export function createGameApi(options: CreateGameApiOptions = {}): GameApi {
     if (attackerName) body.attackerName = attackerName;
     if (defenderName) body.defenderName = defenderName;
 
-    return commandWithWsFallback('restart', '/api/restart', body);
+    // NEW endpoint in GameApiController, no wrapper, just WebGameState
+    return postJSON<WebGameState>('/api/game/restart', body);
   }
+
+
 
   function singleAttackDefender(
     index: number | string,
