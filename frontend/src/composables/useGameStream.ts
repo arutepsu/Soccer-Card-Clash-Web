@@ -29,7 +29,9 @@ export function useGameStream(
   function start(): void {
     if (handle) return;
 
+    console.log('[useGameStream] starting stream');
     handle = api.openStream((nextState) => {
+      console.log('[useGameStream] received state from stream:', nextState);
       state.value = nextState;
     });
   }

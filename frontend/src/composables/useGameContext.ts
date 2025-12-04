@@ -1,9 +1,8 @@
 // frontend/src/composables/useGameContext.ts
 import { ref, computed, watch, type Ref } from 'vue';
 import type { WebGameState } from '../types/WebGameState';
-import { useAppServices } from '../app/appServices';
-import { useGameStream, type UseGameStreamOptions } from './useGameStream';
-
+import { setCurrentPlayerId, useAppServices } from '../app/appServices';
+import { useGameStream } from './useGameStream';
 
 export interface GameContext {
   state: Ref<WebGameState | null>;
@@ -42,16 +41,17 @@ function ensureStreamStarted() {
 
   const { state: streamState } = useGameStream({ autoStart: true });
 
-  // keep gameState in sync with the stream
+  // keep gameState in sync with the stream (e.g. for spectators, async updates)
   watch(
     streamState,
     (next) => {
-      gameState.value = next;
+      if (next) {
+        gameState.value = next;
+      }
     },
     { immediate: true },
   );
 }
-
 
 /**
  * GameContext composable: central gateway for game state + commands.
@@ -69,8 +69,12 @@ export function useGameContext(): GameContext {
     error.value = null;
     try {
       const next = await fn();
+      console.log('[GameContext] safeUpdate result from API:', next);
       if (next) {
+        console.log('[GameContext] updating gameState');
         gameState.value = next;
+      } else {
+        console.log('[GameContext] next is null, not updating gameState');
       }
     } catch (err: any) {
       console.error('[useGameContext] command failed:', err);
@@ -80,27 +84,30 @@ export function useGameContext(): GameContext {
     }
   }
 
-async function init(): Promise<void> {
-  if (initialized.value) return;
 
-  loading.value = true;
-  error.value = null;
+  async function init(): Promise<void> {
+    if (initialized.value) return;
 
-  try {
-    const next = await api.restart('Player 1', 'Player 2');
-    if (next) {
-      gameState.value = next;
+    loading.value = true;
+    error.value = null;
+
+    try {
+      
+      // 👍 Use restart response to seed gameState
+      const next = await api.restart('Player 1', 'Player 2');
+        const pid = (next as any).roles?.attacker?.id ?? 'frontend';
+          setCurrentPlayerId(pid);
+      if (next) {
+        gameState.value = next;
+      }
+      initialized.value = true;
+    } catch (err: any) {
+      console.error('[useGameContext] init failed:', err);
+      error.value = err?.message ?? String(err);
+    } finally {
+      loading.value = false;
     }
-    initialized.value = true;
-  } catch (err: any) {
-    console.error('[useGameContext] init failed:', err);
-    error.value = err?.message ?? String(err);
-  } finally {
-    loading.value = false;
   }
-}
-
-
 
   return {
     state: gameState,
@@ -112,7 +119,9 @@ async function init(): Promise<void> {
     init,
 
     restart(attackerName?: string | null, defenderName?: string | null) {
-      return safeUpdate(() => api.restart(attackerName ?? null, defenderName ?? null));
+      return safeUpdate(() =>
+        api.restart(attackerName ?? null, defenderName ?? null),
+      );
     },
 
     singleAttackDefender(index: number | string) {

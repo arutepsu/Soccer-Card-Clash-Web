@@ -1,6 +1,6 @@
-<!-- frontend/src/views/PlayingFieldView.vue -->
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { usePlayingField } from '../composables/usePlayingField';
 import PlayersBar from '../components/PlayersBar.vue';
 import NavButtonBar from '../components/NavButtonBar.vue';
@@ -10,9 +10,7 @@ import ActionButtonBar from '../components/ActionButtonBar.vue';
 import { createPlayerAvatarRegistry } from '../utils/playerAvatarRegistry';
 import { useOverlay } from '../composables/useOverlay';
 import { createGameAlert } from '../ui/gameAlertFactory';
-import { WebGameState } from '../types/WebGameState';
-import { useRouter } from 'vue-router';
-
+import type { WebGameState } from '../types/WebGameState';
 
 const router = useRouter();
 
@@ -33,7 +31,10 @@ const {
   redo,
 } = usePlayingField();
 
-const webState = computed(() => gameContext.state.value as WebGameState | null);
+const webState = computed(
+  () => gameContext.state.value as WebGameState | null,
+);
+
 const avatarRegistry = createPlayerAvatarRegistry({
   avatarsPath: '/assets/images/players/',
   fileNames: [
@@ -49,18 +50,56 @@ const avatarRegistry = createPlayerAvatarRegistry({
 
 const selectedTarget = ref<SelectedTarget>(null);
 
+// overlay composable
 const { show: showOverlay, hide: hideOverlay } = useOverlay();
 
 function showInfoAlert(message: string) {
+  // Fallback if no overlay service is available
+  if (!showOverlay) {
+    console.warn(
+      '[PlayingFieldView] showOverlay is null – using window.alert fallback',
+    );
+    window.alert(message);
+    return;
+  }
+
   const el = createGameAlert({
     message,
     autoHideMs: 2500,
-    onOk: () => hideOverlay(),
+    onOk: () => {
+      if (hideOverlay) {
+        hideOverlay();
+      }
+    },
   });
+
   showOverlay(el, { onHide: () => el.cleanup?.() });
 }
 
+// --- selection handlers from PlayersField ---
+
+function handleDefenderSelected(index: number | null) {
+  if (index == null) {
+    selectedTarget.value = null;
+  } else {
+    selectedTarget.value = { kind: 'defender', index };
+  }
+  console.log('[PlayingFieldView] defender-selected ->', selectedTarget.value);
+}
+
+function handleGoalkeeperSelected(selected: boolean) {
+  selectedTarget.value = selected ? { kind: 'goalkeeper' } : null;
+  console.log('[PlayingFieldView] goalkeeper-selected ->', selectedTarget.value);
+}
+
+// --- buttons -> usePlayingField ---
+
 async function handleAttackDefender() {
+  console.log(
+    '[PlayingFieldView] handleAttackDefender, selectedTarget:',
+    selectedTarget.value,
+  );
+
   const sel = selectedTarget.value;
   if (!sel || sel.kind !== 'defender') {
     showInfoAlert('Pick a defender card to attack.');
@@ -68,22 +107,21 @@ async function handleAttackDefender() {
   }
   try {
     await attackDefender(sel.index);
-    selectedTarget.value = null;
   } catch (err: any) {
-    if (err?.code === 'NO_DEFENDER_SELECTED') {
-      showInfoAlert('Pick a defender card to attack.');
-    } else {
-      showInfoAlert('Attack failed. Please try again.');
-    }
+    console.error('[PlayingFieldView] attackDefender error:', err);
+    showInfoAlert('Attack failed. Please try again.');
+  } finally {
+    selectedTarget.value = null;
   }
 }
 
 async function handleAttackGoalkeeper() {
   try {
     await attackGoalkeeper();
-    selectedTarget.value = null;
   } catch {
     showInfoAlert('Goalkeeper attack failed. Please try again.');
+  } finally {
+    selectedTarget.value = null;
   }
 }
 
@@ -95,9 +133,10 @@ async function handleDoubleAttack() {
   }
   try {
     await doubleAttack(sel.index);
-    selectedTarget.value = null;
   } catch {
     showInfoAlert('Double attack failed. Please try again.');
+  } finally {
+    selectedTarget.value = null;
   }
 }
 
@@ -122,12 +161,11 @@ function goToHand() {
 }
 
 function handlePause() {
-  console.log("Pause clicked");
-  // optional pause overlay or logic
+  console.log('Pause clicked');
 }
 
 function handleHover(payload: { action: string }) {
-  // optional sound effect or tooltip
+  // optional sound / tooltip
 }
 
 onMounted(async () => {
@@ -135,25 +173,17 @@ onMounted(async () => {
   console.log('[PlayingFieldView] webState after init:', webState.value);
   console.log('[PlayingFieldView] sceneView after init:', sceneView.value);
 });
-
 </script>
 
 <template>
-  <div
-    class="scene scene--playingfield is-active"
-    aria-live="polite"
-  >
-    <!-- playersBar was directly under .scene before -->
+  <div class="scene scene--playingfield is-active" aria-live="polite">
     <PlayersBar
       v-if="webState"
       :web="webState"
       :avatarRegistry="avatarRegistry"
     />
 
-    <main
-      class="board"
-      role="main"
-    >
+    <main class="board" role="main">
       <nav
         id="nav-bar"
         aria-label="Navigation menu"
@@ -171,22 +201,16 @@ onMounted(async () => {
         />
       </nav>
 
-      <section
-        id="field"
-        aria-label="Defender Field"
-      >
-        <div
-          class="card-bar-frame"
-          id="field-frame"
-        >
+      <section id="field" aria-label="Defender Field">
+        <div class="card-bar-frame" id="field-frame">
           <PlayersField
             :scene="sceneView"
-            v-model:selectedTarget="selectedTarget"
             :busy="busy"
+            @defender-selected="handleDefenderSelected"
+            @goalkeeper-selected="handleGoalkeeperSelected"
           />
         </div>
       </section>
-
       <aside
         id="action-bar"
         aria-label="Action buttons"
@@ -198,36 +222,37 @@ onMounted(async () => {
           @double-attack="handleDoubleAttack"
           @info="handleInfo"
         />
+
+        <!-- DEBUG button -->
+        <button
+          type="button"
+          class="gbtn"
+          @click="() => console.log('[PlayingFieldView] OUTER test button clicked')"
+        >
+          Outer Test
+        </button>
       </aside>
+
     </main>
 
-    <footer
-      id="hand-row"
-      aria-label="Attacker Hand and Avatar"
-    >
-      <section
-        id="hand"
-        aria-label="Attacker Hand"
-      >
-        <PlayersHand
-          :scene="sceneView"
-          :busy="busy"
-        />
+    <footer id="hand-row" aria-label="Attacker Hand and Avatar">
+      <section id="hand" aria-label="Attacker Hand">
+        <PlayersHand :scene="sceneView" :busy="busy" />
       </section>
 
-      <section
-        id="attacker-avatar-box"
-        aria-label="Current Attacker"
-      >
-        <!-- reserved for Attacker avatar box -->
+      <section id="attacker-avatar-box" aria-label="Current Attacker">
+        <!-- attacker avatar here later -->
       </section>
     </footer>
 
+    <!-- input blocker currently disabled -->
+    <!--
     <div
       id="input-blocker"
       class="input-blocker"
       :aria-hidden="busy ? 'false' : 'true'"
       :class="{ 'is-active': busy }"
     />
+    -->
   </div>
 </template>
