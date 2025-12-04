@@ -1,6 +1,6 @@
 <!-- frontend/src/components/PlayersField.vue -->
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import FieldCard from './FieldCard.vue';
 import type { SceneView } from '../scenes/playingField/sceneMapping';
 import type { FieldSlot, FieldCardData } from '../components/fieldCardRenderer';
@@ -55,7 +55,41 @@ const goalkeeper = computed<SlotLike | null>(() =>
   goalkeeperSlotOf(props.scene),
 );
 
-// ----- local selection state (like old PlayersFieldBar) -----
+// helper: does a defender slot still have a “live” card?
+function hasLiveDefender(slot: SlotLike): boolean {
+  if (!slot) return false;
+
+  // Shape: FieldSlot { card?: FieldCardData | null }
+  if (typeof slot === 'object' && 'card' in slot) {
+    const card = (slot as FieldSlot).card as any;
+    if (!card) return false;
+
+    // if the card has defeat flags, treat as dead
+    if (card.isDefeated || card.defeated) return false;
+
+    // no fileName usually means "no real card"
+    return !!card.fileName;
+  }
+
+  // Shape: plain FieldCardData
+  const card = slot as any;
+  if (card.isDefeated || card.defeated) return false;
+  return !!card.fileName;
+}
+
+// GK can only be clicked if ALL defenders are empty / defeated
+const canSelectGoalkeeper = computed(() => {
+  const result = defenders.value.every((slot) => !hasLiveDefender(slot));
+  console.log(
+    '[PlayersField] canSelectGoalkeeper =',
+    result,
+    'defenders=',
+    defenders.value,
+  );
+  return result;
+});
+
+// ----- local selection state -----
 
 const selectedDefenderIndex = ref<number | null>(null);
 const goalkeeperSelected = ref(false);
@@ -67,6 +101,26 @@ function isDefenderSelected(index: number): boolean {
 function isGoalkeeperSelected(): boolean {
   return goalkeeperSelected.value;
 }
+
+// ⭐ Reset selection whenever the scene (cards) changes
+watch(
+  () => props.scene,
+  () => {
+    if (
+      selectedDefenderIndex.value !== null ||
+      goalkeeperSelected.value
+    ) {
+      selectedDefenderIndex.value = null;
+      goalkeeperSelected.value = false;
+
+      // keep parent in sync so selectedTarget gets cleared
+      emit('defender-selected', null);
+      emit('goalkeeper-selected', false);
+
+      console.log('[PlayersField] scene changed -> selection reset');
+    }
+  },
+);
 
 function onDefenderSelect(index: number) {
   if (props.busy) return;
@@ -80,7 +134,6 @@ function onDefenderSelect(index: number) {
     selectedDefenderIndex.value = index;
     goalkeeperSelected.value = false;
     emit('defender-selected', index);
-    // ❌ do NOT emit 'goalkeeper-selected', false here
   }
 
   console.log(
@@ -91,6 +144,13 @@ function onDefenderSelect(index: number) {
 
 function onGoalkeeperSelect() {
   if (props.busy) return;
+
+  if (!canSelectGoalkeeper.value) {
+    console.log(
+      '[PlayersField] onGoalkeeperSelect blocked – defenders still alive',
+    );
+    return;
+  }
 
   const next = !goalkeeperSelected.value;
   goalkeeperSelected.value = next;
@@ -142,7 +202,7 @@ function onGoalkeeperSelect() {
         index="gk"
         role="goalkeeper"
         :selected="isGoalkeeperSelected()"
-        :clickable="!props.busy"
+        :clickable="!props.busy && canSelectGoalkeeper"
         @select="onGoalkeeperSelect"
       />
     </div>

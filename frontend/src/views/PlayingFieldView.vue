@@ -101,12 +101,32 @@ async function handleAttackDefender() {
   );
 
   const sel = selectedTarget.value;
-  if (!sel || sel.kind !== 'defender') {
+
+  if (!sel) {
+    showInfoAlert('Pick a defender or the goalkeeper to attack.');
+    return;
+  }
+
+  // ✅ If goalkeeper is selected, route to goalkeeper attack
+  if (sel.kind === 'goalkeeper') {
+    console.log('[PlayingFieldView] primary attack routed to goalkeeper');
+    await handleAttackGoalkeeper();
+    return;
+  }
+
+  // ✅ Defender case
+  if (sel.kind !== 'defender') {
     showInfoAlert('Pick a defender card to attack.');
     return;
   }
+
   try {
+    console.log(
+      '[PlayingFieldView] calling attackDefender with index:',
+      sel.index,
+    );
     await attackDefender(sel.index);
+    console.log('[PlayingFieldView] attackDefender finished');
   } catch (err: any) {
     console.error('[PlayingFieldView] attackDefender error:', err);
     showInfoAlert('Attack failed. Please try again.');
@@ -117,8 +137,11 @@ async function handleAttackDefender() {
 
 async function handleAttackGoalkeeper() {
   try {
+    console.log('[PlayingFieldView] handleAttackGoalkeeper');
     await attackGoalkeeper();
-  } catch {
+    console.log('[PlayingFieldView] attackGoalkeeper finished');
+  } catch (err) {
+    console.error('[PlayingFieldView] attackGoalkeeper error:', err);
     showInfoAlert('Goalkeeper attack failed. Please try again.');
   } finally {
     selectedTarget.value = null;
@@ -127,18 +150,30 @@ async function handleAttackGoalkeeper() {
 
 async function handleDoubleAttack() {
   const sel = selectedTarget.value;
+  console.log(
+    '[PlayingFieldView] handleDoubleAttack, selectedTarget:',
+    sel,
+  );
+
   if (!sel || sel.kind !== 'defender') {
     showInfoAlert('Pick a defender card for double attack.');
     return;
   }
   try {
+    console.log(
+      '[PlayingFieldView] calling doubleAttack with index:',
+      sel.index,
+    );
     await doubleAttack(sel.index);
-  } catch {
+    console.log('[PlayingFieldView] doubleAttack finished');
+  } catch (err) {
+    console.error('[PlayingFieldView] doubleAttack error:', err);
     showInfoAlert('Double attack failed. Please try again.');
   } finally {
     selectedTarget.value = null;
   }
 }
+
 
 async function handleUndo() {
   await undo();

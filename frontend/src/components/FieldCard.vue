@@ -107,7 +107,10 @@ function applyAnimations() {
     el.style.backgroundImage = `url("${props.defeatedImg}")`;
     anim.applyDefeatedEffect(el);
   } else {
-    // anim.removeDefeatedEffect?.(el);
+    // ⭐ restore normal appearance if this slot is no longer defeated
+    if (typeof anim.removeDefeatedEffect === 'function') {
+      anim.removeDefeatedEffect(el);
+    }
   }
 
   if (imageUrl.value && !isDefeated.value) {
@@ -123,6 +126,7 @@ function applyAnimations() {
     anim.removeBoostEffect(el);
   }
 }
+
 
 onMounted(() => {
   applyAnimations();

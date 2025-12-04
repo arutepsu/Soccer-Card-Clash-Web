@@ -4,12 +4,14 @@ export interface CardAnimations {
   applyBoostEffect(el: HTMLElement): void;
   removeBoostEffect(el: HTMLElement): void;
   applyDefeatedEffect(el: HTMLElement): void;
+  removeDefeatedEffect(el: HTMLElement): void;
   highlightLastHandCard(
     playerId: string,
     gameState: any,
     root?: HTMLElement | null,
   ): HTMLElement | null;
 }
+
 
 export interface CardAnimationsOptions {
   boostImg?: string;
@@ -137,6 +139,26 @@ export function createCardAnimations(
     } catch {
     }
   }
+    function removeDefeatedEffect(el: HTMLElement): void {
+    // cancel any running animations on this element
+    try {
+      el.getAnimations().forEach((anim) => {
+        // optional: only cancel animations whose target is this element
+        // but usually it's fine to cancel all on el
+        anim.cancel();
+      });
+    } catch {
+      // ignore if Web Animations API not fully supported
+    }
+
+    // reset visual effects that applyDefeatedEffect left behind
+    el.style.filter = '';
+    el.style.transform = '';
+    // boxShadow might be re-applied by boost; that's fine because
+    // applyBoostEffect / removeBoostEffect will run after this.
+    el.style.boxShadow = '';
+  }
+
 
   function highlightLastHandCard(
     playerId: string,
@@ -172,5 +194,6 @@ export function createCardAnimations(
     removeBoostEffect,
     applyDefeatedEffect,
     highlightLastHandCard,
+    removeDefeatedEffect,        
   };
 }
