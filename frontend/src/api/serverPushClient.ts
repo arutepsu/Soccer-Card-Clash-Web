@@ -21,6 +21,7 @@ export interface GameEnvelope {
   kind: 'command';
   type: GameCommandType;
   gameId: string;
+  playerId: string;
   requestId: string | null;
   payload: unknown;
 }
@@ -33,13 +34,13 @@ export interface PushClient {
   offMessage(handler: PushMessageHandler): void;
   close(): void;
 
-  /** New: command with WS + response, used by GameApi */
+  /** command with WS + response, used by GameApi */
   sendCommand(
     type: GameCommandType,
     payload?: unknown,
   ): Promise<WebGameState | null>;
 
-  // Legacy helpers (fire-and-forget) – now internally call sendCommand
+  // Legacy helpers – convenience wrappers around sendCommand
   getState(): void;
   regularAttack(target: string, index?: number | null): void;
   doubleAttack(index: number | string): void;
@@ -59,6 +60,7 @@ export interface PushClient {
 export interface CreateServerPushClientOptions {
   path?: string;
   reconnectDelayMs?: number;
+  getPlayerId?: () => string | null;
 }
 
 /**
@@ -149,10 +151,16 @@ export function createServerPushClient(
           pending.delete(requestId);
 
           if (msg.kind === 'event' && msg.type === 'StateUpdated') {
+            // ✅ Normal success: resolve with WebGameState
             entry.resolve(msg.payload as WebGameState);
           } else if (msg.kind === 'error') {
-            entry.reject(msg.payload);
+            // 🔁 Domain / command error, NOT a transport failure:
+            //    resolve(null) instead of rejecting, so GameApi
+            //    can decide what to do (e.g., show error, no REST fallback).
+            console.warn('[WS] command error payload:', msg.payload);
+            entry.resolve(null);
           } else {
+            // other message types: no specific state
             entry.resolve(null);
           }
         }
@@ -160,6 +168,7 @@ export function createServerPushClient(
         console.warn('[WS] error handling response for requestId:', err);
       }
 
+      // Notify generic listeners (e.g. for debug or events)
       handlers.forEach((h) => {
         try {
           h(msg);
@@ -206,6 +215,7 @@ export function createServerPushClient(
   ): Promise<WebGameState | null> {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       console.warn('[WS] not connected, cannot send command:', type);
+      // this is a real "no WS" case; GameApi will fall back to REST
       return Promise.resolve(null);
     }
 
@@ -215,6 +225,7 @@ export function createServerPushClient(
       kind: 'command',
       type,
       gameId: 'ignored',
+      playerId: opts.getPlayerId?.() ?? null,
       requestId,
       payload,
     };
@@ -223,6 +234,7 @@ export function createServerPushClient(
       const timeout = window.setTimeout(() => {
         if (pending.has(requestId)) {
           pending.delete(requestId);
+          console.warn('[WS] command timed out:', type, requestId);
           resolve(null);
         }
       }, 10000);
@@ -244,11 +256,13 @@ export function createServerPushClient(
         console.error('[WS] failed to send envelope:', err, env);
         clearTimeout(timeout);
         pending.delete(requestId);
+        // treat as "no WS result"
         resolve(null);
       }
     });
   }
 
+  // Convenience wrappers that just fire-and-forget
   function getState(): void {
     void sendCommand('GetState', {});
   }

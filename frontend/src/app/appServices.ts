@@ -9,12 +9,18 @@ export interface AppServices {
   api: GameApi;
   overlay: Overlay | null;
 }
+let currentPlayerId = 'frontend';   // default fallback
 
+export function setCurrentPlayerId(id: string) {
+  currentPlayerId = id;
+}
 export const AppServicesKey: InjectionKey<AppServices> =
   Symbol('AppServices');
 
 export function createAppServices(): AppServices {
-  const pushClient = createServerPushClient();
+  const pushClient = createServerPushClient({
+    getPlayerId: () => currentPlayerId,
+  });
   const streamClient = createGameEventStream();
 
   const api = createGameApi({

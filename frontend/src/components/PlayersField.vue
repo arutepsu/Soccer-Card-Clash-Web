@@ -1,39 +1,31 @@
 <!-- frontend/src/components/PlayersField.vue -->
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import FieldCard from './FieldCard.vue';
 import type { SceneView } from '../scenes/playingField/sceneMapping';
 import type { FieldSlot, FieldCardData } from '../components/fieldCardRenderer';
 
 type SlotLike = FieldSlot | FieldCardData | null | undefined;
 
-type SelectedTarget =
-  | { kind: 'defender'; index: number }
-  | { kind: 'goalkeeper' }
-  | null;
-
 const props = withDefaults(
   defineProps<{
     scene: SceneView | null;
-    selectedTarget?: SelectedTarget | null;
     busy?: boolean;
   }>(),
   {
-    scene: null,
-    selectedTarget: null,
     busy: false,
   },
 );
 
 const emit = defineEmits<{
-  (e: 'update:selectedTarget', value: SelectedTarget): void;
+  (e: 'defender-selected', index: number | null): void;
+  (e: 'goalkeeper-selected', selected: boolean): void;
 }>();
 
-// ----- mapping helpers: now based on SceneView -----
+// ----- mapping helpers -----
 
 function defenderSlotsOf(scene: SceneView | null): SlotLike[] {
   const anyScene = scene as any;
-  // try a few plausible shapes – adjust if your SceneView differs
   const slots: any[] =
     anyScene?.cards?.defenderField ??
     anyScene?.gameCards?.field?.defenders ??
@@ -63,42 +55,61 @@ const goalkeeper = computed<SlotLike | null>(() =>
   goalkeeperSlotOf(props.scene),
 );
 
-// ----- selection helpers -----
+// ----- local selection state (like old PlayersFieldBar) -----
+
+const selectedDefenderIndex = ref<number | null>(null);
+const goalkeeperSelected = ref(false);
 
 function isDefenderSelected(index: number): boolean {
-  return (
-    props.selectedTarget?.kind === 'defender' &&
-    props.selectedTarget.index === index
-  );
+  return selectedDefenderIndex.value === index;
 }
 
 function isGoalkeeperSelected(): boolean {
-  return props.selectedTarget?.kind === 'goalkeeper';
+  return goalkeeperSelected.value;
 }
 
 function onDefenderSelect(index: number) {
   if (props.busy) return;
 
-  const currentlySelected = isDefenderSelected(index);
-  emit(
-    'update:selectedTarget',
-    currentlySelected ? null : { kind: 'defender', index },
+  if (selectedDefenderIndex.value === index) {
+    // toggle off
+    selectedDefenderIndex.value = null;
+    emit('defender-selected', null);
+  } else {
+    // select this defender, clear goalkeeper locally
+    selectedDefenderIndex.value = index;
+    goalkeeperSelected.value = false;
+    emit('defender-selected', index);
+    // ❌ do NOT emit 'goalkeeper-selected', false here
+  }
+
+  console.log(
+    '[PlayersField] onDefenderSelect -> selectedDefenderIndex=',
+    selectedDefenderIndex.value,
   );
 }
 
 function onGoalkeeperSelect() {
   if (props.busy) return;
 
-  const currentlySelected = isGoalkeeperSelected();
-  emit(
-    'update:selectedTarget',
-    currentlySelected ? null : { kind: 'goalkeeper' },
+  const next = !goalkeeperSelected.value;
+  goalkeeperSelected.value = next;
+
+  if (next) {
+    // selecting GK clears defender selection
+    selectedDefenderIndex.value = null;
+    emit('defender-selected', null);
+  }
+  emit('goalkeeper-selected', next);
+
+  console.log(
+    '[PlayersField] onGoalkeeperSelect -> goalkeeperSelected=',
+    goalkeeperSelected.value,
   );
 }
 </script>
 
 <template>
-  <!-- mirrors structure inside <section id="field"> -->
   <div class="players-field-bar">
     <div class="player-label">
       Defender&apos;s Field

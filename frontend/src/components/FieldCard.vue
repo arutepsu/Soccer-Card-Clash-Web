@@ -138,13 +138,17 @@ watch(
 // ----------------- events -----------------
 
 function handleClick(event: MouseEvent) {
-  // mirror old canPick: don't pick defeated *and* respect clickable
+  console.log('[FieldCard] clicked; isDefeated=', isDefeated.value, 'clickable=', props.clickable, 'index=', props.index);
+
   if (isDefeated.value || !props.clickable) {
+    console.log('[FieldCard] click ignored');
     return;
   }
+  console.log('[FieldCard] emitting select');
   emit('select');
   emit('click', event);
 }
+
 
 function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'Enter' || event.key === ' ') {

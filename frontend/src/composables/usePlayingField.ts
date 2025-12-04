@@ -26,10 +26,13 @@ export function usePlayingField() {
     await gameContext.init();
   }
 
-  // index is required here because the view ensures it
+    // index is required here because the view ensures it
   async function attackDefender(index: number): Promise<void> {
+    console.log('[usePlayingField] attackDefender called with index:', index);
     await gameContext.singleAttackDefender(index);
+    console.log('[usePlayingField] attackDefender finished');
   }
+
 
   async function attackGoalkeeper(): Promise<void> {
     await gameContext.singleAttackGoalkeeper();
