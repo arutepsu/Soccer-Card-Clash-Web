@@ -3,48 +3,29 @@
 @import views.html.components.overlay
 @defining(play.filters.csrf.CSRF.getToken) { csrfOpt =>
 
-<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/attackerHandScene.css")'>
-<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/gameCard.css")'>
-<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/handCards.css")'>
-<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/gameAlert.css")'>
-<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/attackerBar.css")'>
-<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/base/gameButton.css")'>
+  <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/attackerHandScene.css")'>
+  <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/gameCard.css")'>
+  <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/handCards.css")'>
+  <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/gameAlert.css")'>
+  <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/attackerBar.css")'>
+  <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/base/gameButton.css")'>
 
-@csrfOpt.map { t =>
-  <meta name="csrf-token" content="@t.value">
-}
+  @csrfOpt.map { t =>
+    <meta name="csrf-token" content="@t.value">
+  }
 
-<!-- Root for WebSceneManager -->
-<div id="app" data-scene="AttackerHandCards">
-
-  <div class="scene scene--attackerhand is-active" aria-live="polite">
-    <section id="attacker-bar" class="scene-header" aria-label="Current Attacker"></section>
-
-    <div class="scene__center">
-      <!-- Hand bar -->
-      <section class="players-hand-bar selectable-hand-bar" aria-label="Your Hand">
-        <div id="attacker-hand" class="hand-row" role="listbox" aria-multiselectable="false"></div>
-      </section>
-
-      <!-- Buttons -->
-      <div class="scene__buttons" role="group" aria-label="Actions">
-        <button id="btn-regular-swap" class="gbtn gbtn--lg" type="button">Regular Swap</button>
-        <button id="btn-reverse-swap" class="gbtn gbtn--lg" type="button">Reverse Swap</button>
-        <button id="btn-info"         class="gbtn"        type="button">Info</button>
-        <a      id="btn-back"         class="gbtn"        href='@routes.UiController.playingField()'>Back to Game</a>
-      </div>
-    </div>
+  <!-- Root for Vue app -->
+  <!-- data-scene can be used by your Vue bootstrap code to pick the initial route/view -->
+  <div id="app" data-scene="AttackerHand">
+    @overlay(
+      id = "overlay",
+      title = "About the Game",
+      messageHtml = Html(""),
+      bgImagePath = "images/frames/overlay.png",
+      safeTop = "16%", safeRight = "8%", safeBottom = "16%", safeLeft = "8%"
+    )
   </div>
 
-  @overlay(
-    id = "overlay",
-    title = "About the Game",
-    messageHtml = Html(""),
-    bgImagePath = "images/frames/overlay.png",
-    safeTop = "16%", safeRight = "8%", safeBottom = "16%", safeLeft = "8%"
-  )
-</div>
-
-<!-- Global app entry (imports api.js inside) -->
-<script type="module" src='@routes.Assets.versioned("javascripts/app.js")'></script>
+  <!-- Global app entry (mounts Vue and shows AttackerHandView.vue inside #app) -->
+  <script type="module" src='@routes.Assets.versioned("javascripts/app.js")'></script>
 }

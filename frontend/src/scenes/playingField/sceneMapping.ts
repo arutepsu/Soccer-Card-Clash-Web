@@ -2,17 +2,23 @@ import { AvatarRegistry } from '../../components/attackerBar';
 import type {
   WebGameState,
   PlayerLike,
-  CardsView,
   AllowedActionsView,
   ActionLimitsView,
 } from '../../types/WebGameState';
 import type { CardImageRegistry } from '../../utils/cardImageRegistry';
-
+import type { CardView, CardSlotView } from '../../types/WebGameState';
 export interface ScenePlayerView extends PlayerLike {
   score?: number;
   actionStates?: ActionLimitsView;
 }
-
+export interface SceneCardsView {
+  attackerHand: CardView[];
+  defenderHand: CardView[];
+  attackerField: CardSlotView[];
+  defenderField: CardSlotView[];
+  attackerGoalkeeper?: CardView;
+  defenderGoalkeeper?: CardView;
+}
 export interface HandImageView {
   imgFront: string;
   imgBack: string;
@@ -43,7 +49,7 @@ export interface SceneView {
     attacker: ScenePlayerView;
     defender: ScenePlayerView;
   };
-  cards: CardsView;
+  cards: SceneCardsView;
   gameCards: GameCardsImages;
   allowed: AllowedActionsView | undefined;
 }

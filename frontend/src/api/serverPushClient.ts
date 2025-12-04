@@ -1,4 +1,5 @@
 // frontend/src/api/serverPushClient.ts
+import type { WebGameState } from '../types/WebGameState';
 
 export type GameCommandType =
   | 'GetState'
@@ -32,6 +33,13 @@ export interface PushClient {
   offMessage(handler: PushMessageHandler): void;
   close(): void;
 
+  /** New: command with WS + response, used by GameApi */
+  sendCommand(
+    type: GameCommandType,
+    payload?: unknown,
+  ): Promise<WebGameState | null>;
+
+  // Legacy helpers (fire-and-forget) – now internally call sendCommand
   getState(): void;
   regularAttack(target: string, index?: number | null): void;
   doubleAttack(index: number | string): void;
@@ -58,6 +66,7 @@ export interface CreateServerPushClientOptions {
  *
  * - Sends command envelopes to the server
  * - Receives raw messages (e.g. envelopes or states) and forwards to handlers
+ * - Supports request/response via requestId, returning WebGameState from commands
  */
 export function createServerPushClient(
   opts: CreateServerPushClientOptions = {},
@@ -70,6 +79,15 @@ export function createServerPushClient(
   let intentionallyClosed = false;
 
   const handlers = new Set<PushMessageHandler>();
+
+  let reqCounter = 0;
+  const pending = new Map<
+    string,
+    {
+      resolve: (state: WebGameState | null) => void;
+      reject: (err: unknown) => void;
+    }
+  >();
 
   function buildWsUrl(): string {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -115,7 +133,6 @@ export function createServerPushClient(
       console.warn('[WS] error:', e);
     };
 
-    // raw ws message - state / envelope
     ws.onmessage = (ev) => {
       let msg: any;
       try {
@@ -123,6 +140,24 @@ export function createServerPushClient(
       } catch (err) {
         console.error('[WS] invalid JSON:', err, ev.data);
         return;
+      }
+
+      try {
+        const requestId = msg?.requestId as string | undefined;
+        if (requestId && pending.has(requestId)) {
+          const entry = pending.get(requestId)!;
+          pending.delete(requestId);
+
+          if (msg.kind === 'event' && msg.type === 'StateUpdated') {
+            entry.resolve(msg.payload as WebGameState);
+          } else if (msg.kind === 'error') {
+            entry.reject(msg.payload);
+          } else {
+            entry.resolve(null);
+          }
+        }
+      } catch (err) {
+        console.warn('[WS] error handling response for requestId:', err);
       }
 
       handlers.forEach((h) => {
@@ -133,31 +168,6 @@ export function createServerPushClient(
         }
       });
     };
-  }
-
-  function sendEnvelope(
-    type: GameCommandType,
-    payload: unknown = {},
-    requestId: string | null = null,
-  ): void {
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      console.warn('[WS] not connected, cannot send:', type);
-      return;
-    }
-
-    const env: GameEnvelope = {
-      kind: 'command',
-      type,
-      gameId: 'ignored',
-      requestId,
-      payload,
-    };
-
-    try {
-      ws.send(JSON.stringify(env));
-    } catch (err) {
-      console.error('[WS] failed to send envelope:', err, env);
-    }
   }
 
   function isConnected(): boolean {
@@ -190,64 +200,113 @@ export function createServerPushClient(
     connected = false;
   }
 
+  function sendCommand(
+    type: GameCommandType,
+    payload: unknown = {},
+  ): Promise<WebGameState | null> {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      console.warn('[WS] not connected, cannot send command:', type);
+      return Promise.resolve(null);
+    }
+
+    const requestId = `req-${Date.now()}-${++reqCounter}`;
+
+    const env: GameEnvelope = {
+      kind: 'command',
+      type,
+      gameId: 'ignored',
+      requestId,
+      payload,
+    };
+
+    return new Promise<WebGameState | null>((resolve, reject) => {
+      const timeout = window.setTimeout(() => {
+        if (pending.has(requestId)) {
+          pending.delete(requestId);
+          resolve(null);
+        }
+      }, 10000);
+
+      pending.set(requestId, {
+        resolve: (state) => {
+          clearTimeout(timeout);
+          resolve(state);
+        },
+        reject: (err) => {
+          clearTimeout(timeout);
+          reject(err);
+        },
+      });
+
+      try {
+        ws!.send(JSON.stringify(env));
+      } catch (err) {
+        console.error('[WS] failed to send envelope:', err, env);
+        clearTimeout(timeout);
+        pending.delete(requestId);
+        resolve(null);
+      }
+    });
+  }
+
   function getState(): void {
-    sendEnvelope('GetState', {}, 'state-req');
+    void sendCommand('GetState', {});
   }
 
   function regularAttack(target: string, index: number | string | null = null): void {
     const idx = index == null ? null : Number(index);
-    sendEnvelope('RegularAttack', { target, index: idx });
+    void sendCommand('RegularAttack', { target, index: idx });
   }
 
   function doubleAttack(index: number | string): void {
     const idx = Number(index);
-    sendEnvelope('DoubleAttack', { index: idx });
+    void sendCommand('DoubleAttack', { index: idx });
   }
 
   function boost(target: string, index: number | string | null = null): void {
     const idx = index == null ? null : Number(index);
-    sendEnvelope('Boost', { target, index: idx });
+    void sendCommand('Boost', { target, index: idx });
   }
 
   function swap(index: number | string): void {
     const idx = Number(index);
-    sendEnvelope('RegularSwap', { index: idx });
+    void sendCommand('RegularSwap', { index: idx });
   }
 
   function reverseSwap(): void {
-    sendEnvelope('ReverseSwap', {});
+    void sendCommand('ReverseSwap', {});
   }
 
   function undo(): void {
-    sendEnvelope('Undo', {});
+    void sendCommand('Undo', {});
   }
 
   function redo(): void {
-    sendEnvelope('Redo', {});
+    void sendCommand('Redo', {});
   }
 
   function executeAI(aiAction: any): void {
-    sendEnvelope('ExecuteAI', aiAction);
+    void sendCommand('ExecuteAI', aiAction);
   }
 
   function createGame(p1: string, p2: string): void {
-    sendEnvelope('CreateGame', { p1, p2 });
+    void sendCommand('CreateGame', { p1, p2 });
   }
 
   function createGameWithAI(humanPlayer: string, aiName: string): void {
-    sendEnvelope('CreateGameWithAI', { humanPlayer, aiName });
+    void sendCommand('CreateGameWithAI', { humanPlayer, aiName });
   }
 
   function load(fileName: string): void {
-    sendEnvelope('LoadGame', { fileName });
+    void sendCommand('LoadGame', { fileName });
   }
 
   function save(): void {
-    sendEnvelope('SaveGame', {});
+    void sendCommand('SaveGame', {});
   }
 
   function quit(): void {
-    sendEnvelope('QuitGame', {});
+    void sendCommand('QuitGame', {});
   }
 
   connect();
@@ -257,6 +316,7 @@ export function createServerPushClient(
     onMessage,
     offMessage,
     close,
+    sendCommand,
     getState,
     regularAttack,
     doubleAttack,

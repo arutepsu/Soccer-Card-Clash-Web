@@ -1,0 +1,129 @@
+<!-- frontend/src/views/AttackerHandView.vue -->
+<script setup lang="ts">
+import { onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
+import { useOverlay } from '../composables/useOverlay';
+import { useAttackerHand } from '../composables/useAttackerHand';
+import AttackerBar from '../components/AttackerBar.vue';
+import AttackerHand from '../components/AttackerHand.vue';
+import HandControls from '../components/HandControls.vue';
+import { createGameAlert } from '../ui/gameAlertFactory';
+import { createPlayerAvatarRegistry } from '../utils/playerAvatarRegistry';
+import type { WebGameState } from '../types/WebGameState';
+
+const router = useRouter();
+const { show: showOverlay, hide: hideOverlay } = useOverlay();
+
+const {
+  gameContext,
+  attacker,
+  attackerHand,
+  selectedIndex,
+  init,
+  doSwap,
+  doReverseSwap,
+} = useAttackerHand();
+
+// ✅ unwrap refs for typing-friendly props
+const webState = computed(() => gameContext.state.value as WebGameState | null);
+const busy = computed(() => gameContext.loading.value);
+
+const avatarRegistry = createPlayerAvatarRegistry({
+  avatarsPath: '/assets/images/players/',
+  fileNames: [
+    'player1.jpg',
+    'player2.jpg',
+    'ai.jpg',
+    'taka.jpg',
+    'defendra.jpg',
+    'bitstrom.jpg',
+    'meta.jpg',
+  ],
+});
+
+function showAlert(message: string) {
+  const el = createGameAlert({
+    message,
+    autoHideMs: 2500,
+    onOk: () => hideOverlay(),
+  });
+  showOverlay(el, { onHide: () => el.cleanup?.() });
+}
+
+async function onSwap() {
+  try {
+    await doSwap();
+  } catch (err: any) {
+    if (err?.message === 'NO_SELECTION' || err?.code === 'NO_SELECTION') {
+      showAlert('Pick a card in your hand to swap.');
+    } else {
+      showAlert('Swap failed. Try again.');
+    }
+  }
+}
+
+async function onReverseSwap() {
+  try {
+    await doReverseSwap();
+  } catch {
+    showAlert('Reverse swap failed. Try again.');
+  }
+}
+
+function onInfo() {
+  const el = createGameAlert({
+    message: 'Select a card then choose a swap action.',
+  });
+  showOverlay(el, { onHide: () => el.cleanup?.() });
+}
+
+function onBack() {
+  router.push({ name: 'PlayingField' });
+}
+
+onMounted(async () => {
+  await init();
+});
+</script>
+
+<template>
+  <div
+    class="scene scene--attackerhand scene--attacker-hand is-active"
+    aria-live="polite"
+  >
+    <!-- Header / attacker info -->
+    <section
+      id="attacker-bar"
+      class="scene-header"
+      aria-label="Current Attacker"
+    >
+      <AttackerBar
+        :web="webState"
+        :avatarRegistry="avatarRegistry"
+      />
+    </section>
+
+    <div class="scene__center">
+      <!-- Hand bar (players-hand-bar + selectable-hand-bar) -->
+      <section
+        class="players-hand-bar selectable-hand-bar"
+        aria-label="Your Hand"
+      >
+        <AttackerHand
+          :hand="attackerHand"
+          :attackerName="attacker?.name ?? null"
+          v-model:selectedIndex="selectedIndex"
+        />
+      </section>
+
+      <!-- Buttons (HandControls root is .scene__buttons) -->
+      <HandControls
+        :busy="busy"
+        @swap="onSwap"
+        @reverse-swap="onReverseSwap"
+        @info="onInfo"
+        @back="onBack"
+      />
+    </div>
+  </div>
+</template>

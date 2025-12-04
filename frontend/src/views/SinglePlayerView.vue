@@ -4,7 +4,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { createSoundManager, type SoundManager } from '../utils/soundManager';
 import { useOverlay } from '../composables/useOverlay';
-import { createGameAlert } from '../ui/gameAlert';
+import { createGameAlert } from '../ui/gameAlertFactory';
 
 const router = useRouter();
 const { show: showOverlay } = useOverlay();

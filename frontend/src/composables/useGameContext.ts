@@ -80,22 +80,27 @@ export function useGameContext(): GameContext {
     }
   }
 
-  async function init(): Promise<void> {
-    if (initialized.value) return;
-    loading.value = true;
-    error.value = null;
+async function init(): Promise<void> {
+  if (initialized.value) return;
 
-    try {
-      const initial = await api.fetchGameState();
-      gameState.value = initial;
-      initialized.value = true;
-    } catch (err: any) {
-      console.error('[useGameContext] init failed:', err);
-      error.value = err?.message ?? String(err);
-    } finally {
-      loading.value = false;
+  loading.value = true;
+  error.value = null;
+
+  try {
+    const next = await api.restart('Player 1', 'Player 2');
+    if (next) {
+      gameState.value = next;
     }
+    initialized.value = true;
+  } catch (err: any) {
+    console.error('[useGameContext] init failed:', err);
+    error.value = err?.message ?? String(err);
+  } finally {
+    loading.value = false;
   }
+}
+
+
 
   return {
     state: gameState,

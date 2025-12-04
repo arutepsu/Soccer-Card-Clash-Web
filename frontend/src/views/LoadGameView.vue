@@ -1,4 +1,5 @@
 <!-- frontend/src/views/LoadGameView.vue -->
+ <!-- fix later! -->
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';

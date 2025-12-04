@@ -4,6 +4,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useGameContext } from '../composables/useGameContext';
 
+//fix later! 
 const router = useRouter();
 const game = useGameContext();
 
