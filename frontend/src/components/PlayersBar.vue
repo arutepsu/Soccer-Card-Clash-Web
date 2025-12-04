@@ -7,10 +7,7 @@ import type {
   ActionLimitsView,
 } from '../types/WebGameState';
 
-/**
- * Minimal copy of the registry types you already use.
- * You can move these to a shared types file if you prefer.
- */
+
 interface AvatarPlayer {
   id: string;
   name?: string | null;
@@ -95,10 +92,8 @@ const defenderAvatarUrl = computed(() => {
 </script>
 
 <template>
-  <!-- root gets the same class as old TS did -->
   <div class="players-bar">
     <div class="players-bar__inner">
-      <!-- Left: attacker avatar -->
       <div class="player-avatar-box">
         <img
           class="player__avatar"
@@ -111,7 +106,6 @@ const defenderAvatarUrl = computed(() => {
         />
       </div>
 
-      <!-- Attacker info -->
       <div class="player-info">
         <div
           class="player-name"
@@ -125,7 +119,6 @@ const defenderAvatarUrl = computed(() => {
         >{{ attackerActionsText }}</pre>
       </div>
 
-      <!-- Scores -->
       <div class="score-box">
         <div class="scores-title">Scores</div>
         <div class="score-row">
@@ -145,7 +138,6 @@ const defenderAvatarUrl = computed(() => {
         </div>
       </div>
 
-      <!-- Defender info -->
       <div class="player-info">
         <div
           class="player-name"
@@ -159,7 +151,6 @@ const defenderAvatarUrl = computed(() => {
         >{{ defenderActionsText }}</pre>
       </div>
 
-      <!-- Right: defender avatar -->
       <div class="player-avatar-box">
         <img
           class="player__avatar"

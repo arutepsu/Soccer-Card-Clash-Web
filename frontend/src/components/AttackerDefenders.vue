@@ -1,4 +1,3 @@
-<!-- frontend/src/components/AttackerDefenders.vue -->
 <script setup lang="ts">
 import FieldCard from './FieldCard.vue';
 import type { SlotLike } from '../types/FieldCards';
@@ -9,7 +8,6 @@ const props = withDefaults(
     defenders: SlotLike[];
     goalkeeper: SlotLike | null;
     selectedTarget?: SelectedTarget | null;
-    /** disable interaction when busy */
     clickable?: boolean;
   }>(),
   {
@@ -21,7 +19,7 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-  (e: 'update:selectedTarget', value: SelectedTarget): void;
+  (e: 'update:selectedTarget', value: SelectedTarget | null): void;
 }>();
 
 function isDefenderSelected(index: number): boolean {
@@ -39,27 +37,34 @@ function onDefenderSelect(index: number) {
   if (!props.clickable) return;
 
   const currentlySelected = isDefenderSelected(index);
-  emit(
-    'update:selectedTarget',
-    currentlySelected ? null : { kind: 'defender', index },
+  const next: SelectedTarget | null = currentlySelected
+    ? null
+    : { kind: 'defender', index };
+
+  console.log(
+    '[AttackerDefenders] onDefenderSelect index=',
+    index,
+    'next=',
+    next,
   );
+  emit('update:selectedTarget', next);
 }
 
 function onGoalkeeperSelect() {
   if (!props.clickable) return;
 
   const currentlySelected = isGoalkeeperSelected();
-  emit(
-    'update:selectedTarget',
-    currentlySelected ? null : { kind: 'goalkeeper' },
-  );
+  const next: SelectedTarget | null = currentlySelected
+    ? null
+    : { kind: 'goalkeeper' };
+
+  emit('update:selectedTarget', next);
 }
 </script>
 
+
 <template>
-  <!-- This corresponds to the inner "attacker-field-bar" inside #attacker-defenders-field -->
   <div class="attacker-field-bar">
-    <!-- Defenders row -->
     <div
       class="defender-row"
       role="group"
@@ -77,7 +82,6 @@ function onGoalkeeperSelect() {
       />
     </div>
 
-    <!-- Goalkeeper row -->
     <div
       class="goalkeeper-row"
       role="group"

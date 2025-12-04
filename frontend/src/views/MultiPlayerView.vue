@@ -1,6 +1,5 @@
 <!-- frontend/src/views/MultiplayerView.vue -->
 
-<!-- wire leater the startMultiplayer from api, now just restart is used -->
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -8,11 +7,10 @@ import { createSoundManager, type SoundManager } from '../utils/soundManager';
 import { setPlayers } from '../utils/playerSideRegistry';
 import { useOverlay } from '../composables/useOverlay';
 import { useGameContext } from '../composables/useGameContext';
-import { createGameAlert } from '../ui/gameAlertFactory';
 
 const router = useRouter();
 const game = useGameContext();
-const { show: showOverlay } = useOverlay();
+const { show, hide } = useOverlay();
 
 const player1 = ref('');
 const player2 = ref('');
@@ -38,18 +36,18 @@ function trim(v: string): string {
 }
 
 function showAlert(msg: string): void {
-  if (showOverlay) {
-    const el = createGameAlert({
-      message: msg,
-    });
-    showOverlay(el, {
-      onHide: () => el.cleanup?.(),
-    });
-  } else {
-    // fallback
-    alert(msg);
-  }
+  show({
+    title: 'Info',
+    message: msg,
+    content: null,
+  });
+
+  // optional auto-hide
+  window.setTimeout(() => {
+    hide();
+  }, 2500);
 }
+
 
 function validate(): boolean {
   const v1 = trim(player1.value);

@@ -7,12 +7,11 @@ import { useAttackerHand } from '../composables/useAttackerHand';
 import AttackerBar from '../components/AttackerBar.vue';
 import AttackerHand from '../components/AttackerHand.vue';
 import HandControls from '../components/HandControls.vue';
-import { createGameAlert } from '../ui/gameAlertFactory';
 import { createPlayerAvatarRegistry } from '../utils/playerAvatarRegistry';
 import type { WebGameState } from '../types/WebGameState';
 
 const router = useRouter();
-const { show: showOverlay, hide: hideOverlay } = useOverlay();
+const { show, hide } = useOverlay();
 
 const {
   gameContext,
@@ -24,7 +23,6 @@ const {
   doReverseSwap,
 } = useAttackerHand();
 
-// ✅ unwrap refs for typing-friendly props
 const webState = computed(() => gameContext.state.value as WebGameState | null);
 const busy = computed(() => gameContext.loading.value);
 
@@ -41,13 +39,18 @@ const avatarRegistry = createPlayerAvatarRegistry({
   ],
 });
 
-function showAlert(message: string) {
-  const el = createGameAlert({
+function showAlert(message: string, autoHideMs = 2500) {
+  show({
+    title: 'Info',
     message,
-    autoHideMs: 2500,
-    onOk: () => hideOverlay(),
+    content: null,
   });
-  showOverlay(el, { onHide: () => el.cleanup?.() });
+
+  if (autoHideMs > 0) {
+    window.setTimeout(() => {
+      hide();
+    }, autoHideMs);
+  }
 }
 
 async function onSwap() {
@@ -71,10 +74,7 @@ async function onReverseSwap() {
 }
 
 function onInfo() {
-  const el = createGameAlert({
-    message: 'Select a card then choose a swap action.',
-  });
-  showOverlay(el, { onHide: () => el.cleanup?.() });
+  showAlert('Select a card then choose a swap action.', 3000);
 }
 
 function onBack() {
@@ -85,6 +85,7 @@ onMounted(async () => {
   await init();
 });
 </script>
+
 
 <template>
   <div

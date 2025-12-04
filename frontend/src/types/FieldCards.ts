@@ -1,5 +1,3 @@
-import { FieldCardData, FieldSlot } from "../components/fieldCardRenderer";
-
 // frontend/src/types/FieldCards.ts
 export interface FieldCardLike {
   id?: string | number;
@@ -12,3 +10,15 @@ export type SlotLike =
   | FieldCardLike
   | null
   | undefined;
+
+  export interface FieldCardData {
+  fileName?: string;
+  isBoosted?: boolean;
+  [key: string]: unknown;
+}
+
+export interface FieldSlot {
+  id?: string;
+  card?: FieldCardData | null;
+  [key: string]: unknown;
+}

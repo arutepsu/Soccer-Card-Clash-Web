@@ -6,7 +6,6 @@ import type {
   ActionLimitsView,
 } from '../types/WebGameState';
 
-// Mirror your existing AvatarRegistry interface:
 export interface AvatarRegistry {
   getAvatarFileName(player: PlayerLike): string;
   assignAvatarsInOrder(players: PlayerLike[]): void;
@@ -15,12 +14,9 @@ export interface AvatarRegistry {
 
 const props = defineProps<{
   web: WebGameState | null | undefined;
-  avatarRegistry: AvatarRegistry;  // instance created with createPlayerAvatarRegistry
+  avatarRegistry: AvatarRegistry;
 }>();
 
-/**
- * Same as old currentAttackerFrom(st: WebGameState | null)
- */
 const attacker = computed<PlayerLike | null>(() => {
   const st = props.web;
   if (!st) return null;
@@ -42,9 +38,6 @@ const attacker = computed<PlayerLike | null>(() => {
   };
 });
 
-/**
- * Same as old getAllowedForAttacker(st, attackerId)
- */
 const allowedForAttacker = computed<Partial<ActionLimitsView>>(() => {
   const st = props.web;
   const att = attacker.value;
@@ -71,9 +64,6 @@ const actionsText = computed(() => {
 
 const attackerName = computed(() => attacker.value?.name ?? 'Attacker');
 
-/**
- * Ensure attacker has an assigned avatar, same try/catch logic as before.
- */
 watch(
   attacker,
   (next) => {
@@ -107,7 +97,6 @@ const attackerInitial = computed(() =>
     <div class="attacker-bar__inner">
       <div class="attacker-avatar-col">
         <div class="player-avatar-box">
-          <!-- If we have an avatar URL, show the image; otherwise show a colored initial -->
           <img
             v-if="avatarUrl"
             class="player__avatar neon-avatar"

@@ -3,7 +3,7 @@
 import { computed, ref, watch } from 'vue';
 import FieldCard from './FieldCard.vue';
 import type { SceneView } from '../scenes/playingField/sceneMapping';
-import type { FieldSlot, FieldCardData } from '../components/fieldCardRenderer';
+import type { FieldSlot, FieldCardData } from '../types/FieldCards';
 
 type SlotLike = FieldSlot | FieldCardData | null | undefined;
 
@@ -22,7 +22,6 @@ const emit = defineEmits<{
   (e: 'goalkeeper-selected', selected: boolean): void;
 }>();
 
-// ----- mapping helpers -----
 
 function defenderSlotsOf(scene: SceneView | null): SlotLike[] {
   const anyScene = scene as any;
@@ -55,29 +54,23 @@ const goalkeeper = computed<SlotLike | null>(() =>
   goalkeeperSlotOf(props.scene),
 );
 
-// helper: does a defender slot still have a “live” card?
 function hasLiveDefender(slot: SlotLike): boolean {
   if (!slot) return false;
 
-  // Shape: FieldSlot { card?: FieldCardData | null }
   if (typeof slot === 'object' && 'card' in slot) {
     const card = (slot as FieldSlot).card as any;
     if (!card) return false;
 
-    // if the card has defeat flags, treat as dead
     if (card.isDefeated || card.defeated) return false;
 
-    // no fileName usually means "no real card"
     return !!card.fileName;
   }
 
-  // Shape: plain FieldCardData
   const card = slot as any;
   if (card.isDefeated || card.defeated) return false;
   return !!card.fileName;
 }
 
-// GK can only be clicked if ALL defenders are empty / defeated
 const canSelectGoalkeeper = computed(() => {
   const result = defenders.value.every((slot) => !hasLiveDefender(slot));
   console.log(
@@ -88,8 +81,6 @@ const canSelectGoalkeeper = computed(() => {
   );
   return result;
 });
-
-// ----- local selection state -----
 
 const selectedDefenderIndex = ref<number | null>(null);
 const goalkeeperSelected = ref(false);
@@ -102,7 +93,6 @@ function isGoalkeeperSelected(): boolean {
   return goalkeeperSelected.value;
 }
 
-// ⭐ Reset selection whenever the scene (cards) changes
 watch(
   () => props.scene,
   () => {
@@ -113,7 +103,6 @@ watch(
       selectedDefenderIndex.value = null;
       goalkeeperSelected.value = false;
 
-      // keep parent in sync so selectedTarget gets cleared
       emit('defender-selected', null);
       emit('goalkeeper-selected', false);
 
@@ -126,11 +115,9 @@ function onDefenderSelect(index: number) {
   if (props.busy) return;
 
   if (selectedDefenderIndex.value === index) {
-    // toggle off
     selectedDefenderIndex.value = null;
     emit('defender-selected', null);
   } else {
-    // select this defender, clear goalkeeper locally
     selectedDefenderIndex.value = index;
     goalkeeperSelected.value = false;
     emit('defender-selected', index);
@@ -156,7 +143,6 @@ function onGoalkeeperSelect() {
   goalkeeperSelected.value = next;
 
   if (next) {
-    // selecting GK clears defender selection
     selectedDefenderIndex.value = null;
     emit('defender-selected', null);
   }

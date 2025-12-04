@@ -8,9 +8,7 @@ const router = useRouter();
 const { show, hide } = useOverlay();
 
 const sceneRoot = ref<HTMLElement | null>(null);
-
 const buttons = ref<HTMLButtonElement[]>([]);
-const overlayHost = ref<HTMLElement | null>(null);
 
 const soundManager: SoundManager = createSoundManager({
   basePath: '/assets/sounds/',
@@ -31,18 +29,18 @@ function onButtonClick() {
 }
 
 function openAbout() {
-  if (!show) return;
+  onButtonClick();
 
-  if (!overlayHost.value) overlayHost.value = document.getElementById('overlay');
-  const host = overlayHost.value;
-  if (!host) return;
-
-  const content =
-    host.querySelector('.overlay-scroll')?.firstElementChild ??
-    host.querySelector('.overlay-frame') ??
-    document.createElement('div');
-
-  show(content as HTMLElement, { onHide() {} });
+  // Simple text-based About overlay via store
+  show({
+    title: 'About the Game',
+    message:
+      'Soccer Card Clash\n\n' +
+      'A strategic football card game where attackers and defenders clash ' +
+      'using unique cards, boosts and tactics. Select single- or multiplayer, ' +
+      'swap and boost cards, and outplay your opponent!',
+    content: null,
+  });
 }
 
 function moveFocus(delta: number): void {
@@ -60,12 +58,17 @@ function onKeydown(e: KeyboardEvent): void {
   switch (e.key) {
     case 'ArrowDown':
     case 'ArrowRight':
-      e.preventDefault(); moveFocus(+1); break;
+      e.preventDefault();
+      moveFocus(+1);
+      break;
     case 'ArrowUp':
     case 'ArrowLeft':
-      e.preventDefault(); moveFocus(-1); break;
+      e.preventDefault();
+      moveFocus(-1);
+      break;
     case 'Escape':
-      hide?.(); break;
+      hide();
+      break;
   }
 }
 
@@ -94,7 +97,6 @@ function onLogoutClick() {
   router.push({ name: 'Login' });
 }
 
-
 onMounted(() => {
   soundManager.preload('hover', 'hover.wav');
   soundManager.preload('click', 'attack.wav');
@@ -108,8 +110,6 @@ onMounted(() => {
 
   window.addEventListener('pointerdown', unlockAudioHandler);
   window.addEventListener('keydown', unlockAudioHandler);
-
-  overlayHost.value = document.getElementById('overlay');
 
   nextTick(() => buttons.value[0]?.focus?.());
 });

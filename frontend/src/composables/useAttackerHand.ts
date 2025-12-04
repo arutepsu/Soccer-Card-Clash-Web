@@ -3,7 +3,7 @@ import { computed, ref, watchEffect } from 'vue';
 import { useGameContext } from './useGameContext';
 import { createCardImageRegistry } from '../utils/cardImageRegistry';
 import { buildMapWebToScene, type EnrichedState } from '../utils/mapWebToScene';
-import { HandCardLike } from '../components/attackerHandBar';
+import { HandCardLike } from '../types/HandCards';
 
 
 export function useAttackerHand() {

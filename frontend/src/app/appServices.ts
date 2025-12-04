@@ -4,16 +4,20 @@ import { createGameApi, type GameApi } from '../api/gameApi';
 import { createServerPushClient } from '../api/serverPushClient';
 import { createGameEventStream } from '../api/gameEventStream';
 import { createOverlay, type Overlay } from '../ui/overlay';
+import { createSoundManager, type SoundManager } from '../utils/soundManager';
 
 export interface AppServices {
   api: GameApi;
   overlay: Overlay | null;
+  soundManager: SoundManager | null;
 }
-let currentPlayerId = 'frontend';   // default fallback
+
+let currentPlayerId = 'frontend'; // default fallback
 
 export function setCurrentPlayerId(id: string) {
   currentPlayerId = id;
 }
+
 export const AppServicesKey: InjectionKey<AppServices> =
   Symbol('AppServices');
 
@@ -28,10 +32,13 @@ export function createAppServices(): AppServices {
     pushClient,
   });
 
+  // 👉 OK if this is null initially, we'll fix it lazily in useOverlay
   const overlayHost = document.getElementById('overlay');
   const overlay = overlayHost ? createOverlay({ host: overlayHost }) : null;
 
-  return { api, overlay };
+  const soundManager = createSoundManager();
+
+  return { api, overlay, soundManager };
 }
 
 export function provideAppServices(services: AppServices): void {
