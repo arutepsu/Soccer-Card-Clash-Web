@@ -1,33 +1,18 @@
-<!-- frontend/src/components/FieldCard.vue -->
+// frontend/src/components/FieldCard.vue
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from 'vue';
 import { createCardAnimations } from '../utils/cardAnimations';
-import type { SlotLike, FieldCardLike , FieldCardData, FieldSlot} from '../types/FieldCards';
-/**
- * Types from your TS renderer:
- * - FieldCardData { fileName?: string; isBoosted?: boolean; ... }
- * - FieldSlot { id?: string; card?: FieldCardData | null; ... }
- */
+import type { SlotLike, FieldCardData, FieldSlot } from '../types/FieldCards';
 
 const props = withDefaults(
   defineProps<{
     card: SlotLike;
-
-    /** index used for data-index and selection logic */
     index?: number | string;
-
-    /** defender or goalkeeper – only affects the extra CSS class */
     role?: 'defender' | 'goalkeeper';
-
-    /** Asset config – mirrors FieldCardRendererAssets defaults */
     cardBaseUrl?: string;
     defeatedImg?: string;
     boostImg?: string;
-
-    /** selection state (for .is-selected) */
     selected?: boolean;
-
-    /** can this card be clicked / focused? */
     clickable?: boolean;
   }>(),
   {
@@ -46,8 +31,6 @@ const emit = defineEmits<{
 }>();
 
 const rootEl = ref<HTMLElement | null>(null);
-
-// ----------------- helpers like in TS renderer -----------------
 
 function isFieldSlot(v: SlotLike): v is FieldSlot {
   return !!v && typeof v === 'object' && 'card' in v;
@@ -73,6 +56,14 @@ function isBoostedCard(d?: FieldCardData | null): boolean {
   );
 }
 
+const isBoosted = computed<boolean>(() => {
+  const raw: any = props.card;
+  if (raw && (raw.isBoosted || raw.boosted)) {
+    return true;
+  }
+  return isBoostedCard(data.value);
+});
+
 const imageUrl = computed<string | null>(() => {
   const d = data.value;
   if (!d?.fileName) return null;
@@ -80,7 +71,6 @@ const imageUrl = computed<string | null>(() => {
 });
 
 const isDefeated = computed<boolean>(() => !imageUrl.value);
-const isBoosted = computed<boolean>(() => isBoostedCard(data.value));
 
 const classes = computed(() => ({
   'field-card': true,
@@ -92,7 +82,6 @@ const classes = computed(() => ({
   'field-card--readonly': !props.clickable,
 }));
 
-// Reuse your cardAnimations (boost & defeated effects)
 const anim = createCardAnimations(
   props.boostImg ? { boostImg: props.boostImg } : undefined,
 );
@@ -102,13 +91,11 @@ function applyAnimations() {
   if (!el) return;
 
   if (isDefeated.value) {
-    // defeated image or effect
     el.style.backgroundImage = `url("${props.defeatedImg}")`;
     anim.applyDefeatedEffect(el);
   } else {
-    // ⭐ restore normal appearance if this slot is no longer defeated
-    if (typeof anim.removeDefeatedEffect === 'function') {
-      anim.removeDefeatedEffect(el);
+    if (typeof (anim as any).removeDefeatedEffect === 'function') {
+      (anim as any).removeDefeatedEffect(el);
     }
   }
 
@@ -126,7 +113,6 @@ function applyAnimations() {
   }
 }
 
-
 onMounted(() => {
   applyAnimations();
 });
@@ -138,10 +124,15 @@ watch(
   },
 );
 
-// ----------------- events -----------------
-
 function handleClick(event: MouseEvent) {
-  console.log('[FieldCard] clicked; isDefeated=', isDefeated.value, 'clickable=', props.clickable, 'index=', props.index);
+  console.log(
+    '[FieldCard] clicked; isDefeated=',
+    isDefeated.value,
+    'clickable=',
+    props.clickable,
+    'index=',
+    props.index,
+  );
 
   if (isDefeated.value || !props.clickable) {
     console.log('[FieldCard] click ignored');
@@ -151,7 +142,6 @@ function handleClick(event: MouseEvent) {
   emit('select');
   emit('click', event);
 }
-
 
 function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'Enter' || event.key === ' ') {
@@ -171,7 +161,6 @@ function handleKeydown(event: KeyboardEvent) {
     @click="handleClick"
     @keydown="handleKeydown"
   >
-    <!-- optional slot if you want overlay content (value text, etc.) -->
     <slot :card="data" />
   </div>
 </template>
