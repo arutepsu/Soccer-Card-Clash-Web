@@ -2,6 +2,7 @@
 import FieldCard from './FieldCard.vue';
 import type { SlotLike } from '../types/FieldCards';
 import type { SelectedTarget } from '../types/AttackerDefenders';
+import { onMounted } from 'vue';
 
 const props = withDefaults(
   defineProps<{
@@ -60,6 +61,12 @@ function onGoalkeeperSelect() {
 
   emit('update:selectedTarget', next);
 }
+
+onMounted(() => {
+  console.log('[AttackerDefenders] defenders=', props.defenders);
+  console.log('[AttackerDefenders] goalkeeper=', props.goalkeeper);
+});
+
 </script>
 
 
