@@ -1,6 +1,8 @@
 // frontend/src/api/serverPushClient.ts
 import type { WebGameState } from '../types/WebGameState';
 
+let wsSessionUnavailable = false;
+
 export type GameCommandType =
   | 'GetState'
   | 'RegularAttack'
@@ -151,24 +153,26 @@ export function createServerPushClient(
           pending.delete(requestId);
 
           if (msg.kind === 'event' && msg.type === 'StateUpdated') {
-            // ✅ Normal success: resolve with WebGameState
             entry.resolve(msg.payload as WebGameState);
           } else if (msg.kind === 'error') {
-            // 🔁 Domain / command error, NOT a transport failure:
-            //    resolve(null) instead of rejecting, so GameApi
-            //    can decide what to do (e.g., show error, no REST fallback).
+            const errMsg = msg.payload?.message as string | undefined;
+
+            if (errMsg && errMsg.startsWith('Session not found')) {
+              console.warn('[WS] session does not exist for this sid; disabling WS for this tab');
+              wsSessionUnavailable = true;
+            }
+
             console.warn('[WS] command error payload:', msg.payload);
-            entry.resolve(null);
+            entry.resolve(null); // → REST fallback
           } else {
-            // other message types: no specific state
-            entry.resolve(null);
+            entry.resolve(null); // → REST fallback
           }
         }
       } catch (err) {
         console.warn('[WS] error handling response for requestId:', err);
       }
 
-      // Notify generic listeners (e.g. for debug or events)
+      // Notify generic listeners
       handlers.forEach((h) => {
         try {
           h(msg);
@@ -213,10 +217,14 @@ export function createServerPushClient(
     type: GameCommandType,
     payload: unknown = {},
   ): Promise<WebGameState | null> {
+    // If we already know WS session doesn't exist, skip WS entirely
+    if (wsSessionUnavailable) {
+      return Promise.resolve(null); // → GameApi will use REST immediately
+    }
+
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       console.warn('[WS] not connected, cannot send command:', type);
-      // this is a real "no WS" case; GameApi will fall back to REST
-      return Promise.resolve(null);
+      return Promise.resolve(null); // → REST fallback
     }
 
     const requestId = `req-${Date.now()}-${++reqCounter}`;
@@ -235,7 +243,7 @@ export function createServerPushClient(
         if (pending.has(requestId)) {
           pending.delete(requestId);
           console.warn('[WS] command timed out:', type, requestId);
-          resolve(null);
+          resolve(null); // → REST fallback
         }
       }, 10000);
 
@@ -256,11 +264,11 @@ export function createServerPushClient(
         console.error('[WS] failed to send envelope:', err, env);
         clearTimeout(timeout);
         pending.delete(requestId);
-        // treat as "no WS result"
-        resolve(null);
+        resolve(null); // → REST fallback
       }
     });
   }
+
 
   // Convenience wrappers that just fire-and-forget
   function getState(): void {

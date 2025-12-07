@@ -16,6 +16,7 @@ import app.api.IGameUseCases
 import controllers.dto._
 import de.htwg.se.soccercardclash.util.AIAction
 import controller.json.AIActionJson._
+import controllers.dto.LocalMultiplayerDto
 import app.api.IGameUseCases
 import app.session.GameSessionId
 import de.htwg.se.soccercardclash.controller.contextHolder.IGameContextHolder
@@ -310,4 +311,28 @@ class GameApiController @Inject()(
       }
     )
   }
+  // in GameApiController
+  def createLocalMultiplayer: Action[JsValue] = Action(parse.json) { implicit req =>
+    // ensure we have a sid bound to this browser
+    val sid = getOrCreateSid(req)
+
+    req.body.validate[LocalMultiplayerDto].fold(
+      bad => BadRequest(Json.obj("error" -> JsError.toJson(bad))),
+      dto => {
+        gameUseCases.createGame(dto.attackerName, dto.defenderName, sid) match {
+          case Right(web) =>
+            // push initial state to SSE/WS subscribers
+            eventHub.publish(sid, web)
+
+            Ok(Json.toJson(web))
+              .as(JSON)
+              .addingToSession("sid" -> sid.value)  // 🔑 set sid cookie
+
+          case Left(err) =>
+            BadRequest(Json.obj("error" -> err.message))
+        }
+      }
+    )
+  }
+
 }

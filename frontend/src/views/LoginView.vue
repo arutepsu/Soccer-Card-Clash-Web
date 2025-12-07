@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import GameButton from '../components/GameButton.vue';
 
 const router = useRouter();
 
@@ -31,6 +32,14 @@ async function onSubmit(e?: Event) {
   await router.push({ name: 'MainMenu' });
 
   busy.value = false;
+}
+
+type LoginAction = 'login';
+
+function onCommand(payload: { action: LoginAction }) {
+  if (payload.action === 'login') {
+    onSubmit();
+  }
 }
 </script>
 
@@ -72,13 +81,14 @@ async function onSubmit(e?: Event) {
               </div>
             </div>
 
-            <button
+            <GameButton
+              action="login"
+              :busy="busy"
               class="gbtn"
-              type="submit"
-              :disabled="busy"
+              @command="onCommand"
             >
               {{ busy ? 'Logging in...' : 'Log in' }}
-            </button>
+            </GameButton>
           </form>
         </div>
       </div>

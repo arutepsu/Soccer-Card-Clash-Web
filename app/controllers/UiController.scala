@@ -185,7 +185,10 @@ class UiController @Inject()(
       gameUseCases.createGame(attackerName, defenderName, sid)
 
     createdWeb.fold(
-      err => InternalServerError(Json.obj("error" -> err.message)),
+      err =>
+        InternalServerError(Json.obj("error" -> err.message))
+          .withSession(req.session + ("sid" -> sidRaw)),
+
       web => {
         Ok(
           Json.obj(
@@ -196,6 +199,8 @@ class UiController @Inject()(
             "sessionId"     -> sid.value
           )
         )
+          .as("application/json")
+          .withSession(req.session + ("sid" -> sidRaw))
       }
     )
   }

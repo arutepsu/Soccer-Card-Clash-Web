@@ -1,15 +1,15 @@
 <!-- frontend/src/views/MultiplayerView.vue -->
-
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { createSoundManager, type SoundManager } from '../utils/soundManager';
 import { setPlayers } from '../utils/playerSideRegistry';
 import { useOverlay } from '../composables/useOverlay';
-import { useGameContext } from '../composables/useGameContext';
+import { useGameCommands } from '../composables/useGameCommands';
+import GameButton from '../components/GameButton.vue';
 
 const router = useRouter();
-const game = useGameContext();
+const { createLocalMultiplayer } = useGameCommands();
 const { show, hide } = useOverlay();
 
 const player1 = ref('');
@@ -42,12 +42,10 @@ function showAlert(msg: string): void {
     content: null,
   });
 
-  // optional auto-hide
   window.setTimeout(() => {
     hide();
   }, 2500);
 }
-
 
 function validate(): boolean {
   const v1 = trim(player1.value);
@@ -73,8 +71,7 @@ async function onSubmit() {
   onButtonClick();
 
   try {
-    await game.restart(player1.value, player2.value);
-
+    await createLocalMultiplayer(player1.value, player2.value);
     await router.push({ name: 'PlayingField' });
   } catch (err) {
     console.error('[MultiplayerView] restart failed:', err);
@@ -87,6 +84,25 @@ async function onSubmit() {
 function goBack() {
   onButtonClick();
   router.push({ name: 'MainMenu' });
+}
+
+type MultiAction = 'start' | 'back';
+
+function onCommand(payload: { action: MultiAction }) {
+  switch (payload.action) {
+    case 'start':
+      onSubmit();
+      break;
+    case 'back':
+      goBack();
+      break;
+  }
+}
+
+function onHover(payload: { action: MultiAction; hovering: boolean }) {
+  if (payload.hovering) {
+    onButtonHover();
+  }
 }
 </script>
 
@@ -129,24 +145,24 @@ function goBack() {
         </div>
 
         <div class="buttons">
-          <button
-            class="gbtn"
-            type="submit"
-            :disabled="busy"
+          <GameButton
+            action="start"
+            label="Start"
+            :busy="busy"
             :class="{ 'is-busy': busy }"
-            @mouseenter="onButtonHover"
-          >
-            Start
-          </button>
+            tooltip="Start the local multiplayer game"
+            @command="onCommand"
+            @hover="onHover"
+          />
 
-          <button
-            class="gbtn gbtn--secondary"
-            type="button"
-            @mouseenter="onButtonHover"
-            @click="goBack"
-          >
-            Back
-          </button>
+          <GameButton
+            action="back"
+            label="Back"
+            class="gbtn--secondary"
+            tooltip="Back to main menu"
+            @command="onCommand"
+            @hover="onHover"
+          />
         </div>
       </form>
     </div>

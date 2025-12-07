@@ -1,7 +1,6 @@
 // frontend/src/composables/useGameContext.ts
 import { ref, computed, watch, type Ref } from 'vue';
 import type { WebGameState } from '../types/WebGameState';
-import { setCurrentPlayerId, useAppServices } from '../app/appServices';
 import { useGameStream } from './useGameStream';
 
 export interface GameContext {
@@ -13,17 +12,7 @@ export interface GameContext {
   hasState: Ref<boolean>;
 
   init: () => Promise<void>;
-
-  restart: (attackerName?: string | null, defenderName?: string | null) => Promise<void>;
-  singleAttackDefender: (index: number | string) => Promise<void>;
-  singleAttackGoalkeeper: () => Promise<void>;
-  doubleAttack: (index: number | string) => Promise<void>;
-  boost: (payload: any) => Promise<void>;
-  swap: (index: number | string) => Promise<void>;
-  reverseSwap: () => Promise<void>;
-  undo: () => Promise<void>;
-  redo: () => Promise<void>;
-  executeAI: (action: any) => Promise<void>;
+  setState: (next: WebGameState | null) => void;
 }
 
 // module-level singleton state
@@ -41,7 +30,7 @@ function ensureStreamStarted() {
 
   const { state: streamState } = useGameStream({ autoStart: true });
 
-  // keep gameState in sync with the stream (e.g. for spectators, async updates)
+  // keep gameState in sync with the stream (e.g. spectators / async updates)
   watch(
     streamState,
     (next) => {
@@ -54,37 +43,11 @@ function ensureStreamStarted() {
 }
 
 /**
- * GameContext composable: central gateway for game state + commands.
- * All components using this share the same context.
+ * GameContext composable: central gateway for shared game state.
+ * All components using this share the same state.
+ * (Commands are handled separately in useGameCommands.)
  */
 export function useGameContext(): GameContext {
-  const { api } = useAppServices();
-
-  ensureStreamStarted();
-
-  async function safeUpdate(
-    fn: () => Promise<WebGameState | null>,
-  ): Promise<void> {
-    loading.value = true;
-    error.value = null;
-    try {
-      const next = await fn();
-      console.log('[GameContext] safeUpdate result from API:', next);
-      if (next) {
-        console.log('[GameContext] updating gameState');
-        gameState.value = next;
-      } else {
-        console.log('[GameContext] next is null, not updating gameState');
-      }
-    } catch (err: any) {
-      console.error('[useGameContext] command failed:', err);
-      error.value = err?.message ?? String(err);
-    } finally {
-      loading.value = false;
-    }
-  }
-
-
   async function init(): Promise<void> {
     if (initialized.value) return;
 
@@ -92,14 +55,8 @@ export function useGameContext(): GameContext {
     error.value = null;
 
     try {
-      
-      // 👍 Use restart response to seed gameState
-      const next = await api.restart('Player 1', 'Player 2');
-        const pid = (next as any).roles?.attacker?.id ?? 'frontend';
-          setCurrentPlayerId(pid);
-      if (next) {
-        gameState.value = next;
-      }
+      // Just start the stream; game creation is done elsewhere
+      ensureStreamStarted();
       initialized.value = true;
     } catch (err: any) {
       console.error('[useGameContext] init failed:', err);
@@ -107,6 +64,10 @@ export function useGameContext(): GameContext {
     } finally {
       loading.value = false;
     }
+  }
+
+  function setState(next: WebGameState | null): void {
+    gameState.value = next;
   }
 
   return {
@@ -117,47 +78,6 @@ export function useGameContext(): GameContext {
     hasState: computed(() => gameState.value != null),
 
     init,
-
-    restart(attackerName?: string | null, defenderName?: string | null) {
-      return safeUpdate(() =>
-        api.restart(attackerName ?? null, defenderName ?? null),
-      );
-    },
-
-    singleAttackDefender(index: number | string) {
-      return safeUpdate(() => api.singleAttackDefender(index));
-    },
-
-    singleAttackGoalkeeper() {
-      return safeUpdate(() => api.singleAttackGoalkeeper());
-    },
-
-    doubleAttack(index: number | string) {
-      return safeUpdate(() => api.doubleAttack(index));
-    },
-
-    boost(payload: any) {
-      return safeUpdate(() => api.boost(payload));
-    },
-
-    swap(index: number | string) {
-      return safeUpdate(() => api.swap(index));
-    },
-
-    reverseSwap() {
-      return safeUpdate(() => api.reverseSwap());
-    },
-
-    undo() {
-      return safeUpdate(() => api.undo());
-    },
-
-    redo() {
-      return safeUpdate(() => api.redo());
-    },
-
-    executeAI(action: any) {
-      return safeUpdate(() => api.executeAI(action));
-    },
+    setState,
   };
 }

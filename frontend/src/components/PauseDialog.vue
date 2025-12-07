@@ -1,22 +1,63 @@
 <!-- frontend/src/components/PauseDialog.vue -->
 <script setup lang="ts">
+import GameButton from './GameButton.vue';
+
 const props = defineProps<{
   onAction: (action: string) => void;
 }>();
 
-function act(name: string) {
-  props.onAction(name);
+type PauseAction =
+  | 'resume'
+  | 'undo'
+  | 'redo'
+  | 'save'
+  | 'restart'
+  | 'mainmenu';
+
+function onCommand(payload: { action: PauseAction }) {
+  props.onAction(payload.action);
 }
 </script>
 
 <template>
-  <div class="overlay-actions"
-       style="display:flex;flex-direction:column;gap:12px;align-items:center;">
-    <button class="gbtn" type="button" @click="act('resume')">Resume</button>
-    <button class="gbtn" type="button" @click="act('undo')">Undo</button>
-    <button class="gbtn" type="button" @click="act('redo')">Redo</button>
-    <button class="gbtn" type="button" @click="act('save')">Save Game</button>
-    <button class="gbtn" type="button" @click="act('restart')">Restart</button>
-    <button class="gbtn" type="button" @click="act('mainmenu')">Main Menu</button>
+  <div
+    class="overlay-actions"
+    style="display:flex;flex-direction:column;gap:12px;align-items:center;"
+  >
+    <GameButton
+      action="resume"
+      label="Resume"
+      @command="onCommand"
+    />
+
+    <GameButton
+      action="undo"
+      label="Undo"
+      @command="onCommand"
+    />
+
+    <GameButton
+      action="redo"
+      label="Redo"
+      @command="onCommand"
+    />
+
+    <GameButton
+      action="save"
+      label="Save Game"
+      @command="onCommand"
+    />
+
+    <GameButton
+      action="restart"
+      label="Restart"
+      @command="onCommand"
+    />
+
+    <GameButton
+      action="mainmenu"
+      label="Main Menu"
+      @command="onCommand"
+    />
   </div>
 </template>

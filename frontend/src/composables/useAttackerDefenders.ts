@@ -1,6 +1,7 @@
 // frontend/src/composables/useAttackerDefenders.ts
 import { ref, computed } from 'vue';
 import { useGameContext } from './useGameContext';
+import { useGameCommands } from './useGameCommands';
 import type { WebGameState } from '../types/WebGameState';
 import type {
   FieldCardLike,
@@ -19,6 +20,7 @@ const mapFieldToScene = buildMapFieldToScene(cardRegistry);
 
 export function useAttackerDefenders() {
   const gameContext = useGameContext();
+  const { boost: sendBoost, busy } = useGameCommands();
 
   const web = computed<WebGameState | null>(() => gameContext.state.value);
 
@@ -82,10 +84,8 @@ export function useAttackerDefenders() {
     const scene = mapFieldToScene(w);
     const anyScene = scene as any;
 
-    // attacker-facing projection (without boost meta)
     const rawDefenders: FieldCardLike[] = scene.defenders ?? [];
 
-    // field slots used by PlayersField (WITH boost meta)
     const fieldSlots: FieldSlot[] =
       anyScene?.cards?.defenderField ??
       anyScene?.gameCards?.field?.defenders ??
@@ -96,9 +96,6 @@ export function useAttackerDefenders() {
       const boostSourceCard = fieldSlots[index]?.card ?? null;
       return toFieldSlot(raw, index, boostSourceCard);
     });
-
-    // helpful debug
-    // console.log('[useAttackerDefenders] defenders mapped =', result);
 
     return result;
   });
@@ -122,7 +119,6 @@ export function useAttackerDefenders() {
     const boostSourceCard = (fieldGkSlot?.card ?? null) as FieldCardData | null;
 
     const slot = toFieldSlot(raw, 'gk', boostSourceCard);
-    // console.log('[useAttackerDefenders] goalkeeper mapped =', slot);
     return slot;
   });
 
@@ -159,7 +155,7 @@ export function useAttackerDefenders() {
         ? { target: 'defender', index: target.index }
         : { target: 'goalkeeper' };
 
-    await gameContext.boost(payload);
+    await sendBoost(payload);
     selectedTarget.value = null;
   }
 
@@ -172,5 +168,6 @@ export function useAttackerDefenders() {
     canBoost,
     init,
     doBoost,
+    busy,
   };
 }

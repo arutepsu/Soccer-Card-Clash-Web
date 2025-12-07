@@ -11,6 +11,11 @@ export interface GameApi {
 
   fetchGameState(): Promise<WebGameState>;
 
+  createLocalMultiplayer(
+    attackerName: string,
+    defenderName: string,
+  ): Promise<WebGameState | null>;
+
   restart(
     attackerName?: string | null,
     defenderName?: string | null,
@@ -109,11 +114,9 @@ async function commandWithWsFallback(
       console.log('[GameApi] WS sendCommand result:', result);
 
       if (result) {
-        // ✅ WS returned a real WebGameState
         return result;
       }
 
-      // ⚠️ WS gave us no state (null) – e.g., domain error like "Missing playerId"
       console.warn(
         '[GameApi] WS returned null for',
         type,
@@ -168,6 +171,17 @@ async function commandWithWsFallback(
     // NEW endpoint in GameApiController, no wrapper, just WebGameState
     return postJSON<WebGameState>('/api/game/restart', body);
   }
+
+    function createLocalMultiplayer(
+      attackerName: string,
+      defenderName: string,
+    ): Promise<WebGameState | null> {
+      return postJSON<WebGameState>('/api/game/local-multiplayer', {
+        attackerName,
+        defenderName,
+      });
+    }
+
 
   function singleAttackDefender(
     index: number | string,
@@ -281,6 +295,7 @@ async function commandWithWsFallback(
     openStream,
     fetchGameState,
     restart,
+    createLocalMultiplayer,
     singleAttackDefender,
     singleAttackGoalkeeper,
     doubleAttack,

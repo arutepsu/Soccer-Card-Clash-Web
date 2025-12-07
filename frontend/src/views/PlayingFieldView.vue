@@ -177,7 +177,6 @@ onMounted(async () => {
         data-href-defenders="/attacker-defenders"
         data-href-hand="/attacker-hand"
       >
-        <!-- container handles pause overlay + navigation + sounds -->
         <NavButtonBarContainer :busy="busy" />
       </nav>
 

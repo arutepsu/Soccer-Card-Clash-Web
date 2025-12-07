@@ -12,7 +12,6 @@ import type { WebGameState } from '../types/WebGameState';
 
 const router = useRouter();
 
-// ✅ new store-based overlay
 const { show, hide } = useOverlay();
 
 const {

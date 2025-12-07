@@ -1,8 +1,10 @@
+<!-- frontend/src/views/MainMenuView.vue (or similar) -->
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { createSoundManager, type SoundManager } from '../utils/soundManager';
 import { useOverlay } from '../composables/useOverlay';
+import GameButton from '../components/GameButton.vue';
 
 const router = useRouter();
 const { show, hide } = useOverlay();
@@ -16,8 +18,13 @@ const soundManager: SoundManager = createSoundManager({
 
 let unlockAudioHandler: ((e: Event) => void) | null = null;
 
-function registerButton(el: HTMLButtonElement | null) {
-  if (el && !buttons.value.includes(el)) buttons.value.push(el);
+function registerButton(el: any) {
+  if (!el) return;
+
+  const btn = (el.el ?? el) as HTMLElement | null;
+  if (btn instanceof HTMLButtonElement && !buttons.value.includes(btn)) {
+    buttons.value.push(btn);
+  }
 }
 
 function onButtonHover() {
@@ -31,7 +38,6 @@ function onButtonClick() {
 function openAbout() {
   onButtonClick();
 
-  // Simple text-based About overlay via store
   show({
     title: 'About the Game',
     message:
@@ -97,6 +103,43 @@ function onLogoutClick() {
   router.push({ name: 'Login' });
 }
 
+type MainMenuAction =
+  | 'singleplayer'
+  | 'multiplayer'
+  | 'load'
+  | 'about'
+  | 'rules'
+  | 'logout';
+
+function onCommand(payload: { action: MainMenuAction }) {
+  switch (payload.action) {
+    case 'singleplayer':
+      goSinglePlayer();
+      break;
+    case 'multiplayer':
+      goMultiplayer();
+      break;
+    case 'load':
+      goLoadGame();
+      break;
+    case 'about':
+      openAbout();
+      break;
+    case 'rules':
+      onGameInfoClick();
+      break;
+    case 'logout':
+      onLogoutClick();
+      break;
+  }
+}
+
+function onHover(payload: { action: MainMenuAction; hovering: boolean }) {
+  if (payload.hovering) {
+    onButtonHover();
+  }
+}
+
 onMounted(() => {
   soundManager.preload('hover', 'hover.wav');
   soundManager.preload('click', 'attack.wav');
@@ -145,66 +188,54 @@ onUnmounted(() => {
 
             <nav class="buttons" aria-label="Main menu">
               <div class="d-grid gap-2">
-                <button
-                  class="gbtn"
-                  type="button"
+                <GameButton
+                  action="singleplayer"
+                  label="Singleplayer"
                   :ref="registerButton"
-                  @mouseenter="onButtonHover"
-                  @click="goSinglePlayer"
-                >
-                  Singleplayer
-                </button>
+                  @command="onCommand"
+                  @hover="onHover"
+                />
 
-                <button
-                  class="gbtn"
-                  type="button"
+                <GameButton
+                  action="multiplayer"
+                  label="Multiplayer"
                   :ref="registerButton"
-                  @mouseenter="onButtonHover"
-                  @click="goMultiplayer"
-                >
-                  Multiplayer
-                </button>
+                  @command="onCommand"
+                  @hover="onHover"
+                />
 
-                <button
-                  class="gbtn"
-                  type="button"
+                <GameButton
+                  action="load"
+                  label="Load Game"
                   :ref="registerButton"
-                  @mouseenter="onButtonHover"
-                  @click="goLoadGame"
-                >
-                  Load Game
-                </button>
+                  @command="onCommand"
+                  @hover="onHover"
+                />
 
-                <button
-                  class="gbtn"
-                  type="button"
-                   :ref="registerButton"
+                <GameButton
+                  action="about"
+                  label="About"
                   data-open-overlay
-                  @mouseenter="onButtonHover"
-                  @click="openAbout"
-                >
-                  About
-                </button>
-
-                <button
-                  class="gbtn"
-                  type="button"
                   :ref="registerButton"
-                  @mouseenter="onButtonHover"
-                  @click="onGameInfoClick"
-                >
-                  Game Information
-                </button>
+                  @command="onCommand"
+                  @hover="onHover"
+                />
 
-                <button
-                  class="gbtn"
-                  type="button"
+                <GameButton
+                  action="rules"
+                  label="Game Information"
                   :ref="registerButton"
-                  @mouseenter="onButtonHover"
-                  @click="onLogoutClick"
-                >
-                  Logout
-                </button>
+                  @command="onCommand"
+                  @hover="onHover"
+                />
+
+                <GameButton
+                  action="logout"
+                  label="Logout"
+                  :ref="registerButton"
+                  @command="onCommand"
+                  @hover="onHover"
+                />
               </div>
             </nav>
           </div>

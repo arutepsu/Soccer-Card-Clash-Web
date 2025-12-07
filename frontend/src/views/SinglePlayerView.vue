@@ -1,10 +1,10 @@
 <!-- frontend/src/views/SinglePlayerView.vue -->
-
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { createSoundManager, type SoundManager } from '../utils/soundManager';
 import { useOverlay } from '../composables/useOverlay';
+import GameButton from '../components/GameButton.vue';
 
 const router = useRouter();
 const { show, hide } = useOverlay();
@@ -73,6 +73,24 @@ function onBackClick() {
   onButtonClick();
   router.push({ name: 'MainMenu' });
 }
+
+type SinglePlayerAction = 'start' | 'back';
+
+function onCommand(payload: { action: SinglePlayerAction }) {
+  switch (payload.action) {
+    case 'start':
+      onStartClick();
+      break;
+    case 'back':
+      onBackClick();
+      break;
+  }
+}
+function onHover(payload: { action: SinglePlayerAction; hovering: boolean }) {
+  if (payload.hovering) {
+    onButtonHover();
+  }
+}
 </script>
 
 <template>
@@ -100,25 +118,23 @@ function onBackClick() {
     />
 
     <div class="buttons">
-      <button
-        class="gbtn btn btn-start"
-        type="button"
-        :disabled="busy"
+      <GameButton
+        action="start"
+        label="Start"
+        class="btn btn-start"
+        :busy="busy"
         :class="{ 'is-busy': busy }"
-        @mouseenter="onButtonHover"
-        @click="onStartClick"
-      >
-        Start
-      </button>
+        @command="onCommand"
+        @hover="onHover"
+      />
 
-      <button
-        class="gbtn btn btn-back"
-        type="button"
-        @mouseenter="onButtonHover"
-        @click="onBackClick"
-      >
-        Back
-      </button>
+      <GameButton
+        action="back"
+        label="Back"
+        class="btn btn-back"
+        @command="onCommand"
+        @hover="onHover"
+      />
     </div>
   </div>
 </template>

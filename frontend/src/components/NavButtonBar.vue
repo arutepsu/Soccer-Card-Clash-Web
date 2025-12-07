@@ -1,5 +1,8 @@
 <!-- frontend/src/components/NavButtonBar.vue -->
 <script setup lang="ts">
+import GameButton from './GameButton.vue';
+
+type NavAction = 'pause' | 'show-defenders' | 'make-swap';
 
 const props = defineProps<{
   busy?: boolean;
@@ -12,62 +15,62 @@ const emit = defineEmits<{
   (e: 'hover', payload: { action: string }): void;
 }>();
 
-function onPauseClick() {
-  console.log('[NavButtonBar] Pause clicked, busy=', props.busy);
-  if (props.busy) return;
-  emit('pause');
+function onCommand(payload: { action: NavAction }) {
+  console.log('[NavButtonBar] Command received:', payload);
+
+  switch (payload.action) {
+    case 'pause':
+      emit('pause');
+      break;
+
+    case 'show-defenders':
+      emit('go-defenders');
+      break;
+
+    case 'make-swap':
+      emit('go-hand');
+      break;
+  }
 }
 
-
-function onShowDefendersClick() {
+function onHover(payload: { action: NavAction; hovering: boolean }) {
   if (props.busy) return;
-  emit('go-defenders');
-}
 
-function onMakeSwapClick() {
-  if (props.busy) return;
-  emit('go-hand');
-}
-
-function onHover(action: string) {
-  if (props.busy) return;
-  emit('hover', { action });
+  if (payload.hovering) {
+    emit('hover', { action: payload.action });
+  } else {
+    // emit('hover', { action: '' });
+  }
 }
 </script>
 
 <template>
   <div class="nav-button-bar">
-    <button
-      class="gbtn"
-      type="button"
-      data-action="pause"
-      :disabled="busy"
-      @click="onPauseClick"
-      @mouseenter="onHover('pause')"
-    >
-      Pause
-    </button>
+    <GameButton
+      action="pause"
+      label="Pause"
+      :busy="busy"
+      tooltip="Pause game / AI"
+      @command="onCommand"
+      @hover="onHover"
+    />
 
-    <button
-      class="gbtn"
-      type="button"
-      data-action="show-defenders"
-      :disabled="busy"
-      @click="onShowDefendersClick"
-      @mouseenter="onHover('show-defenders')"
-    >
-      Show Defenders
-    </button>
+    <GameButton
+      action="show-defenders"
+      label="Show Defenders"
+      :busy="busy"
+      tooltip="Jump to defenders view"
+      @command="onCommand"
+      @hover="onHover"
+    />
 
-    <button
-      class="gbtn"
-      type="button"
-      data-action="make-swap"
-      :disabled="busy"
-      @click="onMakeSwapClick"
-      @mouseenter="onHover('make-swap')"
-    >
-      Make Swap
-    </button>
+    <GameButton
+      action="make-swap"
+      label="Make Swap"
+      :busy="busy"
+      tooltip="Jump back to hand / swap view"
+      @command="onCommand"
+      @hover="onHover"
+    />
   </div>
 </template>
