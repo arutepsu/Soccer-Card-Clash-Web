@@ -1,20 +1,17 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue';
+import { computed } from 'vue';
 import type {
   WebGameState,
   PlayerLike,
   ActionLimitsView,
 } from '../types/WebGameState';
-
-export interface AvatarRegistry {
-  getAvatarFileName(player: PlayerLike): string;
-  assignAvatarsInOrder(players: PlayerLike[]): void;
-  getAvatarUrl(player: PlayerLike): string;
-}
+import PlayerAvatar from './PlayerAvatar.vue';
+import type { PlayerAvatarRegistry } from '../utils/playerAvatarRegistry';
+import ActionLimits from './ActionLimits.vue';
 
 const props = defineProps<{
   web: WebGameState | null | undefined;
-  avatarRegistry: AvatarRegistry;
+  avatarRegistry: PlayerAvatarRegistry;
 }>();
 
 const attacker = computed<PlayerLike | null>(() => {
@@ -22,20 +19,14 @@ const attacker = computed<PlayerLike | null>(() => {
   if (!st) return null;
 
   const pa = (st as any)?.players?.attacker as PlayerLike | undefined;
+  if (pa) return pa;
 
-  if (pa) {
-    return {
-      id: 'att',
-      name: pa.name ?? st.roles.attacker,
-      playerType: pa.playerType ?? 'Human',
-    };
-  }
-
+  const name = st.roles.attacker ?? 'Attacker';
   return {
-    id: 'att',
-    name: st.roles.attacker,
+    id: `att:${name}`,
+    name,
     playerType: 'Human',
-  };
+  } as PlayerLike;
 });
 
 const allowedForAttacker = computed<Partial<ActionLimitsView>>(() => {
@@ -44,7 +35,9 @@ const allowedForAttacker = computed<Partial<ActionLimitsView>>(() => {
   if (!st || !att) return {};
 
   const base = st.allowed?.attacker as Partial<ActionLimitsView> | undefined;
-  const keyed = (st.allowed as any)?.[att.id] as Partial<ActionLimitsView> | undefined;
+  const keyed = (st.allowed as any)?.[att.id] as
+    | Partial<ActionLimitsView>
+    | undefined;
 
   return base ?? keyed ?? {};
 });
@@ -63,63 +56,28 @@ const actionsText = computed(() => {
 });
 
 const attackerName = computed(() => attacker.value?.name ?? 'Attacker');
-
-watch(
-  attacker,
-  (next) => {
-    if (!next) return;
-    try {
-      props.avatarRegistry.getAvatarFileName(next);
-    } catch {
-      props.avatarRegistry.assignAvatarsInOrder([next]);
-    }
-  },
-  { immediate: true },
-);
-
-const avatarUrl = computed(() => {
-  const att = attacker.value;
-  if (!att) return '';
-  try {
-    return props.avatarRegistry.getAvatarUrl(att);
-  } catch {
-    return '';
-  }
-});
-
-const attackerInitial = computed(() =>
-  (attackerName.value || 'A').charAt(0).toUpperCase(),
-);
 </script>
 
 <template>
   <div class="attacker-bar">
     <div class="attacker-bar__inner">
       <div class="attacker-avatar-col">
-        <div class="player-avatar-box">
-          <img
-            v-if="avatarUrl"
-            class="player__avatar neon-avatar"
-            :src="avatarUrl"
-            alt="Attacker avatar"
-          />
-          <div
-            v-else
-            class="player__avatar player__avatar--fallback"
-            aria-hidden="true"
-          >
-            {{ attackerInitial }}
-          </div>
-        </div>
+        <PlayerAvatar
+          :player="attacker"
+          :avatarRegistry="avatarRegistry"
+          alt="Attacker avatar"
+          :neon="true"
+        />
       </div>
 
       <div class="player-info">
         <div class="player-name" data-attacker-name>
           {{ attackerName }}
         </div>
-        <pre class="player-actions" data-attacker-actions>
-{{ actionsText }}
-        </pre>
+        <ActionLimits
+          data-attacker-actions
+          :limits="allowedForAttacker"
+        />
       </div>
     </div>
   </div>

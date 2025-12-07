@@ -1,6 +1,6 @@
 <!-- frontend/src/views/PlayingFieldView.vue -->
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { usePlayingField } from '../composables/usePlayingField';
 import PlayersBar from '../components/PlayersBar.vue';
 import NavButtonBarContainer from '../components/NavButtonBarContainer.vue';
@@ -9,7 +9,7 @@ import PlayersHand from '../components/PlayersHand.vue';
 import ActionButtonBar from '../components/ActionButtonBar.vue';
 import { createPlayerAvatarRegistry } from '../utils/playerAvatarRegistry';
 import { useOverlay } from '../composables/useOverlay';
-import type { WebGameState } from '../types/WebGameState';
+import type { PlayerLike, WebGameState } from '../types/WebGameState';
 
 type SelectedTarget =
   | { kind: 'defender'; index: number }
@@ -160,6 +160,15 @@ onMounted(async () => {
   console.log('[PlayingFieldView] webState after init:', webState.value);
   console.log('[PlayingFieldView] sceneView after init:', sceneView.value);
 });
+
+watch(
+  webState,
+  (st) => {
+    if (!st) return;
+  },
+  { immediate: false },
+);
+
 </script>
 
 <template>
