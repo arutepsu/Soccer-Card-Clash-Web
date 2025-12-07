@@ -93,9 +93,26 @@ export function createPlayerAvatarRegistry(
   }
 
   function assignAvatarsInOrder(players: PlayerLike[]): void {
+    // Start counting humans *after* existing assigned human avatars
     let humanCounter = 1;
 
+    // Look at existing mappings to continue numbering
+    for (const fileName of playerImageMap.values()) {
+      const m = /^player(\d+)\.jpg$/i.exec(fileName);
+      if (m) {
+        const n = Number(m[1]);
+        if (Number.isFinite(n) && n >= humanCounter) {
+          humanCounter = n + 1;
+        }
+      }
+    }
+
     players.forEach((player) => {
+      // If this player already has an avatar, skip
+      if (playerImageMap.has(player.id)) {
+        return;
+      }
+
       const pt = player.playerType;
       if (isAI(pt)) {
         const strategyName =
@@ -111,6 +128,7 @@ export function createPlayerAvatarRegistry(
       }
     });
   }
+
 
   function getAvatarFileName(player: PlayerLike): string {
     const fileName = playerImageMap.get(player.id);
