@@ -1,9 +1,9 @@
 <!-- frontend/src/components/PlayersField.vue -->
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import FieldCard from './FieldCard.vue';
 import type { SceneView } from '../scenes/playingField/sceneMapping';
 import type { FieldSlot, FieldCardData } from '../types/FieldCards';
+import FieldCardRow from './FieldCardRow.vue';
 
 type SlotLike = FieldSlot | FieldCardData | null | undefined;
 
@@ -85,14 +85,6 @@ const canSelectGoalkeeper = computed(() => {
 const selectedDefenderIndex = ref<number | null>(null);
 const goalkeeperSelected = ref(false);
 
-function isDefenderSelected(index: number): boolean {
-  return selectedDefenderIndex.value === index;
-}
-
-function isGoalkeeperSelected(): boolean {
-  return goalkeeperSelected.value;
-}
-
 watch(
   () => props.scene,
   () => {
@@ -156,41 +148,23 @@ function onGoalkeeperSelect() {
 </script>
 
 <template>
-  <div class="players-field-bar">
+   <div class="players-field-bar">
     <div class="player-label">
       Defender&apos;s Field
     </div>
 
-    <div
-      class="defender-row"
-      role="group"
-      aria-label="Defender cards"
-    >
-      <FieldCard
-        v-for="(slot, index) in defenders"
-        :key="(slot as any)?.id ?? index"
-        :card="slot"
-        :index="index"
-        role="defender"
-        :selected="isDefenderSelected(index)"
-        :clickable="!props.busy"
-        @select="onDefenderSelect(index)"
-      />
-    </div>
-
-    <div
-      class="goalkeeper-row"
-      role="group"
-      aria-label="Goalkeeper"
-    >
-      <FieldCard
-        :card="goalkeeper"
-        index="gk"
-        role="goalkeeper"
-        :selected="isGoalkeeperSelected()"
-        :clickable="!props.busy && canSelectGoalkeeper"
-        @select="onGoalkeeperSelect"
-      />
-    </div>
+    <FieldCardRow
+      :defenders="defenders"
+      :goalkeeper="goalkeeper"
+      :selectedDefenderIndex="selectedDefenderIndex"
+      :goalkeeperSelected="goalkeeperSelected"
+      :defendersClickable="!props.busy"
+      :goalkeeperClickable="!props.busy && canSelectGoalkeeper"
+      defenders-aria-label="Defender cards"
+      goalkeeper-aria-label="Goalkeeper"
+      @select:defender="onDefenderSelect"
+      @select:goalkeeper="onGoalkeeperSelect"
+    />
   </div>
+
 </template>

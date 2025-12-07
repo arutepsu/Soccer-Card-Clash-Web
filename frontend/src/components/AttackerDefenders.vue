@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import FieldCard from './FieldCard.vue';
+import FieldCardRow from './FieldCardRow.vue';
 import type { SlotLike } from '../types/FieldCards';
 import type { SelectedTarget } from '../types/AttackerDefenders';
-import { onMounted } from 'vue';
+import { onMounted, computed } from 'vue';
 
 const props = withDefaults(
   defineProps<{
@@ -66,42 +66,32 @@ onMounted(() => {
   console.log('[AttackerDefenders] defenders=', props.defenders);
   console.log('[AttackerDefenders] goalkeeper=', props.goalkeeper);
 });
+const selectedDefenderIndex = computed<number | null>(() => {
+  if (!props.selectedTarget) return null;
+  return props.selectedTarget.kind === 'defender'
+    ? props.selectedTarget.index
+    : null;
+});
+
+const goalkeeperSelected = computed<boolean>(() => {
+  return props.selectedTarget?.kind === 'goalkeeper';
+});
 
 </script>
 
-
 <template>
   <div class="attacker-field-bar">
-    <div
-      class="defender-row"
-      role="group"
-      aria-label="Defenders"
-    >
-      <FieldCard
-        v-for="(slot, index) in defenders"
-        :key="(slot as any)?.id ?? index"
-        :card="slot"
-        :index="index"
-        role="defender"
-        :clickable="clickable"
-        :selected="isDefenderSelected(index)"
-        @select="onDefenderSelect(index)"
-      />
-    </div>
-
-    <div
-      class="goalkeeper-row"
-      role="group"
-      aria-label="Goalkeeper"
-    >
-      <FieldCard
-        :card="goalkeeper"
-        index="gk"
-        role="goalkeeper"
-        :clickable="clickable"
-        :selected="isGoalkeeperSelected()"
-        @select="onGoalkeeperSelect"
-      />
-    </div>
+    <FieldCardRow
+      :defenders="defenders"
+      :goalkeeper="goalkeeper"
+      :selectedDefenderIndex="selectedDefenderIndex"
+      :goalkeeperSelected="goalkeeperSelected"
+      :defendersClickable="clickable"
+      :goalkeeperClickable="clickable"
+      defenders-aria-label="Defenders"
+      goalkeeper-aria-label="Goalkeeper"
+      @select:defender="onDefenderSelect"
+      @select:goalkeeper="onGoalkeeperSelect"
+    />
   </div>
 </template>
