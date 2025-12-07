@@ -1,5 +1,7 @@
 <!-- frontend/src/components/HandControls.vue -->
 <script setup lang="ts">
+import GameButton from './GameButton.vue';
+
 const props = withDefaults(
   defineProps<{
     busy?: boolean;
@@ -16,80 +18,74 @@ const emit = defineEmits<{
   (e: 'back'): void;
 }>();
 
-function onSwap() {
-  if (props.busy) return;
-  emit('swap');
-}
+type HandAction = 'swap' | 'reverse-swap' | 'info' | 'back';
 
-function onReverseSwap() {
-  if (props.busy) return;
-  emit('reverse-swap');
-}
-
-function onInfo() {
-  if (props.busy) return;
-  emit('info');
-}
-
-function onBack() {
-  if (props.busy) return;
-  emit('back');
+function onCommand(payload: { action: HandAction }) {
+  switch (payload.action) {
+    case 'swap':
+      emit('swap');
+      break;
+    case 'reverse-swap':
+      emit('reverse-swap');
+      break;
+    case 'info':
+      emit('info');
+      break;
+    case 'back':
+      emit('back');
+      break;
+  }
 }
 </script>
 
 <template>
-  <!-- Root mirrors old .scene__buttons wrapper -->
   <div
     class="scene__buttons"
     role="group"
     aria-label="Actions"
     :aria-busy="busy ? 'true' : 'false'"
   >
-    <button
+    <GameButton
       id="btn-regular-swap"
-      class="gbtn gbtn--lg"
-      type="button"
-      :disabled="busy"
-      @click="onSwap"
-    >
-      Regular Swap
-    </button>
+      class="gbtn--lg"
+      action="swap"
+      label="Regular Swap"
+      :busy="busy"
+      tooltip="Swap the positions of two cards"
+      @command="onCommand"
+    />
 
-    <button
+    <GameButton
       id="btn-reverse-swap"
-      class="gbtn gbtn--lg"
-      type="button"
-      :disabled="busy"
-      @click="onReverseSwap"
-    >
-      Reverse Swap
-    </button>
+      class="gbtn--lg"
+      action="reverse-swap"
+      label="Reverse Swap"
+      :busy="busy"
+      tooltip="Swap cards in the opposite order"
+      @command="onCommand"
+    />
 
-    <button
+    <GameButton
       id="btn-info"
-      class="gbtn"
-      type="button"
-      :disabled="busy"
-      @click="onInfo"
-    >
-      Info
-    </button>
+      action="info"
+      label="Info"
+      :busy="busy"
+      tooltip="Show swap instructions"
+      @command="onCommand"
+    />
 
-    <!-- Use button instead of <a>, but keep id + class for same styling -->
-    <button
+    <GameButton
       id="btn-back"
-      class="gbtn"
-      type="button"
-      :disabled="busy"
-      @click="onBack"
-    >
-      Back to Game
-    </button>
+      action="back"
+      label="Back to Game"
+      :busy="busy"
+      tooltip="Return to the main game view"
+      @command="onCommand"
+    />
   </div>
 </template>
 
 <style scoped>
-/* Optional: extra spacing if needed; your old CSS will mostly govern layout */
 .scene__buttons {
   display: flex;
   flex-wrap: wrap;
@@ -97,7 +93,6 @@ function onBack() {
   justify-content: center;
   margin-top: 1.5rem;
 }
-
 button:disabled {
   opacity: 0.6;
   cursor: not-allowed;

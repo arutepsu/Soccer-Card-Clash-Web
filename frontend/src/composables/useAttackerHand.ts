@@ -1,13 +1,14 @@
 // frontend/src/composables/useAttackerHand.ts
 import { computed, ref, watchEffect } from 'vue';
 import { useGameContext } from './useGameContext';
+import { useGameCommands } from './useGameCommands';
 import { createCardImageRegistry } from '../utils/cardImageRegistry';
 import { buildMapWebToScene, type EnrichedState } from '../utils/mapWebToScene';
-import { HandCardLike } from '../types/HandCards';
-
+import type { HandCardLike } from '../types/HandCards';
 
 export function useAttackerHand() {
   const gameContext = useGameContext();
+  const { swap: sendSwap, reverseSwap: sendReverseSwap, busy } = useGameCommands();
 
   const cardRegistry = createCardImageRegistry();
   const mapWebToScene = buildMapWebToScene(cardRegistry);
@@ -15,7 +16,6 @@ export function useAttackerHand() {
   const enriched = ref<EnrichedState | null>(null);
   const selectedIndex = ref<number | null>(null);
 
-  // Keep enriched state in sync with WebGameState
   watchEffect(() => {
     const web = gameContext.state.value;
     if (!web) {
@@ -33,7 +33,6 @@ export function useAttackerHand() {
   });
 
   async function init() {
-    // preload card assets first, then init game state
     await cardRegistry.preloadAll().catch(() => {});
     await gameContext.init();
   }
@@ -44,12 +43,12 @@ export function useAttackerHand() {
       (err as any).code = 'NO_SELECTION';
       throw err;
     }
-    await gameContext.swap(selectedIndex.value);
+    await sendSwap(selectedIndex.value);
     selectedIndex.value = null;
   }
 
   async function doReverseSwap() {
-    await gameContext.reverseSwap();
+    await sendReverseSwap();
   }
 
   return {
@@ -61,5 +60,6 @@ export function useAttackerHand() {
     init,
     doSwap,
     doReverseSwap,
+    busy,
   };
 }

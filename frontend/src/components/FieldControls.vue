@@ -1,5 +1,7 @@
 <!-- frontend/src/components/FieldControls.vue -->
 <script setup lang="ts">
+import GameButton from './GameButton.vue';
+
 const props = withDefaults(
   defineProps<{
     busy?: boolean;
@@ -17,19 +19,20 @@ const emit = defineEmits<{
   (e: 'back'): void;
 }>();
 
-function onBoost() {
-  if (props.busy || !props.canBoost) return;
-  emit('boost');
-}
+type FieldAction = 'boost' | 'info' | 'back';
 
-function onInfo() {
-  if (props.busy) return;
-  emit('info');
-}
-
-function onBack() {
-  if (props.busy) return;
-  emit('back');
+function onCommand(payload: { action: FieldAction }) {
+  switch (payload.action) {
+    case 'boost':
+      emit('boost');
+      break;
+    case 'info':
+      emit('info');
+      break;
+    case 'back':
+      emit('back');
+      break;
+  }
 }
 </script>
 
@@ -40,34 +43,33 @@ function onBack() {
     aria-label="Actions"
     :aria-busy="busy ? 'true' : 'false'"
   >
-    <button
+    <GameButton
       id="btn-boost"
-      class="gbtn gbtn--lg"
-      type="button"
-      :disabled="busy || !canBoost"
-      @click="onBoost"
-    >
-      Boost Card
-    </button>
+      class="gbtn--lg"
+      action="boost"
+      label="Boost Card"
+      :busy="busy"
+      :can-execute="canBoost"
+      tooltip="Boost the selected defender card"
+      @command="onCommand"
+    />
 
-    <button
+    <GameButton
       id="btn-info"
-      class="gbtn"
-      type="button"
-      :disabled="busy"
-      @click="onInfo"
-    >
-      Info
-    </button>
+      action="info"
+      label="Info"
+      :busy="busy"
+      tooltip="Show info about boosting"
+      @command="onCommand"
+    />
 
-    <button
+    <GameButton
       id="btn-back"
-      class="gbtn"
-      type="button"
-      :disabled="busy"
-      @click="onBack"
-    >
-      Back to Game
-    </button>
+      action="back"
+      label="Back to Game"
+      :busy="busy"
+      tooltip="Return to the main game view"
+      @command="onCommand"
+    />
   </div>
 </template>

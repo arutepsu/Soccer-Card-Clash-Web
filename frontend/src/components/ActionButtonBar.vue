@@ -1,8 +1,12 @@
 <!-- frontend/src/components/ActionButtonBar.vue -->
 <script setup lang="ts">
+import GameButton from './GameButton.vue';
+
+type ActionCmd = 'attack-defender' | 'attack-double' | 'info';
+
 const props = defineProps<{
   busy?: boolean;
-  canAttack?: boolean;        // kept for future use
+  canAttack?: boolean;
   canDoubleAttack?: boolean;
 }>();
 
@@ -14,57 +18,59 @@ const emit = defineEmits<{
   (e: 'hover', payload: { action: string }): void;
 }>();
 
-function onAttackClick() {
-  console.log('[ActionButtonBar] Attack clicked, busy=', props.busy);
-  emit('attack-defender');
+function onCommand(payload: { action: ActionCmd }) {
+  switch (payload.action) {
+    case 'attack-defender':
+      emit('attack-defender');
+      break;
+
+    case 'attack-double':
+      emit('double-attack');
+      break;
+
+    case 'info':
+      emit('info');
+      break;
+  }
 }
 
-function onDoubleAttackClick() {
-  console.log('[ActionButtonBar] Double Attack clicked, busy=', props.busy);
-  emit('double-attack');
-}
-
-function onInfoClick() {
-  console.log('[ActionButtonBar] Info clicked, busy=', props.busy);
-  emit('info');
-}
-
-function onHover(action: string) {
+function onHover(payload: { action: ActionCmd; hovering: boolean }) {
   if (props.busy) return;
-  emit('hover', { action });
+  if (payload.hovering) {
+    emit('hover', { action: payload.action });
+  }
 }
 </script>
 
 <template>
   <div class="action-button-bar">
-    <button
-      type="button"
-      class="gbtn"
-      data-action="attack-regular"
-      @click="onAttackClick"
-      @mouseenter="onHover('attack-defender')"
-    >
-      Attack
-    </button>
+    <GameButton
+      action="attack-defender"
+      label="Attack"
+      :busy="busy"
+      :can-execute="canAttack !== false"
+      tooltip="Attack a defender"
+      @command="onCommand"
+      @hover="onHover"
+    />
 
-    <button
-      type="button"
-      class="gbtn"
-      data-action="attack-double"
-      @click="onDoubleAttackClick"
-      @mouseenter="onHover('attack-double')"
-    >
-      Double Attack
-    </button>
+    <GameButton
+      action="attack-double"
+      label="Double Attack"
+      :busy="busy"
+      :can-execute="canDoubleAttack !== false"
+      tooltip="Perform a double card attack"
+      @command="onCommand"
+      @hover="onHover"
+    />
 
-    <button
-      type="button"
-      class="gbtn"
-      data-action="info"
-      @click="onInfoClick"
-      @mouseenter="onHover('info')"
-    >
-      Info
-    </button>
+    <GameButton
+      action="info"
+      label="Info"
+      :busy="busy"
+      tooltip="Show game info or hints"
+      @command="onCommand"
+      @hover="onHover"
+    />
   </div>
 </template>

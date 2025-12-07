@@ -1,6 +1,7 @@
 // frontend/src/composables/usePlayingField.ts
 import { computed } from 'vue';
 import { useGameContext } from './useGameContext';
+import { useGameCommands } from './useGameCommands';
 import type { WebGameState } from '../types/WebGameState';
 import { createCardImageRegistry } from '../utils/cardImageRegistry';
 import {
@@ -10,8 +11,14 @@ import {
 
 export function usePlayingField() {
   const gameContext = useGameContext();
-
-  const busy = computed(() => gameContext.loading.value);
+  const {
+    singleAttackDefender,
+    singleAttackGoalkeeper,
+    doubleAttack,
+    undo,
+    redo,
+    busy,
+  } = useGameCommands();
 
   const cardRegistry = createCardImageRegistry();
 
@@ -21,33 +28,30 @@ export function usePlayingField() {
     return buildSceneViewFromWeb(web, cardRegistry);
   });
 
-  // Called from PlayingFieldView's onMounted
   async function init(): Promise<void> {
     await gameContext.init();
   }
 
-    // index is required here because the view ensures it
   async function attackDefender(index: number): Promise<void> {
     console.log('[usePlayingField] attackDefender called with index:', index);
-    await gameContext.singleAttackDefender(index);
+    await singleAttackDefender(index);
     console.log('[usePlayingField] attackDefender finished');
   }
 
-
   async function attackGoalkeeper(): Promise<void> {
-    await gameContext.singleAttackGoalkeeper();
+    await singleAttackGoalkeeper();
   }
 
-  async function doubleAttack(index: number): Promise<void> {
-    await gameContext.doubleAttack(index);
+  async function doDoubleAttack(index: number): Promise<void> {
+    await doubleAttack(index);
   }
 
-  async function undo(): Promise<void> {
-    await gameContext.undo();
+  async function doUndo(): Promise<void> {
+    await undo();
   }
 
-  async function redo(): Promise<void> {
-    await gameContext.redo();
+  async function doRedo(): Promise<void> {
+    await redo();
   }
 
   return {
@@ -58,8 +62,8 @@ export function usePlayingField() {
     init,
     attackDefender,
     attackGoalkeeper,
-    doubleAttack,
-    undo,
-    redo,
+    doubleAttack: doDoubleAttack,
+    undo: doUndo,
+    redo: doRedo,
   };
 }

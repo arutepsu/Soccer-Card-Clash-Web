@@ -3,8 +3,9 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useGameContext } from '../composables/useGameContext';
+import GameButton from '../components/GameButton.vue';
 
-//fix later! 
+//fix later!
 const router = useRouter();
 const game = useGameContext();
 
@@ -74,7 +75,7 @@ async function onStartClick() {
   busy.value = true;
 
   try {
-    await game.restart(humanName, aiPlayerName);
+    // await game.restart(humanName, aiPlayerName);
     await router.push({ name: 'PlayingField' });
   } catch (err) {
     console.error('[AISelectionView] Error starting game:', err);
@@ -86,6 +87,19 @@ async function onStartClick() {
 function onBackClick() {
   if (busy.value) return;
   router.push({ name: 'SinglePlayer' });
+}
+
+type AiSelectionAction = 'start' | 'back';
+
+function onCommand(payload: { action: AiSelectionAction }) {
+  switch (payload.action) {
+    case 'start':
+      onStartClick();
+      break;
+    case 'back':
+      onBackClick();
+      break;
+  }
 }
 </script>
 
@@ -121,25 +135,24 @@ function onBackClick() {
     </div>
 
     <div class="buttons mt-4">
-      <button
+      <GameButton
         id="btn-start"
-        class="btn btn-success btn-lg gbtn gbtn--lg"
-        type="button"
-        :disabled="busy"
-        :class="{ 'is-busy': busy }"
-        @click="onStartClick"
-      >
-        Start
-      </button>
+        action="start"
+        label="Start"
+        :busy="busy"
+        tooltip="Start the match"
+        :class="['btn btn-success btn-lg gbtn--lg', { 'is-busy': busy }]"
+        @command="onCommand"
+      />
 
-      <button
-        class="btn btn-secondary btn-lg gbtn gbtn--lg"
-        type="button"
-        :disabled="busy"
-        @click="onBackClick"
-      >
-        Back
-      </button>
+      <GameButton
+        action="back"
+        label="Back"
+        :busy="busy"
+        tooltip="Back to previous screen"
+        class="btn btn-secondary btn-lg gbtn--lg"
+        @command="onCommand"
+      />
     </div>
   </div>
 </template>

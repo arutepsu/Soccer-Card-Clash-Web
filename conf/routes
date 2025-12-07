@@ -32,6 +32,9 @@ POST    /api/save              controllers.TuiController.save()
 GET     /api/show-saves        controllers.TuiController.showSaves()
 POST    /api/load-select/:idx   controllers.TuiController.loadSelect(idx: Int)
 
+POST   /api/game/local-multiplayer   controllers.GameApiController.createLocalMultiplayer
+
+
 GET     /api/files/list              controllers.FileIOController.listSavedGames()
 POST    /api/files/load              controllers.FileIOController.loadGameFromFile()
 POST    /api/files/save              controllers.FileIOController.saveGameToFile()

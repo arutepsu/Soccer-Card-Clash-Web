@@ -1,10 +1,10 @@
 <!-- frontend/src/views/LoadGameView.vue -->
- <!-- fix later! -->
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { fileIOApi } from '../api/fileIoApi';
 import { createSoundManager, type SoundManager } from '../utils/soundManager';
+import GameButton from '../components/GameButton.vue';
 
 const router = useRouter();
 
@@ -124,6 +124,25 @@ function onBackClick() {
   router.push({ name: 'MainMenu' });
 }
 
+type LoadAction = 'back' | 'load';
+
+function onCommand(payload: { action: LoadAction }) {
+  switch (payload.action) {
+    case 'back':
+      onBackClick();
+      break;
+    case 'load':
+      onLoadClick();
+      break;
+  }
+}
+
+function onHover(payload: { action: LoadAction; hovering: boolean }) {
+  if (payload.hovering) {
+    playHover();
+  }
+}
+
 onMounted(() => {
   fetchSavedGames();
 });
@@ -171,25 +190,25 @@ onMounted(() => {
     </div>
 
     <div class="buttons">
-      <button
-        class="gbtn btn btn-warning"
-        type="button"
-        @mouseenter="playHover"
-        @click="onBackClick"
-      >
-        Back
-      </button>
+      <GameButton
+        action="back"
+        label="Back"
+        class="btn btn btn-warning"
+        @command="onCommand"
+        @hover="onHover"
+      />
 
-      <button
-        class="gbtn btn load-game-btn"
-        type="button"
+      <GameButton
+        action="load"
+        class="btn load-game-btn"
+        :busy="loadingGame"
         :disabled="loadingGame || !selectedGameId"
         :class="{ disabled: loadingGame || !selectedGameId }"
-        @mouseenter="playHover"
-        @click="onLoadClick"
+        @command="onCommand"
+        @hover="onHover"
       >
         {{ loadingGame ? 'Loading...' : 'Load' }}
-      </button>
+      </GameButton>
     </div>
   </div>
 </template>
