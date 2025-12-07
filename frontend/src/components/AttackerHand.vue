@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import type { HandCardLike } from '../types/HandCards';
+import HandCardRow from './HandCardRow.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -22,12 +23,9 @@ const emit = defineEmits<{
 const rowRef = ref<HTMLElement | null>(null);
 const overlap = ref<number>(-40);
 
-const effectiveSelectedIndex = computed({
-  get: () => props.selectedIndex ?? -1,
-  set: (value: number | null) => {
-    emit('update:selectedIndex', value);
-  },
-});
+const ariaLabel = computed(
+  () => (props.attackerName || 'Attacker') + ' hand',
+);
 
 async function recomputeOverlap() {
   await nextTick();
@@ -62,86 +60,17 @@ onMounted(() => {
   recomputeOverlap();
 });
 
-function toggleSelection(index: number) {
-  const current = effectiveSelectedIndex.value;
-  effectiveSelectedIndex.value = current === index ? null : index;
-}
-
-function onCardKeydown(index: number, event: KeyboardEvent) {
-  const key = event.key;
-
-  if (key === 'Enter' || key === ' ') {
-    event.preventDefault();
-    toggleSelection(index);
-    focusCard(index);
-    return;
-  }
-
-  if (key === 'ArrowLeft') {
-    event.preventDefault();
-    const next = Math.max(0, index - 1);
-    effectiveSelectedIndex.value = next;
-    focusCard(next);
-    return;
-  }
-
-  if (key === 'ArrowRight') {
-    event.preventDefault();
-    const len = props.hand.length;
-    const next = Math.min(len - 1, index + 1);
-    effectiveSelectedIndex.value = next;
-    focusCard(next);
-    return;
-  }
-
-  if (key === 'Escape') {
-    event.preventDefault();
-    effectiveSelectedIndex.value = null;
-  }
-}
-
-function focusCard(index: number) {
-  const row = rowRef.value;
-  if (!row) return;
-  const el = row.querySelector<HTMLElement>(`.hand-card[data-index="${index}"]`);
-  el?.focus();
-}
 </script>
 
 <template>
-  <div
-    id="attacker-hand"
-    class="hand-row hand-row-inner"
-    ref="rowRef"
-    role="listbox"
-    :aria-label="(attackerName || 'Attacker') + ' hand'"
-    aria-multiselectable="false"
-  >
-    <div
-      v-for="(card, index) in hand"
-      :key="card.fileName ?? index"
-      class="hand-card game-card"
-      :data-index="index"
-      role="option"
-      tabindex="0"
-      :aria-selected="effectiveSelectedIndex === index ? 'true' : 'false'"
-      :class="{ 'is-selected': effectiveSelectedIndex === index }"
-      :style="{
-        marginLeft: index === 0 ? '0px' : overlap + 'px',
-        zIndex: String(index + 1),
-        backgroundImage: card.img ? `url('${card.img}')` : undefined,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-      }"
-      @click="toggleSelection(index)"
-      @keydown="onCardKeydown(index, $event as KeyboardEvent)"
-    >
-      <span v-if="!card.img">
-        {{ index === hand.length - 1 ? (card.fileName ?? 'card') : '🂠' }}
-      </span>
-    </div>
-  </div>
+  <HandCardRow
+    :cards="hand"
+    :selectedIndex="selectedIndex"
+    :ariaLabel="ariaLabel"
+    :clickable="true"
+    :disabled="false"
+    @update:selectedIndex="(val) => emit('update:selectedIndex', val)"
+  />
 </template>
 
 <style scoped>
