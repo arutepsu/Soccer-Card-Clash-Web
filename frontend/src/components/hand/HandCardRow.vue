@@ -99,3 +99,37 @@ const ariaLabelResolved = computed(
     />
   </div>
 </template>
+
+<style scoped>
+.hand-row,
+.hand-row-inner {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 0;
+  position: relative;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .hand-row,
+  .hand-row-inner {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hand-row,
+  .hand-row-inner {
+    gap: 4px;
+  }
+}
+
+@media (max-height: 600px) and (orientation: landscape) {
+  .hand-row,
+  .hand-row-inner {
+    gap: 3px;
+  }
+}
+</style>

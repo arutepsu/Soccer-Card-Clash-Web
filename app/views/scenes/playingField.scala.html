@@ -4,21 +4,12 @@
 
 @defining(play.filters.csrf.CSRF.getToken) { csrfOpt =>
 
-  <!-- Styles: keep all the old CSS so Vue can reuse the classes -->
-  <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/playingField.css")'>
-  <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/gameCard.css")'>
-  <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/base/gameButton.css")'>
-  <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/playersBar.css")'>
-  <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/fieldCards.css")'>
-  <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/handCards.css")'>
-
   @csrfOpt.map { t =>
     <meta name="csrf-token" content="@t.value">
   }
 
   @views.html.components.navBar()
 
-  <!-- Vue app root. Vue Router will render PlayingFieldView here. -->
   <div id="app" data-scene="PlayingField"></div>
 
   @overlay(
@@ -29,7 +20,6 @@
     safeTop = "16%", safeRight = "8%", safeBottom = "16%", safeLeft = "8%"
   )
 
-  <!-- trigger button for overlay, still used by your JS overlay system -->
   <button
     type="button"
     data-open-overlay
@@ -40,10 +30,8 @@
     Open Overlay
   </button>
 
-  <!-- Vue entry (now builds the SPA instead of WebSceneManager) -->
   <script type="module" src='@routes.Assets.versioned("javascripts/app.js")'></script>
 
-  <!-- Mobile meta: you had them at the bottom before; keeping them for now -->
   <meta name="viewport"
         content="width=device-width, initial-scale=1, viewport-fit=cover, minimum-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="mobile-web-app-capable" content="yes">

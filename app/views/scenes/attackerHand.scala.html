@@ -3,19 +3,11 @@
 @import views.html.components.overlay
 @defining(play.filters.csrf.CSRF.getToken) { csrfOpt =>
 
-  <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/attackerHandScene.css")'>
-  <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/gameCard.css")'>
-  <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/handCards.css")'>
-  <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/gameAlert.css")'>
-  <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/sceneComponents/attackerBar.css")'>
-  <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/base/gameButton.css")'>
 
   @csrfOpt.map { t =>
     <meta name="csrf-token" content="@t.value">
   }
 
-  <!-- Root for Vue app -->
-  <!-- data-scene can be used by your Vue bootstrap code to pick the initial route/view -->
   <div id="app" data-scene="AttackerHand">
     @overlay(
       id = "overlay",
@@ -26,6 +18,5 @@
     )
   </div>
 
-  <!-- Global app entry (mounts Vue and shows AttackerHandView.vue inside #app) -->
   <script type="module" src='@routes.Assets.versioned("javascripts/app.js")'></script>
 }

@@ -5,6 +5,9 @@ import { router } from './app/router';
 
 import './assets/styles/buttons.css';
 import './assets/styles/dialogs.css';
+import './assets/styles/cards.css';
+import './assets/styles/theme.css';
+import './assets/styles/playersBar.css'; //refr later
 import {
   createAppServices,
   AppServicesKey,

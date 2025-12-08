@@ -10,25 +10,12 @@
 
 <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/base/overlay.css")'>
 
-<div id="@id"
-     class="overlay hidden"
-     role="dialog"
-     aria-modal="true"
-     aria-label="@title"
-     aria-hidden="true">
+@* 
+  NOTE:
+  The actual overlay DOM is now rendered entirely by Vue (AppOverlay.vue),
+  using the same CSS classes (.overlay, .overlay-frame, .overlay-scroll, etc.).
 
-  <div class="overlay-frame"
-       style='
-         --frame-img: url("@routes.Assets.versioned(bgImagePath)");
-         --safe-top: @safeTop;
-         --safe-right: @safeRight;
-         --safe-bottom: @safeBottom;
-         --safe-left: @safeLeft;
-       '>
-
-    <div class="overlay-scroll">
-      <div class="overlay-textflow" id="vue-overlay-content">
-      </div>
-    </div>
-  </div>
-</div>
+  This Twirl template is kept only to provide the stylesheet on pages that need
+  the overlay styling. Do NOT render the old overlay HTML here, otherwise
+  you'll end up with two different overlay implementations fighting each other.
+*@

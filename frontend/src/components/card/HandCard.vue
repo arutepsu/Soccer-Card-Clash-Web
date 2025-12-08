@@ -64,6 +64,7 @@ function onSelect() {
 
 <style scoped>
 .hand-card {
+  cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -76,6 +77,12 @@ function onSelect() {
   box-shadow: 0 0 8px rgba(255, 213, 79, 0.9);
 }
 
-.hand-card--readonly {
+/* .hand-card--readonly {
+  cursor: default;
 }
+
+.hand-card--readonly:hover {
+  transform: none;
+  box-shadow: none;
+} */
 </style>

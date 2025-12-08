@@ -1,11 +1,10 @@
-<!-- frontend/src/views/MainMenuView.vue (or similar) -->
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { createSoundManager, type SoundManager } from '../utils/soundManager';
 import { useOverlay } from '../composables/useOverlay';
 import GameButton from '../components/button/GameButton.vue';
-
+import GameLogo from '../components/logo/GameLogo.vue';
 const router = useRouter();
 const { show, hide } = useOverlay();
 
@@ -178,14 +177,7 @@ onUnmounted(() => {
       <div class="row h-100 align-items-center justify-content-center">
         <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
           <div class="menu-stack">
-            <div class="text-center mb-3">
-              <img
-                class="logo-image img-fluid"
-                src="/assets/images/logo/logo0.5k.png"
-                alt="Soccer Card Clash Logo"
-              />
-            </div>
-
+            <GameLogo />
             <nav class="buttons" aria-label="Main menu">
               <div class="d-grid gap-2">
                 <GameButton
@@ -246,3 +238,122 @@ onUnmounted(() => {
     <div class="info-label">Developed by Arutepsu</div>
   </div>
 </template>
+
+<style scoped>
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.scene--mainmenu {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  background-image: url('/assets/images/frames/background1.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  font-family: "Rajdhani", Arial, sans-serif;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.scene--mainmenu.is-active {
+  display: block;
+}
+
+.menu-stack {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 0px;
+}
+
+.buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin-top: 5px;
+}
+
+.buttons .d-grid {
+  gap: 0px !important;
+  margin-top: -20px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+.gbtn {
+  margin: -20px 0 !important;
+  width: 100% !important;
+}
+
+.logo-image {
+  max-width: 200px;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.4));
+  margin-bottom: 5px; 
+}
+
+.info-label {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: clamp(14px, 3vw, 20px);
+  color: #39FF14;
+  text-shadow: 0 0 6px #39FF14, 0 0 12px rgba(57,255,20,0.6);
+  pointer-events: none;
+  line-height: 1;
+  text-align: center;
+  padding: 0 10px;
+}
+
+
+@media (max-width: 576px) {
+  .logo-image {
+    max-width: 150px;
+  }
+  
+  .gbtn {
+    --btn-w: 260px !important;
+    --btn-h: 100px !important;
+    font-size: 16px !important;
+  }
+  
+  .menu-stack {
+    padding: 5px;
+  }
+}
+
+@media (min-width: 577px) and (max-width: 768px) {
+  .logo-image {
+    max-width: 240px;
+  }
+  
+  .gbtn {
+    --btn-w: 300px !important;
+    --btn-h: 130px !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .logo-image {
+    max-width: 280px;
+  }
+}
+
+</style>

@@ -156,3 +156,133 @@ function onCommand(payload: { action: AiSelectionAction }) {
     </div>
   </div>
 </template>
+
+<style scoped>
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: none !important;
+}
+
+.scene--ai {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 20px;
+
+    font-family: "Rajdhani", Arial, sans-serif;
+
+    background-image: url('/assets/images/frames/background8.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.scene--ai .header {
+    color: #f3ca04;
+    font-size: clamp(2rem, 8vw, 5rem);
+    font-weight: bold;
+    margin: 20px 0;
+    text-shadow: 0 0 10px rgba(243, 202, 4, 0.8), 0 4px 8px rgba(0, 0, 0, 0.6);
+    text-align: center;
+}
+
+.opponents {
+    /* display: flex; */
+    /* justify-content: center; */
+    /* align-items: stretch; */
+    /* gap: 20px; */
+    margin: 20px auto;
+    width: 100%;
+    max-width: 1200px;
+    text-align: center;   
+}
+
+
+.card {
+    background: rgba(0, 0, 0, 0.7);
+    border: 2px solid #7700ff;
+    border-radius: 20px;
+    box-shadow: 0 0 20px #7700ff;
+    transition: transform 0.3s, box-shadow 0.3s;
+    width: 100%;
+    max-width: 80%;
+    margin: 0 auto;
+}
+
+.card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 0 30px #ff00ff;
+}
+
+.card-title {
+    color: #ff00ff;
+    font-size: 1.25rem;
+}
+
+.card-text {
+    color: #ccc;
+    font-size: 0.9rem;
+}
+
+.card img {
+    width: 100%;
+    height: auto;
+    border-radius: 12px;
+    margin-bottom: 15px;
+    object-fit: cover;
+}
+
+.buttons {
+    
+    margin-bottom: 310px;
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap
+    ;
+}
+
+.gbtn {
+    padding: 12px 24px;
+    display: inline-flex;
+    align-items: center;
+}
+
+@media (max-width: 992px) {
+    .scene--ai .header {
+        font-size: 3rem;
+    }
+    .card {
+        max-width: 250px;
+    }
+}
+
+@media (max-width: 768px) {
+    .scene--ai .header {
+        font-size: 2.5rem;
+    }
+    .card {
+        max-width: 200px;
+    }
+}
+
+@media (max-width: 576px) {
+    .scene--ai .header {
+        font-size: 2rem;
+    }
+    .card {
+        max-width: 170px;
+    }
+}
+</style>

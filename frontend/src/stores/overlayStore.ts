@@ -4,13 +4,12 @@ import { shallowRef, ref } from 'vue';
 export type OverlayContentComponent = any;
 
 const visible = ref(false);
-const isClosing = ref(false);          // ⭐ NEW
+const isClosing = ref(false);
 const title = ref<string>('');
 const message = ref<string | null>(null);
 const content = shallowRef<OverlayContentComponent | null>(null);
 const componentProps = shallowRef<Record<string, any> | null>(null);
 
-// keep this in sync with CSS transition duration
 const OVERLAY_ANIM_MS = 500;
 
 export interface OverlayStateOptions {
@@ -27,17 +26,14 @@ export function useOverlayStore() {
     content.value = opts.content ?? null;
     componentProps.value = opts.props ?? null;
 
-    isClosing.value = false;          // reset closing state
+    isClosing.value = false;
     visible.value = true;
   }
 
   function hide() {
-    // already hidden / closing → ignore
     if (!visible.value || isClosing.value) return;
 
     isClosing.value = true;
-
-    // wait for CSS animation to finish, then unmount + cleanup
     window.setTimeout(() => {
       visible.value = false;
       isClosing.value = false;
@@ -48,7 +44,7 @@ export function useOverlayStore() {
 
   return {
     visible,
-    isClosing,                         // ⭐ expose
+    isClosing,
     title,
     message,
     content,
