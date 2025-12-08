@@ -1,0 +1,184 @@
+.gbtn {
+  --btn-w: 320px;
+  --btn-h: 150px;
+
+  width: var(--btn-w) !important;
+  height: var(--btn-h) !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  cursor: pointer;
+  background-color: transparent !important;
+
+  background-image: url('/assets/images/buttons/button.png') !important;
+  background-size: 100% 100% !important;
+  background-repeat: no-repeat !important;
+  background-position: center top !important;
+
+  color: #fff !important;
+  font-family: 'Rajdhani', Arial, sans-serif !important;
+  font-weight: 400 !important;
+  font-size: 20px !important;
+  text-align: center !important;
+  text-decoration: none !important;
+  filter: drop-shadow(0 1px 4px rgba(158, 75, 223, 0.8)) !important;
+
+  transition:
+    transform 120ms ease,
+    background-position 120ms ease,
+    filter 120ms ease !important;
+}
+
+.gbtn:hover {
+  transform: translateY(-5px) !important;
+  background-position: center bottom !important;
+  color: #fff !important;
+}
+
+.gbtn:active {
+  transform: translateY(10px) !important;
+}
+
+.gbtn:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.gbtn--flat {
+  filter: none !important;
+}
+
+.gbtn--lg {
+  font-size: 22px !important;
+}
+
+@keyframes gbtn-glitch {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  25% {
+    transform: translate(3px, 0) rotate(2deg);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate(-3px, 0) rotate(-2deg);
+    opacity: 1;
+  }
+  75% {
+    transform: translate(2px, 0) rotate(1deg);
+    opacity: 0.95;
+  }
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.gbtn--glitch:hover {
+  animation: gbtn-glitch 200ms linear infinite !important;
+}
+
+@media (max-width: 1024px) {
+  .gbtn {
+    --btn-w: 280px;
+    --btn-h: 130px;
+    font-size: 19px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .gbtn {
+    --btn-w: 240px;
+    --btn-h: 110px;
+    font-size: 18px !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .gbtn {
+    --btn-w: 160px;
+    --btn-h: 72px;
+    font-size: 14px !important;
+  }
+  .gbtn:hover {
+    transform: translateY(-2px) !important;
+  }
+  .gbtn:active {
+    transform: translateY(4px) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .gbtn {
+    --btn-w: 140px;
+    --btn-h: 64px;
+    font-size: 13px !important;
+  }
+  .gbtn:hover {
+    transform: translateY(-2px) !important;
+  }
+  .gbtn:active {
+    transform: translateY(4px) !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .gbtn {
+    --btn-w: 120px;
+    --btn-h: 56px; /* >= 44px */
+    font-size: 12px !important;
+  }
+  .gbtn:hover {
+    transform: translateY(-1px) !important;
+  }
+  .gbtn:active {
+    transform: translateY(3px) !important;
+  }
+}
+
+@media (max-height: 600px) and (orientation: landscape) {
+  .gbtn {
+    --btn-w: 220px;
+    --btn-h: 96px;
+    font-size: 18px !important;
+  }
+  .gbtn:hover {
+    transform: translateY(-4px) !important;
+  }
+  .gbtn:active {
+    transform: translateY(8px) !important;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .gbtn {
+    --btn-w: 200px;
+    --btn-h: 84px;
+    font-size: 16px !important;
+  }
+  .gbtn:hover {
+    transform: translateY(-3px) !important;
+  }
+  .gbtn:active {
+    transform: translateY(6px) !important;
+  }
+}
+
+@media (max-height: 400px) and (orientation: landscape) {
+  .gbtn {
+    --btn-w: 180px;
+    --btn-h: 64px;
+    font-size: 14px !important;
+  }
+  .gbtn:hover {
+    transform: translateY(-2px) !important;
+  }
+  .gbtn:active {
+    transform: translateY(4px) !important;
+  }
+}

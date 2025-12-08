@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppOverlay from './components/AppOverlay.vue';
+import AppOverlay from './components/overlay/AppOverlay.vue';
 </script>
 
 <template>

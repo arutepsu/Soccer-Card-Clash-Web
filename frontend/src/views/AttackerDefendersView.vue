@@ -4,9 +4,9 @@ import { onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useOverlay } from '../composables/useOverlay';
 import { useAttackerDefenders } from '../composables/useAttackerDefenders';
-import AttackerBar from '../components/AttackerBar.vue';
-import AttackerDefenders from '../components/AttackerDefenders.vue';
-import FieldControls from '../components/FieldControls.vue';
+import AttackerBar from '../components/player/AttackerBar.vue';
+import AttackerDefenders from '../components/field/AttackerDefenders.vue';
+import FieldControls from '../components/field/FieldControls.vue';
 import { createPlayerAvatarRegistry } from '../utils/playerAvatarRegistry';
 import type { WebGameState } from '../types/WebGameState';
 

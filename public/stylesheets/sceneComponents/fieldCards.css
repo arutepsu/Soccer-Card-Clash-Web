@@ -23,10 +23,10 @@
   transform: translateY(-2px);
 }
 
-.field-card.is-defeated {
+/* .field-card.is-defeated {
   filter: grayscale(.95) contrast(.9) brightness(.9);
   opacity: .9;
-}
+} */
 
 .is-selected {
   outline: 3px solid rgba(255, 215, 0, 0.9);

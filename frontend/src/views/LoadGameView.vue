@@ -4,7 +4,7 @@ import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { fileIOApi } from '../api/fileIoApi';
 import { createSoundManager, type SoundManager } from '../utils/soundManager';
-import GameButton from '../components/GameButton.vue';
+import GameButton from '../components/button/GameButton.vue';
 
 const router = useRouter();
 

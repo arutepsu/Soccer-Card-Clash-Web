@@ -4,7 +4,7 @@ import { onMounted, onUnmounted, ref, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { createSoundManager, type SoundManager } from '../utils/soundManager';
 import { useOverlay } from '../composables/useOverlay';
-import GameButton from '../components/GameButton.vue';
+import GameButton from '../components/button/GameButton.vue';
 
 const router = useRouter();
 const { show, hide } = useOverlay();
