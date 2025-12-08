@@ -74,3 +74,30 @@ function onHover(payload: { action: NavAction; hovering: boolean }) {
     />
   </div>
 </template>
+
+<style scoped>
+.nav-button-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+
+  font-family: "Rajdhani", Arial, sans-serif;
+}
+
+@media (max-width: 768px) {
+  .nav-button-bar {
+    gap: 8px;
+    padding: 6px 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .nav-button-bar {
+    gap: 6px;
+    padding: 4px 0;
+  }
+}
+</style>

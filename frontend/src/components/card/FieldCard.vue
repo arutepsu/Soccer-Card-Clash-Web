@@ -1,4 +1,3 @@
-// frontend/src/components/FieldCard.vue
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from 'vue';
 import { createCardAnimations } from '../../utils/cardAnimations';
@@ -167,15 +166,33 @@ function handleKeydown(event: KeyboardEvent) {
 
 <style scoped>
 .field-card {
+  cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .field-card:hover {
+  box-shadow: var(--shadow-hover, 0 14px 28px rgba(0, 0, 0, 0.55));
   transform: translateY(-2px) scale(1.03);
+}
+
+.field-card--readonly {
+  cursor: default;
 }
 
 .field-card--readonly:hover {
   transform: none;
-  cursor: default;
+  box-shadow: none;
+}
+/*
+.field-card.is-defeated {
+  filter: grayscale(.95) contrast(.9) brightness(.9);
+  opacity: .9;
+}
+*/
+
+/* Selection highlight */
+.field-card.is-selected {
+  outline: 3px solid rgba(255, 215, 0, 0.9);
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
 }
 </style>
