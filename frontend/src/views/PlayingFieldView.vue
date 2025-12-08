@@ -2,11 +2,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { usePlayingField } from '../composables/usePlayingField';
-import PlayersBar from '../components/PlayersBar.vue';
-import NavButtonBarContainer from '../components/NavButtonBarContainer.vue';
-import PlayersField from '../components/PlayersField.vue';
-import PlayersHand from '../components/PlayersHand.vue';
-import ActionButtonBar from '../components/ActionButtonBar.vue';
+import PlayersBar from '../components/player/PlayersBar.vue';
+import NavButtonBarContainer from '../components/button/NavButtonBarContainer.vue';
+import PlayersField from '../components/field/PlayersField.vue';
+import PlayersHand from '../components/hand/PlayersHand.vue';
+import ActionButtonBar from '../components/button/ActionButtonBar.vue';
 import { createPlayerAvatarRegistry } from '../utils/playerAvatarRegistry';
 import { useOverlay } from '../composables/useOverlay';
 import type { PlayerLike, WebGameState } from '../types/WebGameState';
@@ -51,11 +51,10 @@ function showInfoAlert(message: string) {
   show({
     title: 'Info',
     message,
-    content: null, // later this can be a dedicated InfoAlert component
+    content: null,
   });
 }
 
-// --- selection handlers from PlayersField ---
 
 function handleDefenderSelected(index: number | null) {
   if (index == null) {
@@ -71,7 +70,6 @@ function handleGoalkeeperSelected(selected: boolean) {
   console.log('[PlayingFieldView] goalkeeper-selected ->', selectedTarget.value);
 }
 
-// --- buttons -> usePlayingField ---
 
 async function handleAttackDefender() {
   console.log(
@@ -217,7 +215,6 @@ watch(
       </section>
 
       <section id="attacker-avatar-box" aria-label="Current Attacker">
-        <!-- attacker avatar here later -->
       </section>
     </footer>
   </div>

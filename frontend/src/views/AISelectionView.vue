@@ -3,7 +3,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useGameContext } from '../composables/useGameContext';
-import GameButton from '../components/GameButton.vue';
+import GameButton from '../components/button/GameButton.vue';
 
 //fix later!
 const router = useRouter();

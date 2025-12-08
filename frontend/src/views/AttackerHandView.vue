@@ -4,9 +4,9 @@ import { onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useOverlay } from '../composables/useOverlay';
 import { useAttackerHand } from '../composables/useAttackerHand';
-import AttackerBar from '../components/AttackerBar.vue';
-import AttackerHand from '../components/AttackerHand.vue';
-import HandControls from '../components/HandControls.vue';
+import AttackerBar from '../components/player/AttackerBar.vue';
+import AttackerHand from '../components/hand/AttackerHand.vue';
+import HandControls from '../components/hand/HandControls.vue';
 import { createPlayerAvatarRegistry } from '../utils/playerAvatarRegistry';
 import type { WebGameState } from '../types/WebGameState';
 
@@ -92,7 +92,6 @@ onMounted(async () => {
     class="scene scene--attackerhand scene--attacker-hand is-active"
     aria-live="polite"
   >
-    <!-- Header / attacker info -->
     <section
       id="attacker-bar"
       class="scene-header"
@@ -105,7 +104,6 @@ onMounted(async () => {
     </section>
 
     <div class="scene__center">
-      <!-- Hand bar (players-hand-bar + selectable-hand-bar) -->
       <section
         class="players-hand-bar selectable-hand-bar"
         aria-label="Your Hand"
@@ -117,7 +115,6 @@ onMounted(async () => {
         />
       </section>
 
-      <!-- Buttons (HandControls root is .scene__buttons) -->
       <HandControls
         :busy="busy"
         @swap="onSwap"

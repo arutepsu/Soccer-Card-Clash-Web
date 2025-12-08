@@ -6,7 +6,7 @@ import { createSoundManager, type SoundManager } from '../utils/soundManager';
 import { setPlayers } from '../utils/playerSideRegistry';
 import { useOverlay } from '../composables/useOverlay';
 import { useGameCommands } from '../composables/useGameCommands';
-import GameButton from '../components/GameButton.vue';
+import GameButton from '../components/button/GameButton.vue';
 
 const router = useRouter();
 const { createLocalMultiplayer } = useGameCommands();

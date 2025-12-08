@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import GameButton from '../components/GameButton.vue';
+import GameButton from '../components/button/GameButton.vue';
 
 const router = useRouter();
 
