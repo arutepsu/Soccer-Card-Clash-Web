@@ -1,4 +1,5 @@
 @()(implicit request: play.api.mvc.RequestHeader, messages: play.api.i18n.Messages)
+<<<<<<< HEAD:backend/app/views/scenes/sessionScreen.scala.html
 
 <!DOCTYPE html>
 <html lang="en">
@@ -16,5 +17,247 @@
 
     <script type="module" src='@routes.Assets.versioned("javascripts/app/sessionScreen.js")'></script>
 
+=======
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Online Multiplayer - Session Screen</title>
+  <link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/sessionScreen.css")'>
+</head>
+<body>
+  @views.html.components.navBar()
+
+  <div id="app"></div>
+
+  <script type="module">
+    import { createApp, ref, computed, onMounted } from 'https://unpkg.com/vue@@3/dist/vue.esm-browser.js';
+    import { createSoundManager } from '@routes.Assets.versioned("javascripts/utils/soundManager.js")';
+
+    const app = createApp({
+      setup() {
+        const soundManager = createSoundManager({ basePath: '/assets/sounds/' });
+        
+        const sessions = ref([
+          { id: 1, name: "Alice's Room", players: '1/2', status: 'Waiting', host: 'Alice', mode: 'Standard' },
+          { id: 2, name: "Bob's Lobby", players: '2/2', status: 'Full', host: 'Bob', mode: 'Standard' },
+          { id: 3, name: "FunTest123", players: '1/2', status: 'Waiting', host: 'FunTest123', mode: 'Standard' }
+        ]);
+        
+        const selectedSession = ref(null);
+        const showCreateForm = ref(false);
+        const newSessionName = ref('');
+        const newSessionMode = ref('Standard');
+        const maxPlayers = ref(2);
+        
+        const sessionDetails = computed(() => {
+          if (!selectedSession.value) return null;
+          return sessions.value.find(s => s.id === selectedSession.value);
+        });
+
+        onMounted(() => {
+          soundManager.preload('hover', 'hover.wav');
+          soundManager.preload('click', 'attack.wav');
+        });
+
+        const handleMouseEnter = () => {
+          soundManager.play('hover', { volume: 0.8 });
+        };
+        
+        const selectSession = (sessionId) => {
+          soundManager.play('click', { volume: 0.6 });
+          selectedSession.value = sessionId;
+        };
+        
+        const openCreateForm = () => {
+          soundManager.play('click', { volume: 0.6 });
+          showCreateForm.value = true;
+          selectedSession.value = null;
+        };
+        
+        const cancelCreate = () => {
+          soundManager.play('click', { volume: 0.6 });
+          showCreateForm.value = false;
+          newSessionName.value = '';
+          newSessionMode.value = 'Standard';
+        };
+        
+        const submitCreate = () => {
+          if (!newSessionName.value.trim()) return;
+          soundManager.play('click', { volume: 0.6 });
+          console.log('Creating session:', {
+            name: newSessionName.value,
+            mode: newSessionMode.value,
+            maxPlayers: maxPlayers.value
+          });
+          showCreateForm.value = false;
+          newSessionName.value = '';
+        };
+        
+        const joinSession = () => {
+          if (!selectedSession.value) return;
+          soundManager.play('click', { volume: 0.6 });
+          console.log('Joining session:', selectedSession.value);
+        };
+
+        return {
+          sessions,
+          selectedSession,
+          sessionDetails,
+          showCreateForm,
+          newSessionName,
+          newSessionMode,
+          maxPlayers,
+          handleMouseEnter,
+          selectSession,
+          openCreateForm,
+          cancelCreate,
+          submitCreate,
+          joinSession
+        };
+      },
+      template: `
+        <div class="scene scene--sessionscreen is-active" aria-hidden="false">
+          <div class="session-container">
+            <h1 class="session-header">ONLINE MULTIPLAYER</h1>
+            
+            <div class="session-content">
+              <div class="sessions-panel">
+                <div class="sessions-header">
+                  <span>Sessions</span>
+                  <button class="btn-create" @@click="openCreateForm" @@mouseenter="handleMouseEnter">
+                    [ Create ]
+                  </button>
+                </div>
+                
+                <div class="sessions-list">
+                  <div 
+                    v-for="session in sessions" 
+                    :key="session.id"
+                    class="session-item"
+                    :class="{ 'selected': selectedSession === session.id, 'full': session.status === 'Full' }"
+                    @@click="selectSession(session.id)"
+                    @@mouseenter="handleMouseEnter"
+                  >
+                    <span class="session-indicator">▸</span>
+                    <span class="session-name">{{ session.name }}</span>
+                    <span class="session-players">{{ session.players }}</span>
+                    <span class="session-status">{{ session.status }}</span>
+                    <button 
+                      v-if="session.status === 'Waiting'" 
+                      class="btn-join"
+                      @@click.stop="selectedSession = session.id; joinSession()"
+                      @@mouseenter="handleMouseEnter"
+                    >
+                      [ Join ]
+                    </button>
+                    <button 
+                      v-else 
+                      class="btn-full"
+                      disabled
+                    >
+                      [ Full ]
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="session-details-panel">
+                <div v-if="showCreateForm" class="create-form">
+                  <div class="details-header">Create a session</div>
+                  
+                  <div class="form-content">
+                    <div class="form-row">
+                      <label class="form-label">Your Name:</label>
+                      <input 
+                        type="text" 
+                        v-model="newSessionName"
+                        class="form-input"
+                        placeholder="Enter session name"
+                        @@mouseenter="handleMouseEnter"
+                      />
+                    </div>
+                    
+                    <div class="form-row">
+                      <label class="form-label">Game Mode:</label>
+                      <select 
+                        v-model="newSessionMode"
+                        class="form-select"
+                        @@mouseenter="handleMouseEnter"
+                      >
+                        <option value="Standard">Standard</option>
+                        <option value="Quick">Quick</option>
+                        <option value="Custom">Custom</option>
+                      </select>
+                    </div>
+                    
+                    <div class="form-row">
+                      <label class="form-label">Max Players:</label>
+                      <span class="form-value">{{ maxPlayers }}</span>
+                    </div>
+                    
+                    <div class="form-buttons">
+                      <button 
+                        class="btn-form-action"
+                        @@click="submitCreate"
+                        @@mouseenter="handleMouseEnter"
+                      >
+                        [ Create ]
+                      </button>
+                      <button 
+                        class="btn-form-cancel"
+                        @@click="cancelCreate"
+                        @@mouseenter="handleMouseEnter"
+                      >
+                        [ Cancel ]
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                
+                <div v-else-if="sessionDetails" class="details-content">
+                  <div class="details-header">— Session Details —</div>
+                  <div class="detail-row">
+                    <span class="detail-label">Selected:</span>
+                    <span class="detail-value">{{ sessionDetails.name }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">Host:</span>
+                    <span class="detail-value">{{ sessionDetails.host }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">Mode:</span>
+                    <span class="detail-value">{{ sessionDetails.mode }}</span>
+                  </div>
+                  <div class="detail-row">
+                    <span class="detail-label">Players:</span>
+                    <span class="detail-value">{{ sessionDetails.host }}, (waiting slot)</span>
+                  </div>
+                  
+                  <button 
+                    class="btn-join-session"
+                    @@click="joinSession"
+                    @@mouseenter="handleMouseEnter"
+                  >
+                    [ Join Session ]
+                  </button>
+                </div>
+                
+                <div v-else class="details-empty">
+                  <div class="details-header">— Session Details —</div>
+                  Select a session to view details
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="info-label">Developed by Arutepsu</div>
+        </div>
+      `
+    });
+
+    app.mount('#app');
+  </script>
+>>>>>>> main:app/views/scenes/sessionScreen.scala.html
 </body>
 </html>
