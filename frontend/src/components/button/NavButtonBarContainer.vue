@@ -95,7 +95,7 @@ function openPauseDialog() {
     title: 'Paused',
     message: null,
     content: PauseDialog,
-    props: {
+    componentProps: {
       onAction: handlePauseAction,
     },
   });

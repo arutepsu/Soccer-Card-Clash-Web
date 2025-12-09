@@ -16,7 +16,10 @@ export interface OverlayStateOptions {
   title?: string;
   message?: string | null;
   content?: OverlayContentComponent | null;
-  props?: Record<string, any> | null;
+  componentProps?: Record<string, any> | null;
+  autoHide?: boolean;
+  sizeMult?: number;
+  onHide?: () => void;
 }
 
 export function useOverlayStore() {
@@ -24,7 +27,7 @@ export function useOverlayStore() {
     title.value = opts.title ?? '';
     message.value = opts.message ?? null;
     content.value = opts.content ?? null;
-    componentProps.value = opts.props ?? null;
+    componentProps.value = opts.componentProps ?? null;
 
     isClosing.value = false;
     visible.value = true;

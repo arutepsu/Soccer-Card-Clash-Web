@@ -11,8 +11,8 @@ import type {
   ComparisonCard,
 } from './comparisonDialogHandler';
 
-import type { PlayerAvatarRegistry } from '../../utils/playerAvatarRegistry';
-import type { CardImageRegistry } from '../../utils/cardImageRegistry';
+import type { PlayerAvatarRegistry } from '../playerAvatarRegistry';
+import type { CardImageRegistry } from '../cardImageRegistry';
 
 let avatarRegistry: PlayerAvatarRegistry | null = null;
 let cardRegistry: CardImageRegistry | null = null;

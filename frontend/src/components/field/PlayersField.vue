@@ -1,7 +1,7 @@
 <!-- frontend/src/components/PlayersField.vue -->
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import type { SceneView } from '../../scenes/playingField/sceneMapping';
+import type { SceneView } from '../../utils/playingField/sceneMapping';
 import type { FieldSlot, FieldCardData } from '../../types/FieldCards';
 import FieldCardRow from './FieldCardRow.vue';
 import { createCardImageRegistry } from '@/utils/cardImageRegistry';
