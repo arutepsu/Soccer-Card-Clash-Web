@@ -1,0 +1,15 @@
+/target/
+/project/target/
+/project/project/target/
+/logs/
+/RUNNING_PID
+
+/.idea/
+/*.iml
+/.bsp/
+/.metals/
+/.bloop/
+/.vscode/
+
+.DS_Store
+Thumbs.db
