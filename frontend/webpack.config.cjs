@@ -7,7 +7,7 @@ module.exports = {
   entry: './src/main.ts',
   output: {
     filename: 'app.js',
-    path: path.resolve(__dirname, '../public/javascripts'),
+    path: path.resolve(__dirname, '..backend/public/javascripts'),
     publicPath: '/assets/javascripts/',
     clean: true,
   },
@@ -39,12 +39,11 @@ module.exports = {
             loader: 'css-loader',
             options: {
               url: {
-                // ❗ Ignore URLs that begin with /assets/
                 filter: (url, resourcePath) => {
                   if (url.startsWith('/assets/')) {
-                    return false; // do NOT try to resolve it, leave it as-is
+                    return false;
                   }
-                  return true; // process all other URLs normally
+                  return true;
                 },
               },
             },
