@@ -1,6 +1,7 @@
 GET     /                        controllers.RedirectController.rootToGame
 
 GET     /main-menu               controllers.UiController.mainMenu()
+GET     /session-screen          controllers.UiController.sessionScreen()
 GET     /singleplayer            controllers.UiController.singleplayer()
 GET     /multiplayer             controllers.UiController.multiplayer()
 GET     /session-screen          controllers.UiController.sessionScreen()
