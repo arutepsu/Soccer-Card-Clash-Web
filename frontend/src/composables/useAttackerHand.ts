@@ -3,7 +3,7 @@ import { computed, ref, watchEffect } from 'vue';
 import { useGameContext } from './useGameContext';
 import { useGameCommands } from './useGameCommands';
 import { createCardImageRegistry } from '../utils/cardImageRegistry';
-import { buildMapWebToScene, type EnrichedState } from '../utils/mapWebToScene';
+import { buildHandToScene, type EnrichedState } from '../utils/mapHandToScene';
 import type { HandCardLike } from '../types/HandCards';
 
 export function useAttackerHand() {
@@ -11,7 +11,7 @@ export function useAttackerHand() {
   const { swap: sendSwap, reverseSwap: sendReverseSwap, busy } = useGameCommands();
 
   const cardRegistry = createCardImageRegistry();
-  const mapWebToScene = buildMapWebToScene(cardRegistry);
+  const mapHandToScene = buildHandToScene(cardRegistry);
 
   const enriched = ref<EnrichedState | null>(null);
   const selectedIndex = ref<number | null>(null);
@@ -23,7 +23,7 @@ export function useAttackerHand() {
       selectedIndex.value = null;
       return;
     }
-    enriched.value = mapWebToScene(web);
+    enriched.value = mapHandToScene(web);
   });
 
   const attacker = computed(() => enriched.value?.players?.attacker ?? null);

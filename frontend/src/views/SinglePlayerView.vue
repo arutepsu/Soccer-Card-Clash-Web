@@ -6,6 +6,7 @@ import { useOverlay } from '../composables/useOverlay';
 import GameButton from '../components/button/GameButton.vue';
 import GameLogo from '../components/logo/GameLogo.vue';
 import GlitchInput from '../components/input-field/GlitchInput.vue';
+import singleBg from '@/assets/images/frames/background2.jpg';
 
 const router = useRouter();
 const { show, hide } = useOverlay();
@@ -93,10 +94,22 @@ function onHover(payload: { action: SinglePlayerAction; hovering: boolean }) {
     onButtonHover();
   }
 }
+
+const singleSceneStyle = {
+  backgroundImage: `url(${singleBg})`,
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+  backgroundRepeat: 'no-repeat',
+};
+
 </script>
 
 <template>
-  <div class="scene scene--singleplayer is-active" aria-hidden="false">
+  <div
+    class="scene scene--singleplayer is-active"
+    aria-hidden="false"
+    :style="singleSceneStyle"
+  >
     <GameLogo />
 
     <div class="titles">
@@ -149,10 +162,6 @@ function onHover(payload: { action: SinglePlayerAction; hovering: boolean }) {
   align-items: center;
   justify-content: flex-start;
   padding-top: 60px;
-  background-image: url('/assets/images/frames/background2.jpg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
   font-family: "Rajdhani", Arial, sans-serif;
 }
 

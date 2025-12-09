@@ -2,6 +2,7 @@
 import { computed, ref, watch, onMounted } from 'vue';
 import { createCardAnimations } from '../../utils/cardAnimations';
 import type { SlotLike, FieldCardData, FieldSlot } from '../../types/FieldCards';
+import defeatedPng from '@/assets/images/cards/defeated.png';
 
 const props = withDefaults(
   defineProps<{
@@ -17,12 +18,13 @@ const props = withDefaults(
   {
     role: 'defender',
     cardBaseUrl: '/assets/images/cards/',
-    defeatedImg: '/assets/images/cards/defeated.png',
+    defeatedImg: defeatedPng,
     boostImg: undefined,
     selected: false,
     clickable: true,
   },
 );
+
 
 const emit = defineEmits<{
   (e: 'select'): void;
@@ -64,12 +66,24 @@ const isBoosted = computed<boolean>(() => {
 });
 
 const imageUrl = computed<string | null>(() => {
-  const d = data.value;
-  if (!d?.fileName) return null;
-  return `${props.cardBaseUrl}${d.fileName}.png`;
+  const d: any = data.value;
+  if (!d) return null;
+
+  if (d.img) return d.img;
+
+  if (d.fileName) return `${props.cardBaseUrl}${d.fileName}.png`;
+
+  return null;
 });
 
-const isDefeated = computed<boolean>(() => !imageUrl.value);
+const isDefeated = computed<boolean>(() => {
+  const d: any = data.value;
+  if (d && typeof d.isDefeated === 'boolean') {
+    return d.isDefeated;
+  }
+  return !imageUrl.value;
+});
+
 
 const classes = computed(() => ({
   'field-card': true,

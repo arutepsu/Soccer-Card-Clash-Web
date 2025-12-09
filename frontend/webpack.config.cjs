@@ -9,6 +9,7 @@ module.exports = {
     filename: 'app.js',
     path: path.resolve(__dirname, '../backend/public/javascripts'),
     publicPath: '/assets/javascripts/',
+    assetModuleFilename: 'assets/[name][hash][ext][query]',
     clean: true,
   },
   resolve: {
@@ -38,17 +39,14 @@ module.exports = {
           {
             loader: 'css-loader',
             options: {
-              url: {
-                filter: (url, resourcePath) => {
-                  if (url.startsWith('/assets/')) {
-                    return false;
-                  }
-                  return true;
-                },
-              },
+              url: true,
             },
           },
         ],
+      },
+      {
+        test: /\.(png|jpe?g|gif|svg)$/i,
+        type: 'asset/resource',
       },
     ],
   },
