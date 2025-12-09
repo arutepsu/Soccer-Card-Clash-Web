@@ -1,0 +1,13 @@
+@()(implicit request: play.api.mvc.RequestHeader, messages: play.api.i18n.Messages)
+@import helper._
+
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/scenes/singleplayer.css")'>
+<link rel="stylesheet" href='@routes.Assets.versioned("stylesheets/base/gameButton.css")'>
+
+@views.html.components.navBar()
+
+<div id="app"></div>
+
+<script type="module" src='@routes.Assets.versioned("javascripts/app.js")'></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes">

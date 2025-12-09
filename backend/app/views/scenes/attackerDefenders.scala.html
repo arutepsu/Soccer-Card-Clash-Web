@@ -1,0 +1,23 @@
+@()(implicit request: play.api.mvc.RequestHeader, messages: play.api.i18n.Messages)
+@import helper._
+@import views.html.components.overlay
+@defining(play.filters.csrf.CSRF.getToken) { csrfOpt =>
+
+  @csrfOpt.map { t =>
+    <meta name="csrf-token" content="@t.value">
+  }
+
+  @views.html.components.navBar()
+
+  <div id="app" data-scene="AttackerDefenderCards">
+    @overlay(
+      id = "overlay",
+      title = "About the Game",
+      messageHtml = Html(""),
+      bgImagePath = "images/frames/overlay.png",
+      safeTop = "16%", safeRight = "8%", safeBottom = "16%", safeLeft = "8%"
+    )
+  </div>
+
+  <script type="module" src='@routes.Assets.versioned("javascripts/app.js")'></script>
+}

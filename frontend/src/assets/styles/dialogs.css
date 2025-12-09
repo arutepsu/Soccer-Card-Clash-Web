@@ -1,0 +1,52 @@
+.general-header {
+  display: block;
+  font-weight: 700;
+  font-size: clamp(26px, 3vw, 36px);
+  color: #ffd75a;
+  margin-bottom: 6px;
+  text-shadow: 0 0 12px rgba(255, 215, 90, 0.6);
+  text-align: center;
+}
+
+.dialog-title {
+  font-family: 'Rajdhani', Arial, sans-serif;
+  font-size: clamp(28px, 3.2vw, 36px);
+  font-weight: 700;
+  text-align: center;
+  background: linear-gradient(135deg, #ff00cc 0%, #83018e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  margin: 0 0 12px;
+}
+
+@supports not (-webkit-background-clip: text) {
+  .dialog-title {
+    color: #ff47d6;
+  }
+}
+
+.dialog-message {
+  font-family: 'Rajdhani', Arial, sans-serif;
+  font-size: clamp(18px, 1.8vw, 22px);
+  font-weight: 500;
+  color: #dddddd;
+  text-align: center;
+  line-height: 1.7;
+  text-shadow: 0 1px 4px rgba(158, 75, 223, 0.8);
+  white-space: pre-line;
+  margin: 0;
+}
+
+.dialog-message strong {
+  color: #fff;
+  font-weight: 600;
+}
+
+.overlay-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 5px;
+}

@@ -1,0 +1,33 @@
+:root {
+  --avatar-box-size: 140px;
+  --avatar-scale: 0.9;
+  --inner-gap: 10px;
+  --bar-top-margin: 25px;
+}
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+@font-face {
+  font-family: "Rajdhani";
+  src: url("/assets/fonts/Rajdhani/Rajdhani-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Rajdhani";
+  src: url("/assets/fonts/Rajdhani/Rajdhani-SemiBold.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Rajdhani";
+  src: url("/assets/fonts/Rajdhani/Rajdhani-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
