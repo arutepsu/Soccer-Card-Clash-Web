@@ -7,7 +7,7 @@ module.exports = {
   entry: './src/main.ts',
   output: {
     filename: 'app.js',
-    path: path.resolve(__dirname, '..backend/public/javascripts'),
+    path: path.resolve(__dirname, '../backend/public/javascripts'),
     publicPath: '/assets/javascripts/',
     clean: true,
   },
