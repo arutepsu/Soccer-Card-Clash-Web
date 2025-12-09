@@ -3,6 +3,7 @@ GET     /                        controllers.RedirectController.rootToGame
 GET     /main-menu               controllers.UiController.mainMenu()
 GET     /singleplayer            controllers.UiController.singleplayer()
 GET     /multiplayer             controllers.UiController.multiplayer()
+GET     /session-screen          controllers.UiController.sessionScreen()
 GET     /ai                      controllers.UiController.ai()
 GET     /load-game               controllers.UiController.loadGame()
 GET     /playing-field           controllers.UiController.playingField()

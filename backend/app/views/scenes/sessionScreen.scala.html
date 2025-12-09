@@ -1,0 +1,20 @@
+@()(implicit request: play.api.mvc.RequestHeader, messages: play.api.i18n.Messages)
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+    <title>Online Multiplayer – Sessions</title>
+</head>
+
+<body>
+    @views.html.components.navBar()
+
+    <div id="app"></div>
+
+    <script type="module" src='@routes.Assets.versioned("javascripts/app/sessionScreen.js")'></script>
+
+</body>
+</html>

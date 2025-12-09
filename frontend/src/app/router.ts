@@ -12,6 +12,7 @@ import SinglePlayerView from '../views/SinglePlayerView.vue';
 import AISelectionView from '../views/AISelectionView.vue';
 import LoadGameView from '../views/LoadGameView.vue';
 import LoginView from '../views/LoginView.vue';
+import SessionView from '../views/SessionView.vue';
 
 import PlayingFieldView from '../views/PlayingFieldView.vue';
 import AttackerHandView from '../views/AttackerHandView.vue';
@@ -24,7 +25,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/multiplayer',  name: 'Multiplayer',  component: MultiplayerView },
   { path: '/ai',           name: 'AISelection',  component: AISelectionView },
   { path: '/load-game',    name: 'LoadGame',     component: LoadGameView },
-
+  { path: '/session-screen', name: 'SessionView',  component: SessionView },
   {
     path: '/playing-field',
     name: 'PlayingField',

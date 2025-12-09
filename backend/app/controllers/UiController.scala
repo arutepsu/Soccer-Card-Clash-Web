@@ -88,6 +88,11 @@ class UiController @Inject()(
   def mainMenu(): Action[AnyContent]          = scene("main-menu")
   def singleplayer(): Action[AnyContent]      = scene("singleplayer")
   def multiplayer(): Action[AnyContent]       = scene("multiplayer")
+  def sessionScreen(): Action[AnyContent]     = addToken(Action { implicit req: MessagesRequest[AnyContent] =>
+    val sid0 = getOrCreateSid(req)
+    val sessionWithSid = req.session + ("sid" -> sid0)
+    Ok(views.html.scenes.sessionScreen()).withSession(sessionWithSid)
+  })
   def ai(): Action[AnyContent]                = scene("ai")
   def loadGame(): Action[AnyContent]          = scene("load-game")
   def playingField(): Action[AnyContent]      = scene("playing-field")
