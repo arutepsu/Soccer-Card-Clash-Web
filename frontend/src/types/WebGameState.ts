@@ -23,6 +23,7 @@ export interface ScoresView {
 }
 
 export interface CardsView {
+  hands: any;
   attackerHand: CardView[];
   defenderHand: CardView[];
 

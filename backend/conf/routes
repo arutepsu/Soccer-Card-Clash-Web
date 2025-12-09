@@ -1,0 +1,57 @@
+GET     /                        controllers.RedirectController.rootToGame
+
+GET     /main-menu               controllers.UiController.mainMenu()
+GET     /session-screen          controllers.UiController.sessionScreen()
+GET     /singleplayer            controllers.UiController.singleplayer()
+GET     /multiplayer             controllers.UiController.multiplayer()
+GET     /session-screen          controllers.UiController.sessionScreen()
+GET     /ai                      controllers.UiController.ai()
+GET     /load-game               controllers.UiController.loadGame()
+GET     /playing-field           controllers.UiController.playingField()
+GET     /attacker-hand           controllers.UiController.attackerHand()
+GET     /attacker-defenders      controllers.UiController.attackerDefenders()
+GET     /scene/:to               controllers.UiController.scene(to: String)
+GET     /scene/switch/:to        controllers.UiController.switchScene(to: String)
+GET     /scene/current           controllers.UiController.sceneCurrent()
+GET     /rules                   controllers.RulesController.rules
+GET     /rules/full              controllers.FullGameRulesController.fullRules
+GET     /login                   controllers.UiController.loginPage()
+POST    /login                   controllers.UiController.doLogin()
+GET     /tui                     controllers.TuiController.tui
+POST    /tui/submit              controllers.TuiController.submit
+
+GET     /api/state              controllers.GameApiController.state
+POST    /api/command            controllers.TuiController.command
+POST    /api/attack/single           controllers.GameApiController.singleAttack
+POST    /api/attack/double           controllers.GameApiController.doubleAttack
+POST    /api/boost                   controllers.GameApiController.boost
+POST    /api/swap                    controllers.GameApiController.swap
+POST    /api/swap/reverse            controllers.GameApiController.reverseSwap
+POST    /api/undo                    controllers.GameApiController.undo
+POST    /api/redo                    controllers.GameApiController.redo
+POST    /api/ai/execute              controllers.GameApiController.executeAI
+POST    /api/save              controllers.TuiController.save()
+GET     /api/show-saves        controllers.TuiController.showSaves()
+POST    /api/load-select/:idx   controllers.TuiController.loadSelect(idx: Int)
+
+POST   /api/game/local-multiplayer   controllers.GameApiController.createLocalMultiplayer
+
+
+GET     /api/files/list              controllers.FileIOController.listSavedGames()
+POST    /api/files/load              controllers.FileIOController.loadGameFromFile()
+POST    /api/files/save              controllers.FileIOController.saveGameToFile()
+DELETE  /api/files/delete            controllers.FileIOController.deleteGameFile()
+
+
+POST   /multiplayer/start    controllers.UiController.startMultiplayerGame
+POST   /game/start-multiplayer    controllers.UiController.startMultiplayerGame
+POST   /api/restart    controllers.UiController.restart
+POST  /api/game/restart   controllers.GameApiController.restart
+
+
+GET     /assets/*file           controllers.Assets.versioned(path="/public", file: Asset)
+
+GET   /ws/game                 controllers.GamePushController.wsGame
+GET   /sseEvents               controllers.GamePushController.sseEvents
+GET   /cometEvents             controllers.GamePushController.cometEvents(lastEventId: Long ?= 0)
+POST  /api/push/command        controllers.GamePushController.postCommand()

@@ -1,0 +1,15 @@
+@()(implicit request: play.api.mvc.RequestHeader, messages: play.api.i18n.Messages)
+@import helper._
+
+@views.html.components.navBar()
+
+<div id="app"></div>
+
+@defining(play.filters.csrf.CSRF.getToken) { csrfOpt =>
+  @csrfOpt.map { t =>
+    <meta name="csrf-token" content="@t.value">
+  }
+}
+
+<div id="overlay" class="hidden" aria-hidden="true"></div>
+<script type="module" src='@routes.Assets.versioned("javascripts/app.js")'></script>
