@@ -3,9 +3,13 @@ import { extractComparisonEvents } from './comparisonEvents';
 import type {
   ComparisonDialogHandler,
   ComparisonEvent,
+  PlayerInfo,
+  ComparisonCard,
 } from './comparisonDialogHandler';
 import type { UIActionScheduler } from '../../ui/uiActionScheduler';
 import type { GameApi } from '../../api/gameApi';
+import { showComparisonOverlay } from './comparisonOverlayBridge';
+
 
 type CardLikeForTie =
   | Pick<CardView, 'fileName'>
@@ -65,40 +69,21 @@ export interface RolesGetter {
   (): { attacker: string; defender: string };
 }
 
-export interface FallbackComparisonGenerator {
-  showSingleComparison(
-    attacker: { id: string; name?: string; playerType?: string },
-    defender: { id: string; name?: string; playerType?: string },
-    attackingCard: CardView,
-    defendingCard: CardView,
-    attackSuccess: boolean,
-    width?: number,
-  ): HTMLElement;
-}
-
 export interface SoundManagerLike {
   play(name: string, opts?: { volume?: number; [key: string]: unknown }): void;
 }
 
 export interface OrchestratorDeps {
   api: GameApi;
-  overlay?: {
-    show?(
-      content: HTMLElement,
-      opts?: { autoHide?: boolean; sizeMult?: number; onHide?: () => void },
-    ): void;
-    hide?(): void;
-    getPane?(): HTMLElement | null;
-  };
   scheduler: UIActionScheduler;
   comparisonHandler: ComparisonDialogHandler;
   ActionNames: ActionNameMap;
   getRoles: RolesGetter;
   applyUiFromWeb: (web: WebGameState | null | undefined) => void;
   updateFromServerContext: (web: WebGameState | null | undefined) => void;
-  generator: FallbackComparisonGenerator;
   soundManager: SoundManagerLike;
 }
+
 
 interface ActionMeta {
   action?: string;
@@ -118,23 +103,22 @@ interface DerivedCards {
 }
 
 interface CurrentComparison {
-  atkCard: CardView;
-  defCard: CardView;
+  atkCard: ComparisonCard;
+  defCard: ComparisonCard;
   success?: boolean;
 }
 
 export function createComparisonOrchestrator({
   api,
-  overlay,
   scheduler,
   comparisonHandler,
   ActionNames,
   getRoles,
   applyUiFromWeb,
   updateFromServerContext,
-  generator,
   soundManager,
 }: OrchestratorDeps) {
+
   let pendingActionType: string | null = null;
   let isOverlayActive = false;
 
@@ -194,166 +178,176 @@ export function createComparisonOrchestrator({
     return null;
   }
 
-  function getAttackAndDefendCardsFromState(
-    web: WebGameState | null | undefined,
-    meta: ActionMeta | null | undefined,
-  ): DerivedCards {
-    if (!web?.cards) {
-      return {
-        atkCard: null,
-        defCard: null,
-        extraAtkCardTie: null,
-        extraDefCardTie: null,
-        atkCard1Double: null,
-        atkCard2Double: null,
-        defCard1Double: null,
-        defCard2Double: null,
-      };
-    }
-
-    const cards = web.cards;
-
-    const attHand = Array.isArray(cards.attackerHand) ? cards.attackerHand : [];
-    const defHand = Array.isArray(cards.defenderHand) ? cards.defenderHand : [];
-    const defField = Array.isArray(cards.defenderField) ? cards.defenderField : [];
-
-    const last = <T>(arr: T[]): T | null =>
-      arr.length > 0 ? arr[arr.length - 1] : null;
-    const secondLast = <T>(arr: T[]): T | null =>
-      arr.length > 1 ? arr[arr.length - 2] : null;
-
-    const attLast = last(attHand);
-    const attPrev = secondLast(attHand);
-
-    const dSlotIndex = Number.isInteger(meta?.defenderIndex)
-      ? (meta!.defenderIndex as number)
-      : -1;
-    const dSlot = dSlotIndex >= 0 ? defField[dSlotIndex] : null;
-    const defFieldCard = (dSlot && (dSlot as any).card) || dSlot || null;
-
-    const defHandLast = last(defHand);
-    const defHandPrev = secondLast(defHand);
-
-    const atkCard = toCard(attLast);
-    const defCard = toCard(defFieldCard);
-
-    const extraAtkCardTie = toCard(attPrev);
-    const extraDefCardTie = toCard(defHandLast);
-
-    const atkCard1Double = toCard(attPrev);
-    const atkCard2Double = toCard(attLast);
-    const defCard1Double = toCard(defHandPrev);
-    const defCard2Double = toCard(defHandLast);
-
+function getAttackAndDefendCardsFromState(
+  web: WebGameState | null | undefined,
+  meta: ActionMeta | null | undefined,
+): DerivedCards {
+  if (!web?.cards) {
     return {
-      atkCard,
-      defCard,
-      extraAtkCardTie,
-      extraDefCardTie,
-      atkCard1Double,
-      atkCard2Double,
-      defCard1Double,
-      defCard2Double,
+      atkCard: null,
+      defCard: null,
+      extraAtkCardTie: null,
+      extraDefCardTie: null,
+      atkCard1Double: null,
+      atkCard2Double: null,
+      defCard1Double: null,
+      defCard2Double: null,
     };
   }
 
+  const cards = web.cards;
+
+  const attHand = Array.isArray(cards.attackerHand) ? cards.attackerHand : [];
+  const defHand = Array.isArray(cards.defenderHand) ? cards.defenderHand : [];
+  const defField = Array.isArray(cards.defenderField) ? cards.defenderField : [];
+
+  const last = <T>(arr: T[]): T | null =>
+    arr.length > 0 ? arr[arr.length - 1] : null;
+  const secondLast = <T>(arr: T[]): T | null =>
+    arr.length > 1 ? arr[arr.length - 2] : null;
+
+  const attLast = last(attHand);
+  const attPrev = secondLast(attHand);
+
+  const dSlotIndex = Number.isInteger(meta?.defenderIndex)
+    ? (meta!.defenderIndex as number)
+    : -1;
+
+  let defFieldCardRaw: any = null;
+
+  if (dSlotIndex >= 0) {
+    // 🛡 defender card from defender field slot
+    const dSlot = defField[dSlotIndex] ?? null;
+    defFieldCardRaw = dSlot && (dSlot as any).card ? (dSlot as any).card : dSlot;
+  } else {
+    // 🧤 goalkeeper attack: derive defender card from goalkeeper in WebGameState
+    // ⚠️ adjust these property names to your real WebGameState shape if needed
+    const rawGk =
+      (cards as any).defenderGoalkeeper ??
+      (cards as any).goalkeeper ??
+      (cards as any).defenderGK ??
+      null;
+
+    defFieldCardRaw =
+      rawGk && (rawGk as any).card ? (rawGk as any).card : rawGk;
+  }
+
+  const defFieldCard = defFieldCardRaw || null;
+
+  const defHandLast = last(defHand);
+  const defHandPrev = secondLast(defHand);
+
+  const atkCard = toCard(attLast);
+  const defCard = toCard(defFieldCard);
+
+  const extraAtkCardTie = toCard(attPrev);
+  const extraDefCardTie = toCard(defHandLast);
+
+  const atkCard1Double = toCard(attPrev);
+  const atkCard2Double = toCard(attLast);
+  const defCard1Double = toCard(defHandPrev);
+  const defCard2Double = toCard(defHandLast);
+
+  return {
+    atkCard,
+    defCard,
+    extraAtkCardTie,
+    extraDefCardTie,
+    atkCard1Double,
+    atkCard2Double,
+    defCard1Double,
+    defCard2Double,
+  };
+}
+
+
   async function runOverlayForPendingAction() {
-    if (!pendingActionType) return;
+  if (!pendingActionType) return;
 
-    isOverlayActive = true;
+  isOverlayActive = true;
 
-    const overlayAction =
-      pendingActionType === ActionNames.RegularAttack ||
-      pendingActionType === ActionNames.DoubleAttack
-        ? comparisonHandler.createOverlayAction({
-            type: pendingActionType as any,
-          })
-        : null;
+  const overlayAction =
+    pendingActionType === ActionNames.RegularAttack ||
+    pendingActionType === ActionNames.DoubleAttack
+      ? comparisonHandler.createOverlayAction({
+          type: pendingActionType as any,
+        })
+      : null;
 
+  console.log(
+    '[CMP] runOverlay pending=',
+    pendingActionType,
+    'hasAction=',
+    !!overlayAction,
+  );
+
+  const seq: { delay: number; block: () => void | Promise<void> }[] = [];
+
+  if (overlayAction) {
+    // normal path: handler already knows how to show the dialog via Vue bridge
+    seq.push({
+      delay: 0,
+      block: () => {
+        console.log(
+          '[CMP] executing overlayAction block → Vue comparison overlay',
+        );
+        overlayAction.block();
+      },
+    });
+  } else if (
+    pendingActionType === ActionNames.RegularAttack &&
+    currentComparison?.atkCard &&
+    currentComparison?.defCard
+  ) {
+    // fallback path: we at least have atk/def cards from preActionWeb
     console.log(
-      '[CMP] runOverlay pending=',
-      pendingActionType,
-      'hasAction=',
-      !!overlayAction,
+      '[CMP] fallback using currentComparison from hand-end + defenderIndex',
     );
 
-    const seq: { delay: number; block: () => void | Promise<void> }[] = [];
+    seq.push({
+      delay: 0,
+      block: () => {
+        const roles = getRoles();
+        const attacker: PlayerInfo = {
+          id: 'att',
+          name: roles.attacker,
+          playerType: 'Human',
+        };
+        const defender: PlayerInfo = {
+          id: 'def',
+          name: roles.defender,
+          playerType: 'Human',
+        };
 
-    if (overlayAction) {
-      seq.push({
-        delay: 0,
-        block: () => {
-          console.log('[CMP] executing overlayAction block → overlay.show()');
-          overlayAction.block();
-        },
-      });
-    } else if (
-      pendingActionType === ActionNames.RegularAttack &&
-      currentComparison?.atkCard &&
-      currentComparison?.defCard
-    ) {
-      console.log(
-        '[CMP] fallback using currentComparison from hand-end + defenderIndex',
-      );
+        const { atkCard, defCard, success } = currentComparison!;
 
-      seq.push({
-        delay: 0,
-        block: () => {
-          const roles = getRoles();
-          const attacker = {
-            id: 'att',
-            name: roles.attacker,
-            playerType: 'Human',
-          };
-          const defender = {
-            id: 'def',
-            name: roles.defender,
-            playerType: 'Human',
-          };
-
-          const hostEl = document.getElementById('overlay') as any;
-          const width =
-            overlay?.getPane?.()?.clientWidth ||
-            hostEl?.clientWidth ||
-            1200;
-
-          const { atkCard, defCard, success } = currentComparison;
-
-          const node = generator.showSingleComparison(
-            attacker,
-            defender,
-            { ...atkCard },
-            { ...defCard },
-            success ?? false,
-            width,
-          );
-
-          if (hostEl?.__showOverlay) {
-            hostEl.__showOverlay(node, { autoHide: false });
-          } else {
-            overlay?.show?.(node, { autoHide: false });
-          }
-
-        },
-      });
-    } else {
-      const hostEl = document.getElementById('overlay') as any;
-      const div = document.createElement('div');
-      div.className = 'overlay-textflow';
-      div.innerHTML = `
-        <div class="dialog-title">Comparison (debug)</div>
-        <div class="dialog-message">
-          no comparison cards available for ${pendingActionType}
-        </div>
-        <div class="overlay-actions"><button class="gbtn" data-close-overlay>Close</button></div>`;
-      hostEl?.__showOverlay?.(div, { autoHide: false });
-      console.warn('[CMP] overlayAction null; no currentComparison');
-    }
-
-    if (seq.length > 0) {
-      scheduler.runSequence(...seq);
-    }
+        showComparisonOverlay({
+          variant: 'single',
+          attacker,
+          defender,
+          attackingCard: atkCard,
+          defendingCard: defCard,
+          attackingCard2: null,
+          extraAttackerCard: null,
+          extraDefenderCard: null,
+          attackSuccess: success ?? false,
+          autoCloseMs: 3000,
+          onAutoClose: applyBufferedStateAfterOverlay,
+        });
+      },
+    });
+  } else {
+    console.warn(
+      '[CMP] overlayAction null; no currentComparison for',
+      pendingActionType,
+    );
   }
+
+  if (seq.length > 0) {
+    scheduler.runSequence(...seq);
+  }
+}
+
 
   function afterServerApply(
     serverWeb: WebGameState | null | undefined,

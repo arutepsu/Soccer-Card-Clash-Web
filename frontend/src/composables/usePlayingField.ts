@@ -7,7 +7,7 @@ import { createCardImageRegistry } from '../utils/cardImageRegistry';
 import {
   buildSceneViewFromWeb,
   type SceneView,
-} from '../scenes/playingField/sceneMapping';
+} from '../utils/playingField/sceneMapping';
 
 export function usePlayingField() {
   const gameContext = useGameContext();
