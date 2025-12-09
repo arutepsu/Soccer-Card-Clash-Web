@@ -1,6 +1,12 @@
 <!-- frontend/src/views/SessionScreen.vue -->
+ 
 <template>
-  <div class="scene scene--sessionscreen is-active" aria-hidden="false">
+  <div
+    class="scene scene--sessionscreen is-active"
+    aria-hidden="false"
+    :style="sessionSceneStyle"
+  >
+
     <div class="session-container">
       <h1 class="session-header">ONLINE MULTIPLAYER</h1>
 
@@ -157,6 +163,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { createSoundManager, type SoundManager } from '../utils/soundManager';
+import bgSessions from '@/assets/images/frames/background1.jpg';
 
 interface Session {
   id: number;
@@ -240,6 +247,13 @@ function joinSession(): void {
 
   // TODO: later navigate / call backend join endpoint
 }
+const sessionSceneStyle = {
+  backgroundImage: `url(${bgSessions})`,
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+  backgroundRepeat: 'no-repeat',
+};
+
 </script>
 
 <style scoped>
@@ -250,11 +264,6 @@ function joinSession(): void {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-
-  background-image: url('/assets/images/frames/background1.jpg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
 
   font-family: "Rajdhani", Arial, sans-serif;
   overflow-y: auto;

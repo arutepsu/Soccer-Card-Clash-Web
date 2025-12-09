@@ -10,13 +10,14 @@
 </template>
 
 <script setup lang="ts">
+import logoDefault from '@/assets/images/logo/logo0.5k.png';
 const props = withDefaults(
   defineProps<{
     src?: string;
     alt?: string;
   }>(),
   {
-    src: '/assets/images/logo/logo0.5k.png',
+    src: logoDefault,
     alt: 'Soccer Card Clash Logo',
   },
 );

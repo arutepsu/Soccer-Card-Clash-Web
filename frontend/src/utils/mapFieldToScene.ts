@@ -8,18 +8,11 @@ export interface FieldSceneData {
   goalkeeper: FieldCardLike | null;
 }
 
-/**
- * Similar idea to buildMapWebToScene, but for the field:
- * maps WebGameState -> simple view models for defenders + goalkeeper.
- */
 export function buildMapFieldToScene(cardRegistry: CardImageRegistry) {
-  const defaultDefeatedImg =
-    cardRegistry.getImageUrl('defeated.png') ??
-    '/assets/images/cards/defeated.png';
+  const defaultDefeatedImg = cardRegistry.getImageForCard('defeated');
 
   const toImg = (fileName?: string | null): string => {
     if (!fileName) return defaultDefeatedImg;
-    // reuse existing registry logic for card images
     return cardRegistry.getImageForCard(fileName);
   };
 
@@ -37,6 +30,10 @@ export function buildMapFieldToScene(cardRegistry: CardImageRegistry) {
       const fileName = data?.fileName as string | undefined;
       const img = toImg(fileName ?? null);
       const isDefeated = !fileName;
+      console.log('[mapFieldToScene] defenders', padded.map(s => ({
+        backendFileName: s?.card?.fileName,
+        finalImg: toImg(s?.card?.fileName ?? null),
+      })));
 
       return {
         id: slot?.id ?? fileName ?? `slot-${index}`,
@@ -51,7 +48,6 @@ export function buildMapFieldToScene(cardRegistry: CardImageRegistry) {
     const gkSlot = anyGs?.cards?.attackerGoalkeeper ?? null;
 
     if (!gkSlot) {
-      // empty slot – still render something that looks defeated
       return {
         id: 'gk',
         img: defaultDefeatedImg,

@@ -1,3 +1,18 @@
+declare const require: any;
+
+const cardsContext = require.context(
+  '@/assets/images/cards',
+  false,
+  /\.png$/
+);
+
+const CARD_URLS = new Map<string, string>();
+
+cardsContext.keys().forEach((key: string) => {
+  const fileName = key.replace('./', '');
+  const url = cardsContext(key) as string;
+  CARD_URLS.set(fileName, url);
+});
 export interface CardImageRegistryOptions {
   cardsPath?: string;
 }
@@ -13,27 +28,39 @@ export interface CardImageRegistry {
 export function createCardImageRegistry(
   options: CardImageRegistryOptions = {},
 ): CardImageRegistry {
-  const cardsPath = options.cardsPath ?? '/assets/images/cards/';
+  const cardsPath = options.cardsPath;
+
   const images = new Map<string, HTMLImageElement>();
 
-  let fallback = cardsPath + 'flippedCard.png';
-  let defeated = cardsPath + 'defeated.png';
+  function resolveUrl(fileName: string): string {
+    const withExt = fileName.endsWith('.png') ? fileName : `${fileName}.png`;
 
-  function url(fileName: string): string {
-    return `${cardsPath}${fileName}`;
+    const byManifest = CARD_URLS.get(withExt);
+    if (byManifest) return byManifest;
+
+    if (cardsPath) {
+      return `${cardsPath}${withExt}`;
+    }
+
+    return withExt;
   }
 
+  let fallback = resolveUrl('flippedCard.png');
+  let defeated = resolveUrl('defeated.png');
+
   function preloadOne(fileName: string): Promise<HTMLImageElement> {
-    const u = url(fileName);
+    const u = resolveUrl(fileName);
     return new Promise((resolve, reject) => {
-      if (images.has(fileName)) {
-        resolve(images.get(fileName)!);
+      const withExt = fileName.endsWith('.png') ? fileName : `${fileName}.png`;
+
+      if (images.has(withExt)) {
+        resolve(images.get(withExt)!);
         return;
       }
 
       const img = new Image();
       img.onload = () => {
-        images.set(fileName, img);
+        images.set(withExt, img);
         resolve(img);
       };
       img.onerror = () => reject(new Error(`Image not found: ${u}`));
@@ -69,13 +96,13 @@ export function createCardImageRegistry(
 
     if (!images.has('flippedCard.png')) {
       const img = new Image();
-      img.src = fallback;
+      img.src = resolveUrl('flippedCard.png');
       images.set('flippedCard.png', img);
     }
 
     if (!images.has('defeated.png')) {
       const img = new Image();
-      img.src = defeated;
+      img.src = resolveUrl('defeated.png');
       images.set('defeated.png', img);
     }
 
@@ -85,9 +112,12 @@ export function createCardImageRegistry(
 
   function getImageUrl(fileName: string | null | undefined): string {
     if (!fileName) return fallback;
+
     const withExt = fileName.endsWith('.png') ? fileName : `${fileName}.png`;
     const img = images.get(withExt);
-    return img?.src ?? url(withExt);
+    if (img) return img.src;
+
+    return resolveUrl(withExt);
   }
 
   function getImageForCard(cardFileName: string | null | undefined): string {

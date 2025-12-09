@@ -9,7 +9,7 @@ import AttackerHand from '../components/hand/AttackerHand.vue';
 import HandControls from '../components/hand/HandControls.vue';
 import { createPlayerAvatarRegistry } from '../utils/playerAvatarRegistry';
 import type { WebGameState } from '../types/WebGameState';
-
+import attackerHandBg from '@/assets/images/frames/background7.jpg';
 const router = useRouter();
 const { show, hide } = useOverlay();
 
@@ -84,6 +84,12 @@ function onBack() {
 onMounted(async () => {
   await init();
 });
+const sceneStyle = computed(() => ({
+  backgroundImage: `url(${attackerHandBg})`,
+  backgroundSize: 'cover',
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'center center',
+}));
 </script>
 
 
@@ -91,6 +97,7 @@ onMounted(async () => {
   <div
     class="scene scene--attackerhand scene--attacker-hand is-active"
     aria-live="polite"
+    :style="sceneStyle"
   >
     <section
       id="attacker-bar"
@@ -134,10 +141,6 @@ onMounted(async () => {
   grid-template-rows: auto 1fr;
   gap: clamp(8px, 6vw, 14px);
   padding: clamp(6px, 3vw, 16px);
-  background-image: url("/assets/images/frames/background7.jpg");
-  background-size: cover;
-  background-repeat: no-repeat;
-  background-position: center;
   font-family: "Rajdhani", Arial, sans-serif;
   color: #e8eef5;
   overflow: hidden;

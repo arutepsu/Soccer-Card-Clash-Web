@@ -24,12 +24,6 @@ export function useAttackerDefenders() {
 
   const web = computed<WebGameState | null>(() => gameContext.state.value);
 
-  function fileNameFromImg(img?: string | null): string | null {
-    if (!img) return null;
-    const match = img.match(/([^/]+)\.png$/);
-    return match ? match[1] : null;
-  }
-
   function mergeBoostMeta(base: any, boostedSource: any | null | undefined): any {
     if (!boostedSource) return base;
 
@@ -54,15 +48,12 @@ export function useAttackerDefenders() {
 
     const anySrc = src as any;
 
-    const fileName: string | null =
-      anySrc.fileName ?? fileNameFromImg(anySrc.img);
-
-    const baseCard: any = fileName
-      ? {
-          ...anySrc,
-          fileName,
-        }
-      : { ...anySrc };
+    // src.img already produced by mapFieldToScene using cardRegistry
+    const baseCard: any = {
+      // keep whatever img / flags mapFieldToScene gave us
+      img: anySrc.img,
+      isDefeated: anySrc.isDefeated,
+    };
 
     const mergedCard: FieldCardData | null = mergeBoostMeta(
       baseCard,
@@ -92,12 +83,10 @@ export function useAttackerDefenders() {
       anyScene?.gameCards?.defenderField ??
       [];
 
-    const result = rawDefenders.map((raw, index) => {
+    return rawDefenders.map((raw, index) => {
       const boostSourceCard = fieldSlots[index]?.card ?? null;
       return toFieldSlot(raw, index, boostSourceCard);
     });
-
-    return result;
   });
 
   const goalkeeper = computed<SlotLike | null>(() => {
@@ -118,8 +107,7 @@ export function useAttackerDefenders() {
 
     const boostSourceCard = (fieldGkSlot?.card ?? null) as FieldCardData | null;
 
-    const slot = toFieldSlot(raw, 'gk', boostSourceCard);
-    return slot;
+    return toFieldSlot(raw, 'gk', boostSourceCard);
   });
 
   const selectedTarget = ref<SelectedTarget | null>(null);

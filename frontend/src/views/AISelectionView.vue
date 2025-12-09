@@ -1,10 +1,14 @@
 <!-- frontend/src/views/AISelectionView.vue -->
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useGameContext } from '../composables/useGameContext';
 import GameButton from '../components/button/GameButton.vue';
-
+import takaImg from '@/assets/images/players/taka.jpg';
+import bitstormImg from '@/assets/images/players/bitstrom.jpg';
+import defendraImg from '@/assets/images/players/defendra.jpg';
+import metaImg from '@/assets/images/players/meta.jpg';
+import aiBg from '@/assets/images/frames/background8.jpg';
 //fix later!
 const router = useRouter();
 const game = useGameContext();
@@ -17,25 +21,25 @@ const opponents = [
     key: 'taka',
     name: 'Taka',
     description: 'Balanced and smart attacker.',
-    img: '/assets/images/players/taka.jpg',
+    img: takaImg,
   },
   {
     key: 'bitstorm',
     name: 'Bitstorm',
     description: 'Aggressive, double-hitting striker.',
-    img: '/assets/images/players/bitstrom.jpg',
+    img: bitstormImg,
   },
   {
     key: 'defendra',
     name: 'Defendra',
     description: 'Specialist in boosting defense.',
-    img: '/assets/images/players/defendra.jpg',
+    img: defendraImg,
   },
   {
     key: 'meta',
     name: 'MetaAI',
     description: 'Adaptive, unpredictable decision-maker.',
-    img: '/assets/images/players/meta.jpg',
+    img: metaImg,
   },
 ];
 
@@ -75,7 +79,6 @@ async function onStartClick() {
   busy.value = true;
 
   try {
-    // await game.restart(humanName, aiPlayerName);
     await router.push({ name: 'PlayingField' });
   } catch (err) {
     console.error('[AISelectionView] Error starting game:', err);
@@ -101,10 +104,18 @@ function onCommand(payload: { action: AiSelectionAction }) {
       break;
   }
 }
+
+const sceneStyle = computed(() => ({
+  backgroundImage: `url(${aiBg})`,
+  backgroundSize: 'cover',
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'center center',
+}));
+
 </script>
 
 <template>
-  <div class="scene scene--ai">
+  <div class="scene scene--ai" :style="sceneStyle">
     <h1 class="header">Choose Your AI Opponent</h1>
 
     <div class="container-fluid">
@@ -181,10 +192,6 @@ function onCommand(payload: { action: AiSelectionAction }) {
 
     font-family: "Rajdhani", Arial, sans-serif;
 
-    background-image: url('/assets/images/frames/background8.jpg');
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
 }
 
 .scene--ai .header {

@@ -4,6 +4,7 @@
 /logs/
 /RUNNING_PID
 
+public/javascripts/assets
 /.idea/
 /*.iml
 /.bsp/

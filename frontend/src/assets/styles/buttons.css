@@ -14,11 +14,6 @@
   cursor: pointer;
   background-color: transparent !important;
 
-  background-image: url('/assets/images/buttons/button.png') !important;
-  background-size: 100% 100% !important;
-  background-repeat: no-repeat !important;
-  background-position: center top !important;
-
   color: #fff !important;
   font-family: 'Rajdhani', Arial, sans-serif !important;
   font-weight: 400 !important;

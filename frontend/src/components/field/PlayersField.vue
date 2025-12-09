@@ -4,9 +4,10 @@ import { computed, ref, watch } from 'vue';
 import type { SceneView } from '../../scenes/playingField/sceneMapping';
 import type { FieldSlot, FieldCardData } from '../../types/FieldCards';
 import FieldCardRow from './FieldCardRow.vue';
+import { createCardImageRegistry } from '@/utils/cardImageRegistry';
 
 type SlotLike = FieldSlot | FieldCardData | null | undefined;
-
+const cardRegistry = createCardImageRegistry(); 
 const props = withDefaults(
   defineProps<{
     scene: SceneView | null;
@@ -22,6 +23,31 @@ const emit = defineEmits<{
   (e: 'goalkeeper-selected', selected: boolean): void;
 }>();
 
+function withImg(slot: SlotLike): SlotLike {
+  if (!slot) return slot;
+
+  const anySlot: any = slot;
+
+  const card: any = 'card' in anySlot ? anySlot.card : anySlot;
+  if (!card) return slot;
+
+  const fileName: string | undefined = card.fileName;
+  if (!fileName) return slot;
+
+  if (!card.img) {
+    card.img = cardRegistry.getImageForCard(fileName);
+  }
+
+  if ('card' in anySlot) {
+    return {
+      ...anySlot,
+      card: { ...card },
+    } as FieldSlot;
+  }
+
+  return { ...card } as FieldCardData;
+}
+
 
 function defenderSlotsOf(scene: SceneView | null): SlotLike[] {
   const anyScene = scene as any;
@@ -35,7 +61,8 @@ function defenderSlotsOf(scene: SceneView | null): SlotLike[] {
   while (padded.length < 3) {
     padded.push({ id: `pad-${padded.length}`, card: null });
   }
-  return padded;
+
+  return padded.map((s) => withImg(s));
 }
 
 function goalkeeperSlotOf(scene: SceneView | null): SlotLike | null {
@@ -46,8 +73,11 @@ function goalkeeperSlotOf(scene: SceneView | null): SlotLike | null {
     anyScene?.gameCards?.defenderGoalkeeper ??
     null;
 
-  return gkSlot ?? null;
+  if (!gkSlot) return null;
+
+  return withImg(gkSlot);
 }
+
 
 const defenders = computed<SlotLike[]>(() => defenderSlotsOf(props.scene));
 const goalkeeper = computed<SlotLike | null>(() =>

@@ -3,6 +3,8 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import GameButton from '../components/button/GameButton.vue';
+import loginBg from '@/assets/images/frames/background9.jpg';
+import overlayFrame from '@/assets/images/frames/overlay.png';
 
 const router = useRouter();
 
@@ -41,12 +43,22 @@ function onCommand(payload: { action: LoginAction }) {
     onSubmit();
   }
 }
+const loginBgStyle = {
+  backgroundImage: `url(${loginBg})`,
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+  backgroundRepeat: 'no-repeat',
+};
+
+const overlayFrameStyle = {
+  '--frame-img': `url(${overlayFrame})`,
+};
 </script>
 
 <template>
-  <div id="app-root" class="login-bg">
+  <div id="app-root" class="login-bg" :style="loginBgStyle">
     <div class="overlay visible">
-      <div class="overlay-frame login-overlay-frame">
+      <div class="overlay-frame login-overlay-frame" :style="overlayFrameStyle">
         <div class="overlay-scroll">
           <form
             class="container login-form"
@@ -104,15 +116,6 @@ function onCommand(payload: { action: LoginAction }) {
   display: flex;
   align-items: center;
   justify-content: center;
-
-  background-image: url('/assets/images/frames/background9.jpg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-
-.login-overlay-frame {
-  --frame-img: url('/assets/images/frames/overlay.png');
 }
 
 
