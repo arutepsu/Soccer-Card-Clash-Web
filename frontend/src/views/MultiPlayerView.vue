@@ -9,6 +9,7 @@ import { useGameCommands } from '../composables/useGameCommands';
 import GameButton from '../components/button/GameButton.vue';
 import GlitchInput from '../components/input-field/GlitchInput.vue';
 import GameLogo from '../components/logo/GameLogo.vue';
+import multiBg from '@/assets/images/frames/background2.jpg';
 
 const router = useRouter();
 const { createLocalMultiplayer } = useGameCommands();
@@ -106,10 +107,22 @@ function onHover(payload: { action: MultiAction; hovering: boolean }) {
     onButtonHover();
   }
 }
+
+const multiSceneStyle = {
+  backgroundImage: `url(${multiBg})`,
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+  backgroundRepeat: 'no-repeat',
+};
+
 </script>
 
 <template>
-  <div class="scene scene--create-multiplayer is-active" aria-hidden="false">
+  <div
+    class="scene scene--create-multiplayer is-active"
+    aria-hidden="false"
+    :style="multiSceneStyle"
+  >
     <div class="panel create-player-panel">
       <GameLogo />
 
@@ -171,11 +184,6 @@ function onHover(payload: { action: MultiAction; hovering: boolean }) {
 .scene--create-multiplayer {
   position: fixed;
   inset: 0;
-  background-image: url('/assets/images/frames/background2.jpg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-
   display: grid;
   place-items: center;
 

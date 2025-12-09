@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount } from 'vue';
 import { useOverlayStore } from '../../stores/overlayStore';
-
+import overlayFramePng from '@/assets/images/frames/overlay.png';
 const overlayStore = useOverlayStore();
 
 const {
@@ -48,13 +48,13 @@ onBeforeUnmount(() => {
   >
     <div
       class="overlay-frame"
-      style="
-        --frame-img: url('/assets/images/frames/overlay.png');
-        --safe-top: 16%;
-        --safe-right: 8%;
-        --safe-bottom: 16%;
-        --safe-left: 8%;
-      "
+      :style="{
+        '--frame-img': `url(${overlayFramePng})`,
+        '--safe-top': '16%',
+        '--safe-right': '8%',
+        '--safe-bottom': '16%',
+        '--safe-left': '8%',
+      }"
     >
       <div class="overlay-scroll">
         <div class="overlay-textflow">

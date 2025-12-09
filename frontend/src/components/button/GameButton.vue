@@ -7,10 +7,12 @@
     :disabled="isDisabled"
     :title="tooltip"
     :aria-label="ariaLabel"
+    :style="buttonStyle"
     @click="onClick"
     @mouseenter="onMouseEnter"
     @mouseleave="onMouseLeave"
   >
+
     <span
       v-if="showSpinner"
       class="game-btn-spinner"
@@ -33,6 +35,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
+import btnBg from '@/assets/images/buttons/button.png';
 
 type GameCommandType = string;
 
@@ -135,6 +138,14 @@ onBeforeUnmount(() => {
     window.removeEventListener('keydown', onGlobalKeydown);
   }
 });
+
+const buttonStyle = {
+  backgroundImage: `url(${btnBg})`,
+  backgroundSize: '100% 100%',
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'center top',
+};
+
 </script>
 
 <style scoped>

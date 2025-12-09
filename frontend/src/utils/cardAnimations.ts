@@ -1,3 +1,5 @@
+import boostEffectPng from '@/assets/images/cards/effects/boost.png';
+
 export interface CardAnimations {
   applyHoverEffect(el: HTMLElement): void;
   removeHoverEffect(el: HTMLElement): void;
@@ -18,8 +20,10 @@ export interface CardAnimationsOptions {
 }
 
 export function createCardAnimations(
-  { boostImg = '/assets/images/cards/effects/boost.png' }: CardAnimationsOptions = {},
+  options: CardAnimationsOptions = {},
 ): CardAnimations {
+  const { boostImg = boostEffectPng } = options;
+
   const running = new WeakMap<HTMLElement, { pulse?: Animation }>();
   const BOOST_CLASS = 'has-boost';
 
@@ -140,22 +144,14 @@ export function createCardAnimations(
     }
   }
     function removeDefeatedEffect(el: HTMLElement): void {
-    // cancel any running animations on this element
     try {
       el.getAnimations().forEach((anim) => {
-        // optional: only cancel animations whose target is this element
-        // but usually it's fine to cancel all on el
         anim.cancel();
       });
     } catch {
-      // ignore if Web Animations API not fully supported
     }
-
-    // reset visual effects that applyDefeatedEffect left behind
     el.style.filter = '';
     el.style.transform = '';
-    // boxShadow might be re-applied by boost; that's fine because
-    // applyBoostEffect / removeBoostEffect will run after this.
     el.style.boxShadow = '';
   }
 

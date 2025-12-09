@@ -10,6 +10,7 @@ import ActionButtonBar from '../components/button/ActionButtonBar.vue';
 import { createPlayerAvatarRegistry } from '../utils/playerAvatarRegistry';
 import { useOverlay } from '../composables/useOverlay';
 import type { PlayerLike, WebGameState } from '../types/WebGameState';
+import playingBg from '@/assets/images/frames/background5.jpg';
 
 type SelectedTarget =
   | { kind: 'defender'; index: number }
@@ -167,10 +168,21 @@ watch(
   { immediate: false },
 );
 
+const playingSceneStyle = {
+  backgroundImage: `url(${playingBg})`,
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+  backgroundRepeat: 'no-repeat',
+};
+
 </script>
 
 <template>
-  <div class="scene scene--playingfield is-active" aria-live="polite">
+  <div
+    class="scene scene--playingfield is-active"
+    aria-live="polite"
+    :style="playingSceneStyle"
+  >
     <PlayersBar
       v-if="webState"
       :web="webState"
@@ -227,10 +239,6 @@ watch(
   inset: 0;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  background-image: url("/assets/images/frames/background5.jpg");
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
   font-family: "Rajdhani", Arial, sans-serif;
   color: #e8eef5;
   overflow: hidden;

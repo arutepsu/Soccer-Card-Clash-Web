@@ -1,10 +1,11 @@
 <!-- frontend/src/views/LoadGameView.vue -->
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { fileIOApi } from '../api/fileIoApi';
 import { createSoundManager, type SoundManager } from '../utils/soundManager';
 import GameButton from '../components/button/GameButton.vue';
+import loadBg from '@/assets/images/frames/background4.jpg';
 
 const router = useRouter();
 
@@ -146,13 +147,21 @@ function onHover(payload: { action: LoadAction; hovering: boolean }) {
 onMounted(() => {
   fetchSavedGames();
 });
+
+const sceneStyle = computed(() => ({
+  backgroundImage: `url(${loadBg})`,
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+  backgroundRepeat: 'no-repeat',
+}));
+
 </script>
 
 <template>
   <div class="scene scene--loadgame">
     <h1 class="header">Select a Saved Game</h1>
 
-    <div class="loadgame-messages" aria-live="assertive">
+<div class="scene scene--loadgame" :style="sceneStyle">
       <div
         v-if="messageText"
         class="msg"
@@ -229,10 +238,6 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background-image: url('/assets/images/frames/background4.jpg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
 }
 
 .scene--loadgame .header {

@@ -9,7 +9,7 @@ import AttackerDefenders from '../components/field/AttackerDefenders.vue';
 import FieldControls from '../components/field/FieldControls.vue';
 import { createPlayerAvatarRegistry } from '../utils/playerAvatarRegistry';
 import type { WebGameState } from '../types/WebGameState';
-
+import attackerBg from '@/assets/images/frames/background6.jpg';
 const router = useRouter();
 
 const { show, hide } = useOverlay();
@@ -85,12 +85,21 @@ function onBack() {
 onMounted(async () => {
   await init();
 });
+
+const sceneStyle = computed(() => ({
+  backgroundImage: `url(${attackerBg})`,
+  backgroundSize: 'cover',
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'center center',
+}));
+
 </script>
 
 <template>
   <div
     class="scene scene--attacker-defenders is-active"
     aria-live="polite"
+    :style="sceneStyle"
   >
     <section
       id="attacker-bar"
@@ -140,7 +149,6 @@ onMounted(async () => {
   inset: 0;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  background: url("/assets/images/frames/background6.jpg") center/cover no-repeat;
   font-family: "Rajdhani", Arial, sans-serif;
   color: #e8eef5;
   overflow: hidden;

@@ -2,7 +2,13 @@ import type {
   PlayerLike,
   AiPlayerTypeShape,
 } from '../types/WebGameState';
-
+import player1Jpg from '@/assets/images/players/player1.jpg';
+import player2Jpg from '@/assets/images/players/player2.jpg';
+import aiJpg       from '@/assets/images/players/ai.jpg';
+import takaJpg     from '@/assets/images/players/taka.jpg';
+import defendraJpg from '@/assets/images/players/defendra.jpg';
+import bitstromJpg from '@/assets/images/players/bitstrom.jpg';
+import metaJpg     from '@/assets/images/players/meta.jpg';
 export interface PlayerAvatarRegistryOptions {
   avatarsPath?: string;
   fileNames?: string[];
@@ -43,11 +49,21 @@ export function createPlayerAvatarRegistry(
     MetaAIStrategy: 'meta.jpg',
   };
 
+  const avatarUrlMap: Record<string, string> = {
+    'player1.jpg': player1Jpg,
+    'player2.jpg': player2Jpg,
+    'ai.jpg': aiJpg,
+    'taka.jpg': takaJpg,
+    'defendra.jpg': defendraJpg,
+    'bitstrom.jpg': bitstromJpg,
+    'meta.jpg': metaJpg,
+  };
+
   const images = new Map<string, HTMLImageElement>();
   const playerImageMap = new Map<string, string>();
 
   function fileUrl(fileName: string): string {
-    return `${avatarsPath}${fileName}`;
+    return avatarUrlMap[fileName] ?? `${avatarsPath}${fileName}`;
   }
 
   function preload(fileName: string): Promise<HTMLImageElement> {
@@ -93,10 +109,8 @@ export function createPlayerAvatarRegistry(
   }
 
   function assignAvatarsInOrder(players: PlayerLike[]): void {
-    // Start counting humans *after* existing assigned human avatars
     let humanCounter = 1;
 
-    // Look at existing mappings to continue numbering
     for (const fileName of playerImageMap.values()) {
       const m = /^player(\d+)\.jpg$/i.exec(fileName);
       if (m) {
@@ -108,7 +122,6 @@ export function createPlayerAvatarRegistry(
     }
 
     players.forEach((player) => {
-      // If this player already has an avatar, skip
       if (playerImageMap.has(player.id)) {
         return;
       }

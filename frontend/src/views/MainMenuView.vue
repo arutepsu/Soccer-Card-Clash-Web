@@ -3,13 +3,15 @@ import { onMounted, onUnmounted, ref, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { createSoundManager, type SoundManager } from '../utils/soundManager';
 import { useOverlay } from '../composables/useOverlay';
-import GameButton from '../components/button/GameButton.vue';
 import GameLogo from '../components/logo/GameLogo.vue';
+import MenuCarousel from '../components/carousel/MainMenuCarousel.vue';
+import mainBg from '@/assets/images/frames/background1.jpg';
+
 const router = useRouter();
 const { show, hide } = useOverlay();
 
 const sceneRoot = ref<HTMLElement | null>(null);
-const buttons = ref<HTMLButtonElement[]>([]);
+const carouselRef = ref<InstanceType<typeof MenuCarousel> | null>(null);
 
 const soundManager: SoundManager = createSoundManager({
   basePath: '/assets/sounds/',
@@ -17,14 +19,53 @@ const soundManager: SoundManager = createSoundManager({
 
 let unlockAudioHandler: ((e: Event) => void) | null = null;
 
-function registerButton(el: any) {
-  if (!el) return;
+type MainMenuAction =
+  | 'singleplayer'
+  | 'multiplayer'
+  | 'load'
+  | 'about'
+  | 'rules'
+  | 'logout';
 
-  const btn = (el.el ?? el) as HTMLElement | null;
-  if (btn instanceof HTMLButtonElement && !buttons.value.includes(btn)) {
-    buttons.value.push(btn);
-  }
-}
+/** cards for carousel */
+const menuItems = [
+  {
+    action: 'singleplayer' as MainMenuAction,
+    title: 'Singleplayer',
+    description: 'Play a strategic match against the AI and master the basics.',
+    buttonLabel: 'Start Singleplayer',
+  },
+  {
+    action: 'multiplayer' as MainMenuAction,
+    title: 'Multiplayer',
+    description: 'Challenge a friend online and clash with your best tactics.',
+    buttonLabel: 'Start Multiplayer',
+  },
+  {
+    action: 'load' as MainMenuAction,
+    title: 'Load Game',
+    description: 'Continue a saved match and finish what you started.',
+    buttonLabel: 'Load Save',
+  },
+  {
+    action: 'about' as MainMenuAction,
+    title: 'About',
+    description: 'Learn more about Soccer Card Clash and how it was made.',
+    buttonLabel: 'Read About',
+  },
+  {
+    action: 'rules' as MainMenuAction,
+    title: 'Game Information',
+    description: 'Check detailed rules, card abilities and scoring.',
+    buttonLabel: 'View Rules',
+  },
+  {
+    action: 'logout' as MainMenuAction,
+    title: 'Logout',
+    description: 'Return to the login screen and switch account.',
+    buttonLabel: 'Logout',
+  },
+];
 
 function onButtonHover() {
   soundManager.play('hover', { volume: 0.8 });
@@ -46,35 +87,6 @@ function openAbout() {
       'swap and boost cards, and outplay your opponent!',
     content: null,
   });
-}
-
-function moveFocus(delta: number): void {
-  const focusables = buttons.value.filter((b) => !b.disabled);
-  if (!focusables.length) return;
-
-  const active = document.activeElement as HTMLButtonElement | null;
-  const currentIdx = active ? focusables.indexOf(active) : -1;
-  const idx = Math.max(0, currentIdx);
-  const next = (idx + delta + focusables.length) % focusables.length;
-  focusables[next].focus();
-}
-
-function onKeydown(e: KeyboardEvent): void {
-  switch (e.key) {
-    case 'ArrowDown':
-    case 'ArrowRight':
-      e.preventDefault();
-      moveFocus(+1);
-      break;
-    case 'ArrowUp':
-    case 'ArrowLeft':
-      e.preventDefault();
-      moveFocus(-1);
-      break;
-    case 'Escape':
-      hide();
-      break;
-  }
 }
 
 function goSinglePlayer() {
@@ -101,14 +113,6 @@ function onLogoutClick() {
   onButtonClick();
   router.push({ name: 'Login' });
 }
-
-type MainMenuAction =
-  | 'singleplayer'
-  | 'multiplayer'
-  | 'load'
-  | 'about'
-  | 'rules'
-  | 'logout';
 
 function onCommand(payload: { action: MainMenuAction }) {
   switch (payload.action) {
@@ -139,6 +143,38 @@ function onHover(payload: { action: MainMenuAction; hovering: boolean }) {
   }
 }
 
+/** keyboard: arrows rotate carousel, Enter selects current, Esc closes overlay */
+function onKeydown(e: KeyboardEvent): void {
+  switch (e.key) {
+    case 'ArrowRight':
+    case 'ArrowDown':
+      e.preventDefault();
+      carouselRef.value?.next?.();
+      onButtonHover();
+      break;
+    case 'ArrowLeft':
+    case 'ArrowUp':
+      e.preventDefault();
+      carouselRef.value?.prev?.();
+      onButtonHover();
+      break;
+    case 'Enter':
+      e.preventDefault();
+      {
+        const action = carouselRef.value?.getCurrentAction?.() as
+          | MainMenuAction
+          | null;
+        if (action) {
+          onCommand({ action });
+        }
+      }
+      break;
+    case 'Escape':
+      hide();
+      break;
+  }
+}
+
 onMounted(() => {
   soundManager.preload('hover', 'hover.wav');
   soundManager.preload('click', 'attack.wav');
@@ -153,7 +189,9 @@ onMounted(() => {
   window.addEventListener('pointerdown', unlockAudioHandler);
   window.addEventListener('keydown', unlockAudioHandler);
 
-  nextTick(() => buttons.value[0]?.focus?.());
+  nextTick(() => {
+    sceneRoot.value?.focus?.();
+  });
 });
 
 onUnmounted(() => {
@@ -161,8 +199,15 @@ onUnmounted(() => {
     window.removeEventListener('pointerdown', unlockAudioHandler);
     window.removeEventListener('keydown', unlockAudioHandler);
   }
-  buttons.value = [];
 });
+
+const mainMenuStyle = {
+  backgroundImage: `url(${mainBg})`,
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+  backgroundRepeat: 'no-repeat',
+};
+
 </script>
 
 <template>
@@ -172,64 +217,21 @@ onUnmounted(() => {
     ref="sceneRoot"
     tabindex="0"
     @keydown="onKeydown"
+    :style="mainMenuStyle"
   >
+
     <div class="container-fluid h-100">
       <div class="row h-100 align-items-center justify-content-center">
         <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
           <div class="menu-stack">
             <GameLogo />
-            <nav class="buttons" aria-label="Main menu">
-              <div class="d-grid gap-2">
-                <GameButton
-                  action="singleplayer"
-                  label="Singleplayer"
-                  :ref="registerButton"
-                  @command="onCommand"
-                  @hover="onHover"
-                />
 
-                <GameButton
-                  action="multiplayer"
-                  label="Multiplayer"
-                  :ref="registerButton"
-                  @command="onCommand"
-                  @hover="onHover"
-                />
-
-                <GameButton
-                  action="load"
-                  label="Load Game"
-                  :ref="registerButton"
-                  @command="onCommand"
-                  @hover="onHover"
-                />
-
-                <GameButton
-                  action="about"
-                  label="About"
-                  data-open-overlay
-                  :ref="registerButton"
-                  @command="onCommand"
-                  @hover="onHover"
-                />
-
-                <GameButton
-                  action="rules"
-                  label="Game Information"
-                  :ref="registerButton"
-                  @command="onCommand"
-                  @hover="onHover"
-                />
-
-                <GameButton
-                  action="logout"
-                  label="Logout"
-                  :ref="registerButton"
-                  @command="onCommand"
-                  @hover="onHover"
-                />
-              </div>
-            </nav>
+            <MenuCarousel
+              ref="carouselRef"
+              :items="menuItems"
+              @command="onCommand"
+              @hover="onHover"
+            />
           </div>
         </div>
       </div>
@@ -255,11 +257,6 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-
-  background-image: url('/assets/images/frames/background1.jpg');
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
 
   font-family: "Rajdhani", Arial, sans-serif;
   overflow-y: auto;

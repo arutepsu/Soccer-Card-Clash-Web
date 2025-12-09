@@ -19,7 +19,7 @@ export type EnrichedState = WebGameState & {
   };
 };
 
-export function buildMapWebToScene(cardRegistry: CardImageRegistry) {
+export function buildHandToScene(cardRegistry: CardImageRegistry) {
   const toImg = (f?: string | null): string =>
     cardRegistry.getImageForCard(f ?? '');
   const back = cardRegistry.getImageUrl('flippedCard.png');
@@ -36,7 +36,7 @@ export function buildMapWebToScene(cardRegistry: CardImageRegistry) {
       };
     });
 
-  return function mapWebToScene(web: WebGameState): EnrichedState {
+  return function mapHandToScene(web: WebGameState): EnrichedState {
     const attacker: PlayerLike = {
       id: 'att',
       name: web.roles?.attacker,

@@ -8,7 +8,7 @@ import type {
 import PlayerAvatar from './PlayerAvatar.vue';
 import type { PlayerAvatarRegistry } from '../../utils/playerAvatarRegistry';
 import ActionLimits from './ActionLimits.vue';
-
+import frame from '@/assets/images/frames/frame.png';
 const props = defineProps<{
   web: WebGameState | null | undefined;
   avatarRegistry: PlayerAvatarRegistry;
@@ -56,10 +56,19 @@ const actionsText = computed(() => {
 });
 
 const attackerName = computed(() => attacker.value?.name ?? 'Attacker');
+
+const attackerBarStyle = computed(() => ({
+  backgroundImage: `url(${frame})`,
+  backgroundRepeat: 'no-repeat',
+  backgroundSize: '60% 325%',
+  backgroundPosition: 'center',
+  backgroundColor: 'transparent',
+}));
+
 </script>
 
 <template>
-  <div class="attacker-bar">
+  <div class="attacker-bar" :style="attackerBarStyle">
     <div class="attacker-bar__inner">
       <div class="attacker-avatar-col">
         <PlayerAvatar
@@ -83,13 +92,9 @@ const attackerName = computed(() => attacker.value?.name ?? 'Attacker');
   </div>
 </template>
 
+
 <style scoped>
 .attacker-bar {
-  background-image: url("/assets/images/frames/frame.png");
-  background-repeat: no-repeat;
-  background-size: 60% 325%;
-  background-position: center;
-  background-color: transparent;
   padding: 30px 0;
   margin-top: 25px;
   display: flex;

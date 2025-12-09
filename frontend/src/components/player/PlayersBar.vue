@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import ActionLimits from './ActionLimits.vue';
 import ScoresBox from './ScoresBox.vue';
-
+import frameImg from '@/assets/images/frames/frame.png';
 import { computed, ref, watch } from 'vue';
 import type {
   WebGameState,
@@ -166,11 +166,20 @@ const seat2Player = computed(() => ({
   name: seat2Name.value,
   playerType: 'Human' as const,
 }));
+
+const playersBarStyle = {
+  backgroundImage: `url(${frameImg})`,
+  backgroundRepeat: 'no-repeat',
+  backgroundSize: '60% 325%',
+  backgroundPosition: 'center',
+  backgroundColor: 'transparent',
+};
+
 </script>
 
 
 <template>
-  <div class="players-bar">
+  <div class="players-bar" :style="playersBarStyle">
     <div class="players-bar__inner">
       <div class="player-avatar-box">
         <PlayerAvatar
