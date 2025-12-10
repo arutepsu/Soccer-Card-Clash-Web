@@ -9,11 +9,9 @@ import PlayersField from '../components/field/PlayersField.vue';
 import PlayersHand from '../components/hand/PlayersHand.vue';
 import ActionButtonBar from '../components/button/ActionButtonBar.vue';
 import { createPlayerAvatarRegistry } from '../utils/playerAvatarRegistry';
-import { createCardImageRegistry } from '../utils/cardImageRegistry';
 import { UIActionScheduler } from '../ui/uiActionScheduler';
 import { createComparisonDialogHandler } from '../utils/playingField/comparisonDialogHandler';
 import { createComparisonOrchestrator } from '../utils/playingField/comparisonOrchestrator';
-import * as ComparisonDialogGenerator from '../utils/playingField/comparisonDialogGenerator';
 import { createSoundManager } from '../utils/soundManager';
 
 import { useOverlay } from '../composables/useOverlay';
@@ -50,13 +48,6 @@ const avatarRegistry = createPlayerAvatarRegistry({
     'meta.jpg',
   ],
 });
-const cardRegistry = createCardImageRegistry();
-
-const comparisonModule = ComparisonDialogGenerator as any;
-comparisonModule.configure?.({
-  avatarRegistry,
-  cardRegistry,
-});
 
 const selectedTarget = ref<SelectedTarget>(null);
 
@@ -82,14 +73,11 @@ const lastRoles = {
   defender: '',
 };
 
-// scheduler for comparison sequences
 const scheduler = new UIActionScheduler();
 
-// forward declaration so onAutoClose can call it
 let orchestrator: ReturnType<typeof createComparisonOrchestrator> | null = null;
 
 const comparisonHandler = createComparisonDialogHandler({
-  controller: null,
   contextHolder: {
     get: () => ({
       roles: {
@@ -99,9 +87,9 @@ const comparisonHandler = createComparisonDialogHandler({
     }),
   },
   onAutoClose: () => {
-    // after comparison dialog auto-closes, apply buffered state
     orchestrator?.applyBufferedStateAfterOverlay();
   },
+  avatarRegistry,
 });
 
 orchestrator = createComparisonOrchestrator({
@@ -168,7 +156,6 @@ async function handleAttackDefender() {
     orchestrator?.setPendingAction('RegularAttack');
     await attackDefender(sel.index);
 
-    // 🔥 tell orchestrator: regular attack against defender index
     const web = webState.value;
     if (web && orchestrator) {
       orchestrator.afterServerApply(web, {
@@ -191,12 +178,11 @@ async function handleAttackGoalkeeper() {
     orchestrator?.setPendingAction('RegularAttack');
     await attackGoalkeeper();
 
-    // 🔥 GK attack uses the same action name but no defender index
     const web = webState.value;
     if (web && orchestrator) {
       orchestrator.afterServerApply(web, {
         action: 'RegularAttack',
-        defenderIndex: -1, // or undefined; orchestrator doesn't use it if events exist
+        defenderIndex: -1,
       });
     }
   } catch (err) {
@@ -219,7 +205,6 @@ async function handleDoubleAttack() {
     orchestrator?.setPendingAction('DoubleAttack');
     await doubleAttack(sel.index);
 
-    // 🔥 double attack meta
     const web = webState.value;
     if (web && orchestrator) {
       orchestrator.afterServerApply(web, {
