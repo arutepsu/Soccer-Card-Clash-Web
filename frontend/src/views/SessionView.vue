@@ -1,5 +1,3 @@
-<!-- frontend/src/views/SessionScreen.vue -->
- 
 <template>
   <div
     class="scene scene--sessionscreen is-active"
@@ -11,148 +9,33 @@
       <h1 class="session-header">ONLINE MULTIPLAYER</h1>
 
       <div class="session-content">
-        <!-- LEFT: Sessions list -->
-        <div class="sessions-panel">
-          <div class="sessions-header">
-            <span>Sessions</span>
-            <button
-              class="btn-create"
-              @click="openCreateForm"
-              @mouseenter="handleMouseEnter"
-            >
-              [ Create ]
-            </button>
-          </div>
+        <!-- Sessions list -->
+        <SessionList
+          :sessions="sessions"
+          :selected-session-id="selectedSessionId"
+          @select="selectSession"
+          @create="openCreateForm"
+          @join="joinSession"
+          @hover="handleMouseEnter"
+        />
 
-          <div class="sessions-list">
-            <div
-              v-for="session in sessions"
-              :key="session.id"
-              class="session-item"
-              :class="{
-                selected: selectedSessionId === session.id,
-                full: session.status === 'Full'
-              }"
-              @click="selectSession(session.id)"
-              @mouseenter="handleMouseEnter"
-            >
-              <span class="session-indicator">▸</span>
-              <span class="session-name">{{ session.name }}</span>
-              <span class="session-players">{{ session.players }}</span>
-              <span class="session-status">{{ session.status }}</span>
+        <!-- Details / Create form -->
+        <CreateSessionForm
+          v-if="showCreateForm"
+          v-model:session-name="newSessionName"
+          v-model:session-mode="newSessionMode"
+          :max-players="maxPlayers"
+          @submit="submitCreate"
+          @cancel="cancelCreate"
+          @hover="handleMouseEnter"
+        />
 
-              <button
-                v-if="session.status === 'Waiting'"
-                class="btn-join"
-                @click.stop="selectSession(session.id); joinSession()"
-                @mouseenter="handleMouseEnter"
-              >
-                [ Join ]
-              </button>
-              <button
-                v-else
-                class="btn-full"
-                disabled
-              >
-                [ Full ]
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- RIGHT: Details / Create form -->
-        <div class="session-details-panel">
-          <!-- Create form -->
-          <div v-if="showCreateForm" class="create-form">
-            <div class="details-header">Create a session</div>
-
-            <div class="form-content">
-              <div class="form-row">
-                <label class="form-label">Your Name:</label>
-                <input
-                  type="text"
-                  v-model="newSessionName"
-                  class="form-input"
-                  placeholder="Enter session name"
-                  @mouseenter="handleMouseEnter"
-                />
-              </div>
-
-              <div class="form-row">
-                <label class="form-label">Game Mode:</label>
-                <select
-                  v-model="newSessionMode"
-                  class="form-select"
-                  @mouseenter="handleMouseEnter"
-                >
-                  <option value="Standard">Standard</option>
-                  <option value="Quick">Quick</option>
-                  <option value="Custom">Custom</option>
-                </select>
-              </div>
-
-              <div class="form-row">
-                <label class="form-label">Max Players:</label>
-                <span class="form-value">{{ maxPlayers }}</span>
-              </div>
-
-              <div class="form-buttons">
-                <button
-                  class="btn-form-action"
-                  @click="submitCreate"
-                  @mouseenter="handleMouseEnter"
-                >
-                  [ Create ]
-                </button>
-                <button
-                  class="btn-form-cancel"
-                  @click="cancelCreate"
-                  @mouseenter="handleMouseEnter"
-                >
-                  [ Cancel ]
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Details of selected session -->
-          <div v-else-if="sessionDetails" class="details-content">
-            <div class="details-header">— Session Details —</div>
-
-            <div class="detail-row">
-              <span class="detail-label">Selected:</span>
-              <span class="detail-value">{{ sessionDetails.name }}</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Host:</span>
-              <span class="detail-value">{{ sessionDetails.host }}</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Mode:</span>
-              <span class="detail-value">{{ sessionDetails.mode }}</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Players:</span>
-              <span class="detail-value">
-                {{ sessionDetails.host }}, (waiting slot)
-              </span>
-            </div>
-
-            <button
-              class="btn-join-session"
-              @click="joinSession"
-              @mouseenter="handleMouseEnter"
-            >
-              [ Join Session ]
-            </button>
-          </div>
-
-          <!-- Empty state -->
-          <div v-else class="details-empty">
-            <div class="details-header">— Session Details —</div>
-            Select a session to view details
-          </div>
-        </div>
+        <SessionDetails
+          v-else
+          :session-details="sessionDetails"
+          @join="joinSession"
+          @hover="handleMouseEnter"
+        />
       </div>
     </div>
 
@@ -164,6 +47,9 @@
 import { computed, onMounted, ref } from 'vue';
 import { createSoundManager, type SoundManager } from '../utils/soundManager';
 import bgSessions from '@/assets/images/frames/background1.jpg';
+import SessionList from '../components/SessionList.vue';
+import SessionDetails from '../components/SessionDetails.vue';
+import CreateSessionForm from '../components/CreateSessionForm.vue';
 
 interface Session {
   id: number;
@@ -257,7 +143,7 @@ const sessionSceneStyle = {
 </script>
 
 <style scoped>
-    .scene--sessionscreen {
+.scene--sessionscreen {
   position: fixed;
   inset: 0;
   display: flex;
@@ -303,357 +189,6 @@ const sessionSceneStyle = {
   gap: 0;
 }
 
-/* Sessions Panel */
-.sessions-panel {
-  border-bottom: 2px solid #7700ff;
-}
-
-.sessions-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 1.5rem;
-  background: rgba(119, 0, 255, 0.05);
-  font-weight: bold;
-  color: #39FF14;
-  font-size: 1.2rem;
-  text-shadow: 0 0 6px #39FF14;
-}
-
-.btn-create {
-  background: transparent;
-  border: 2px solid #39FF14;
-  color: #39FF14;
-  font-family: "Rajdhani", Arial, sans-serif;
-  cursor: pointer;
-  font-size: 1.1rem;
-  padding: 0.5rem 1.5rem;
-  transition: all 0.3s;
-  border-radius: 8px;
-  font-weight: bold;
-  text-shadow: 0 0 6px #39FF14;
-}
-
-.btn-create:hover {
-  background: rgba(57, 255, 20, 0.2);
-  box-shadow: 0 0 15px rgba(57, 255, 20, 0.6);
-  transform: translateY(-2px);
-}
-
-.sessions-list {
-  max-height: 300px;
-  overflow-y: auto;
-}
-
-.session-item {
-  display: grid;
-  grid-template-columns: auto 1fr auto auto auto;
-  gap: 1rem;
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid rgba(119, 0, 255, 0.3);
-  cursor: pointer;
-  transition: all 0.3s;
-  align-items: center;
-  background: rgba(0, 0, 0, 0.3);
-}
-
-.session-item:hover {
-  background: rgba(119, 0, 255, 0.15);
-  transform: translateX(5px);
-}
-
-.session-item.selected {
-  background: rgba(119, 0, 255, 0.3);
-  border-left: 5px solid #39FF14;
-  box-shadow: inset 0 0 20px rgba(57, 255, 20, 0.2);
-}
-
-.session-item.full {
-  opacity: 0.6;
-}
-
-.session-indicator {
-  color: #39FF14;
-  font-size: 1.2rem;
-  text-shadow: 0 0 6px #39FF14;
-}
-
-.session-name {
-  color: #39FF14;
-  font-weight: bold;
-  font-size: 1.1rem;
-  text-shadow: 0 0 6px #39FF14;
-}
-
-.session-item.full .session-name {
-  color: #ff0055;
-  text-shadow: 0 0 6px #ff0055;
-}
-
-.session-players {
-  color: #f3ca04;
-  font-weight: bold;
-  text-shadow: 0 0 6px rgba(243, 202, 4, 0.6);
-}
-
-.session-item.full .session-players {
-  color: #ff0055;
-  text-shadow: 0 0 6px #ff0055;
-}
-
-.session-status {
-  color: #39FF14;
-  min-width: 80px;
-  font-weight: bold;
-  text-shadow: 0 0 6px #39FF14;
-}
-
-.session-item.full .session-status {
-  color: #ff0055;
-  text-shadow: 0 0 6px #ff0055;
-}
-
-.btn-join,
-.btn-full {
-  background: transparent;
-  border: 2px solid #39FF14;
-  color: #39FF14;
-  font-family: "Rajdhani", Arial, sans-serif;
-  cursor: pointer;
-  font-size: 1rem;
-  padding: 0.4rem 1rem;
-  transition: all 0.3s;
-  min-width: 90px;
-  border-radius: 6px;
-  font-weight: bold;
-  text-shadow: 0 0 6px #39FF14;
-}
-
-.btn-join:hover {
-  background: rgba(57, 255, 20, 0.2);
-  box-shadow: 0 0 15px rgba(57, 255, 20, 0.6);
-  transform: scale(1.05);
-}
-
-.btn-full {
-  border-color: #ff0055;
-  color: #ff0055;
-  cursor: not-allowed;
-  opacity: 0.5;
-  text-shadow: none;
-}
-
-/* Session Details Panel */
-.session-details-panel {
-  padding: 2rem 1.5rem;
-  min-height: 280px;
-  background: rgba(0, 0, 0, 0.4);
-  border-radius: 0 0 12px 12px;
-}
-
-.details-header {
-  text-align: center;
-  color: #f3ca04;
-  margin-bottom: 1.5rem;
-  font-weight: bold;
-  font-size: 1.4rem;
-  text-shadow: 0 0 10px rgba(243, 202, 4, 0.8);
-}
-
-.details-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.detail-row {
-  display: flex;
-  gap: 1rem;
-  padding: 0.75rem 1rem;
-  background: rgba(119, 0, 255, 0.1);
-  border-radius: 8px;
-  border-left: 3px solid #7700ff;
-}
-
-.detail-label {
-  color: #39FF14;
-  font-weight: bold;
-  min-width: 100px;
-  text-shadow: 0 0 6px #39FF14;
-}
-
-.detail-value {
-  color: #f3ca04;
-  font-weight: 500;
-  text-shadow: 0 0 6px rgba(243, 202, 4, 0.6);
-}
-
-.btn-join-session {
-  margin-top: 2rem;
-  background: rgba(57, 255, 20, 0.1);
-  border: 3px solid #39FF14;
-  color: #39FF14;
-  font-family: "Rajdhani", Arial, sans-serif;
-  padding: 1rem 2rem;
-  cursor: pointer;
-  font-size: 1.3rem;
-  font-weight: bold;
-  transition: all 0.3s;
-  align-self: center;
-  border-radius: 10px;
-  text-shadow: 0 0 10px #39FF14;
-  box-shadow: 0 0 20px rgba(57, 255, 20, 0.3);
-}
-
-.btn-join-session:hover {
-  background: rgba(57, 255, 20, 0.3);
-  box-shadow: 0 0 30px rgba(57, 255, 20, 0.6);
-  transform: translateY(-3px) scale(1.05);
-}
-
-.details-empty {
-  text-align: center;
-  color: #7700ff;
-  padding: 4rem 0;
-  font-style: italic;
-  font-size: 1.2rem;
-  text-shadow: 0 0 10px rgba(119, 0, 255, 0.5);
-}
-
-/* Create Session Form */
-.create-form {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  padding: 1rem 0;
-}
-
-.form-row {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem 1rem;
-  background: rgba(119, 0, 255, 0.1);
-  border-radius: 8px;
-  border-left: 3px solid #7700ff;
-}
-
-.form-label {
-  color: #39FF14;
-  font-weight: bold;
-  min-width: 130px;
-  text-shadow: 0 0 6px #39FF14;
-}
-
-.form-input,
-.form-select {
-  flex: 1;
-  background: rgba(0, 0, 0, 0.6);
-  border: 2px solid #7700ff;
-  color: #f3ca04;
-  font-family: "Rajdhani", Arial, sans-serif;
-  padding: 0.6rem 1rem;
-  font-size: 1.1rem;
-  border-radius: 6px;
-  transition: all 0.3s;
-  font-weight: 500;
-}
-
-.form-input::placeholder {
-  color: rgba(243, 202, 4, 0.5);
-}
-
-.form-input:focus,
-.form-select:focus {
-  outline: none;
-  border-color: #39FF14;
-  box-shadow: 0 0 15px rgba(57, 255, 20, 0.4);
-  background: rgba(0, 0, 0, 0.8);
-}
-
-.form-select option {
-  background: #000;
-  color: #f3ca04;
-}
-
-.form-value {
-  color: #ff0055;
-  font-weight: bold;
-  font-size: 1.2rem;
-  text-shadow: 0 0 6px #ff0055;
-}
-
-.form-buttons {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  margin-top: 1rem;
-}
-
-.btn-form-action,
-.btn-form-cancel {
-  background: transparent;
-  border: 3px solid;
-  font-family: "Rajdhani", Arial, sans-serif;
-  cursor: pointer;
-  font-size: 1.2rem;
-  padding: 0.8rem 2rem;
-  transition: all 0.3s;
-  border-radius: 8px;
-  font-weight: bold;
-  min-width: 120px;
-}
-
-.btn-form-action {
-  border-color: #39FF14;
-  color: #39FF14;
-  text-shadow: 0 0 6px #39FF14;
-}
-
-.btn-form-action:hover {
-  background: rgba(57, 255, 20, 0.2);
-  box-shadow: 0 0 20px rgba(57, 255, 20, 0.6);
-  transform: translateY(-2px);
-}
-
-.btn-form-cancel {
-  border-color: #ff0055;
-  color: #ff0055;
-  text-shadow: 0 0 6px #ff0055;
-}
-
-.btn-form-cancel:hover {
-  background: rgba(255, 0, 85, 0.2);
-  box-shadow: 0 0 20px rgba(255, 0, 85, 0.6);
-  transform: translateY(-2px);
-}
-
-/* Scrollbar Styling */
-.sessions-list::-webkit-scrollbar {
-  width: 10px;
-}
-
-.sessions-list::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.5);
-  border-radius: 5px;
-}
-
-.sessions-list::-webkit-scrollbar-thumb {
-  background: #7700ff;
-  border-radius: 5px;
-  box-shadow: 0 0 10px rgba(119, 0, 255, 0.6);
-}
-
-.sessions-list::-webkit-scrollbar-thumb:hover {
-  background: #39FF14;
-  box-shadow: 0 0 10px rgba(57, 255, 20, 0.6);
-}
-
 .info-label {
   position: absolute;
   bottom: 12px;
@@ -668,7 +203,6 @@ const sessionSceneStyle = {
   padding: 0 10px;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .session-container {
     max-width: 95%;
@@ -678,34 +212,6 @@ const sessionSceneStyle = {
   .session-header {
     font-size: 1.4rem;
     padding: 1rem;
-  }
-  
-  .session-item {
-    grid-template-columns: auto 1fr;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
-  }
-  
-  .session-players,
-  .session-status {
-    grid-column: 2;
-    font-size: 0.9rem;
-  }
-  
-  .btn-join,
-  .btn-full {
-    grid-column: 2;
-    margin-top: 0.5rem;
-  }
-  
-  .sessions-header {
-    font-size: 1rem;
-    padding: 0.75rem 1rem;
-  }
-  
-  .btn-create {
-    font-size: 0.9rem;
-    padding: 0.4rem 1rem;
   }
 }
 
