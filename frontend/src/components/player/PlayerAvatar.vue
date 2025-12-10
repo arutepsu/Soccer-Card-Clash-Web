@@ -24,28 +24,35 @@ const initial = computed(() =>
 
 const avatarUrl = computed(() => {
   const p = props.player;
-  if (!p) return '';
+  const reg = props.avatarRegistry;
+  if (!p || !reg) return '';
   try {
-    return props.avatarRegistry.getAvatarUrl(p);
-  } catch {
+    return reg.getAvatarUrl(p);
+  } catch (e) {
+    console.warn('[PlayerAvatar] getAvatarUrl failed', p, e);
     return '';
   }
 });
 
 watch(
-  () => props.player,
-  (next) => {
-    if (!next) return;
+  () => [props.player, props.avatarRegistry] as const,
+  ([next, reg]) => {
+    if (!next || !reg) return;
 
     try {
-      props.avatarRegistry.getAvatarFileName(next);
+      reg.getAvatarFileName(next);
     } catch {
-      props.avatarRegistry.assignAvatarsInOrder([next]);
+      try {
+        reg.assignAvatarsInOrder([next]);
+      } catch (e) {
+        console.warn('[PlayerAvatar] assignAvatarsInOrder failed', e);
+      }
     }
   },
   { immediate: true },
 );
 </script>
+
 
 <template>
   <div class="player-avatar-box">

@@ -2,20 +2,23 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { usePlayingField } from '../composables/usePlayingField';
+import { useAppServices } from '../app/appServices';
 import PlayersBar from '../components/player/PlayersBar.vue';
 import NavButtonBarContainer from '../components/button/NavButtonBarContainer.vue';
 import PlayersField from '../components/field/PlayersField.vue';
 import PlayersHand from '../components/hand/PlayersHand.vue';
 import ActionButtonBar from '../components/button/ActionButtonBar.vue';
 import { createPlayerAvatarRegistry } from '../utils/playerAvatarRegistry';
-import { useOverlay } from '../composables/useOverlay';
-import type { PlayerLike, WebGameState } from '../types/WebGameState';
-import playingBg from '@/assets/images/frames/background5.jpg';
+import { UIActionScheduler } from '../ui/uiActionScheduler';
+import { createComparisonDialogHandler } from '../utils/playingField/comparisonDialogHandler';
+import { createComparisonOrchestrator } from '../utils/playingField/comparisonOrchestrator';
+import { createSoundManager } from '../utils/soundManager';
 
-type SelectedTarget =
-  | { kind: 'defender'; index: number }
-  | { kind: 'goalkeeper' }
-  | null;
+import { useOverlay } from '../composables/useOverlay';
+import type { WebGameState } from '../types/WebGameState';
+import type { GameApi } from '../api/gameApi';
+import playingBg from '@/assets/images/frames/background5.jpg';
+import { SelectedTarget } from '@/types/AttackerDefenders';
 
 const {
   gameContext,
@@ -30,6 +33,8 @@ const {
 const webState = computed(
   () => gameContext.state.value as WebGameState | null,
 );
+
+const displaySceneView = ref(sceneView.value);
 
 const avatarRegistry = createPlayerAvatarRegistry({
   avatarsPath: '/assets/images/players/',
@@ -56,6 +61,65 @@ function showInfoAlert(message: string) {
   });
 }
 
+const { api: appApi } = useAppServices();
+const api = appApi as GameApi;
+
+const soundManager = createSoundManager({ basePath: '/assets/sounds/' });
+soundManager.preload('attack', 'attack.wav');
+soundManager.preload('hover', 'hover.wav');
+
+const lastRoles = {
+  attacker: '',
+  defender: '',
+};
+
+const scheduler = new UIActionScheduler();
+
+let orchestrator: ReturnType<typeof createComparisonOrchestrator> | null = null;
+
+const comparisonHandler = createComparisonDialogHandler({
+  contextHolder: {
+    get: () => ({
+      roles: {
+        attacker: lastRoles.attacker,
+        defender: lastRoles.defender,
+      },
+    }),
+  },
+  onAutoClose: () => {
+    orchestrator?.applyBufferedStateAfterOverlay();
+  },
+  avatarRegistry,
+});
+
+orchestrator = createComparisonOrchestrator({
+  api,
+  scheduler,
+  comparisonHandler,
+  ActionNames: {
+    RegularAttack: 'RegularAttack',
+    DoubleAttack: 'DoubleAttack',
+    Undo: 'Undo',
+    Redo: 'Redo',
+    BoostDefender: 'BoostDefender',
+    BoostGoalkeeper: 'BoostGoalkeeper',
+    RegularSwap: 'RegularSwap',
+    ReverseSwap: 'ReverseSwap',
+  },
+  getRoles: () => lastRoles,
+  applyUiFromWeb: (web) => {
+    if (web?.roles) {
+      lastRoles.attacker = web.roles.attacker || '';
+      lastRoles.defender = web.roles.defender || '';
+    }
+    displaySceneView.value = sceneView.value;
+  },
+  updateFromServerContext: (_web) => {
+  },
+  soundManager,
+});
+
+
 
 function handleDefenderSelected(index: number | null) {
   if (index == null) {
@@ -63,21 +127,14 @@ function handleDefenderSelected(index: number | null) {
   } else {
     selectedTarget.value = { kind: 'defender', index };
   }
-  console.log('[PlayingFieldView] defender-selected ->', selectedTarget.value);
 }
 
 function handleGoalkeeperSelected(selected: boolean) {
   selectedTarget.value = selected ? { kind: 'goalkeeper' } : null;
-  console.log('[PlayingFieldView] goalkeeper-selected ->', selectedTarget.value);
 }
 
 
 async function handleAttackDefender() {
-  console.log(
-    '[PlayingFieldView] handleAttackDefender, selectedTarget:',
-    selectedTarget.value,
-  );
-
   const sel = selectedTarget.value;
 
   if (!sel) {
@@ -86,7 +143,6 @@ async function handleAttackDefender() {
   }
 
   if (sel.kind === 'goalkeeper') {
-    console.log('[PlayingFieldView] primary attack routed to goalkeeper');
     await handleAttackGoalkeeper();
     return;
   }
@@ -97,12 +153,16 @@ async function handleAttackDefender() {
   }
 
   try {
-    console.log(
-      '[PlayingFieldView] calling attackDefender with index:',
-      sel.index,
-    );
+    orchestrator?.setPendingAction('RegularAttack');
     await attackDefender(sel.index);
-    console.log('[PlayingFieldView] attackDefender finished');
+
+    const web = webState.value;
+    if (web && orchestrator) {
+      orchestrator.afterServerApply(web, {
+        action: 'RegularAttack',
+        defenderIndex: sel.index,
+      });
+    }
   } catch (err: any) {
     console.error('[PlayingFieldView] attackDefender error:', err);
     showInfoAlert('Attack failed. Please try again.');
@@ -111,11 +171,20 @@ async function handleAttackDefender() {
   }
 }
 
+
+
 async function handleAttackGoalkeeper() {
   try {
-    console.log('[PlayingFieldView] handleAttackGoalkeeper');
+    orchestrator?.setPendingAction('RegularAttack');
     await attackGoalkeeper();
-    console.log('[PlayingFieldView] attackGoalkeeper finished');
+
+    const web = webState.value;
+    if (web && orchestrator) {
+      orchestrator.afterServerApply(web, {
+        action: 'RegularAttack',
+        defenderIndex: -1,
+      });
+    }
   } catch (err) {
     console.error('[PlayingFieldView] attackGoalkeeper error:', err);
     showInfoAlert('Goalkeeper attack failed. Please try again.');
@@ -126,22 +195,23 @@ async function handleAttackGoalkeeper() {
 
 async function handleDoubleAttack() {
   const sel = selectedTarget.value;
-  console.log(
-    '[PlayingFieldView] handleDoubleAttack, selectedTarget:',
-    sel,
-  );
 
   if (!sel || sel.kind !== 'defender') {
     showInfoAlert('Pick a defender card for double attack.');
     return;
   }
+
   try {
-    console.log(
-      '[PlayingFieldView] calling doubleAttack with index:',
-      sel.index,
-    );
+    orchestrator?.setPendingAction('DoubleAttack');
     await doubleAttack(sel.index);
-    console.log('[PlayingFieldView] doubleAttack finished');
+
+    const web = webState.value;
+    if (web && orchestrator) {
+      orchestrator.afterServerApply(web, {
+        action: 'DoubleAttack',
+        defenderIndex: sel.index,
+      });
+    }
   } catch (err) {
     console.error('[PlayingFieldView] doubleAttack error:', err);
     showInfoAlert('Double attack failed. Please try again.');
@@ -150,23 +220,25 @@ async function handleDoubleAttack() {
   }
 }
 
+
+
 function handleInfo() {
   showInfoAlert('Select a defender or the goalkeeper, then choose an attack.');
 }
 
 onMounted(async () => {
   await init();
-  console.log('[PlayingFieldView] webState after init:', webState.value);
-  console.log('[PlayingFieldView] sceneView after init:', sceneView.value);
 });
 
 watch(
   webState,
   (st) => {
-    if (!st) return;
+    if (!st || !orchestrator) return;
+    orchestrator.handleStreamWeb(st);
   },
-  { immediate: false },
+  { immediate: true },
 );
+
 
 const playingSceneStyle = {
   backgroundImage: `url(${playingBg})`,
@@ -202,7 +274,7 @@ const playingSceneStyle = {
       <section id="field" aria-label="Defender Field">
         <div class="card-bar-frame" id="field-frame">
           <PlayersField
-            :scene="sceneView"
+            :scene="displaySceneView"
             :busy="busy"
             @defender-selected="handleDefenderSelected"
             @goalkeeper-selected="handleGoalkeeperSelected"
@@ -223,7 +295,7 @@ const playingSceneStyle = {
 
     <footer id="hand-row" aria-label="Attacker Hand and Avatar">
       <section id="hand" aria-label="Attacker Hand">
-        <PlayersHand :scene="sceneView" :busy="busy" />
+        <PlayersHand :scene="displaySceneView" :busy="busy" />
       </section>
 
       <section id="attacker-avatar-box" aria-label="Current Attacker">

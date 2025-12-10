@@ -1,11 +1,11 @@
-import { PlayerAvatarRegistry } from '../../utils/playerAvatarRegistry';
+import { PlayerAvatarRegistry } from '../playerAvatarRegistry';
 import type {
   WebGameState,
   PlayerLike,
   AllowedActionsView,
   ActionLimitsView,
 } from '../../types/WebGameState';
-import type { CardImageRegistry } from '../../utils/cardImageRegistry';
+import type { CardImageRegistry } from '../cardImageRegistry';
 import type { CardView, CardSlotView } from '../../types/WebGameState';
 export interface ScenePlayerView extends PlayerLike {
   score?: number;

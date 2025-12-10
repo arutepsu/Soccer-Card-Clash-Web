@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import HandCardRow from './HandCardRow.vue';
-import type { SceneView } from '../../scenes/playingField/sceneMapping';
+import type { SceneView } from '../../utils/playingField/sceneMapping';
 import type { HandCardLike } from '../../types/HandCards';
 
 const props = defineProps<{

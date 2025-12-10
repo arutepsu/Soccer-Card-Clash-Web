@@ -5,4 +5,3 @@ export type GameStateLike =
   | SceneView
   | WebGameState
   | (WebGameState & { players?: SceneView['players'] })
-  | null;
