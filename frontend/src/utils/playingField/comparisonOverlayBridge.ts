@@ -4,6 +4,7 @@ import type {
   PlayerInfo,
   ComparisonCard,
 } from './comparisonDialogHandler';
+import type { PlayerAvatarRegistry } from '@/utils/playerAvatarRegistry';
 import { useOverlay } from '@/composables/useOverlay';
 
 export type ComparisonVariant = 'single' | 'double' | 'tie' | 'doubleTie';
@@ -26,6 +27,8 @@ export interface ShowComparisonOverlayParams {
 
   autoCloseMs?: number;
   onAutoClose?: () => void | Promise<void>;
+
+  avatarRegistry: PlayerAvatarRegistry;
 }
 
 export function showComparisonOverlay(params: ShowComparisonOverlayParams): void {

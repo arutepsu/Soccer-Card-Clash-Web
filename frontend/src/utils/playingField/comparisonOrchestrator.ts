@@ -8,8 +8,6 @@ import type {
 } from './comparisonDialogHandler';
 import type { UIActionScheduler } from '../../ui/uiActionScheduler';
 import type { GameApi } from '../../api/gameApi';
-import { showComparisonOverlay } from './comparisonOverlayBridge';
-
 
 type CardLikeForTie =
   | Pick<CardView, 'fileName'>
@@ -216,12 +214,9 @@ function getAttackAndDefendCardsFromState(
   let defFieldCardRaw: any = null;
 
   if (dSlotIndex >= 0) {
-    // 🛡 defender card from defender field slot
     const dSlot = defField[dSlotIndex] ?? null;
     defFieldCardRaw = dSlot && (dSlot as any).card ? (dSlot as any).card : dSlot;
   } else {
-    // 🧤 goalkeeper attack: derive defender card from goalkeeper in WebGameState
-    // ⚠️ adjust these property names to your real WebGameState shape if needed
     const rawGk =
       (cards as any).defenderGoalkeeper ??
       (cards as any).goalkeeper ??
@@ -262,91 +257,36 @@ function getAttackAndDefendCardsFromState(
 
 
   async function runOverlayForPendingAction() {
-  if (!pendingActionType) return;
+    if (!pendingActionType) return;
 
-  isOverlayActive = true;
+    isOverlayActive = true;
 
-  const overlayAction =
-    pendingActionType === ActionNames.RegularAttack ||
-    pendingActionType === ActionNames.DoubleAttack
-      ? comparisonHandler.createOverlayAction({
-          type: pendingActionType as any,
-        })
-      : null;
+    const overlayAction =
+      pendingActionType === ActionNames.RegularAttack ||
+      pendingActionType === ActionNames.DoubleAttack
+        ? comparisonHandler.createOverlayAction({
+            type: pendingActionType as any,
+          })
+        : null;
 
-  console.log(
-    '[CMP] runOverlay pending=',
-    pendingActionType,
-    'hasAction=',
-    !!overlayAction,
-  );
-
-  const seq: { delay: number; block: () => void | Promise<void> }[] = [];
-
-  if (overlayAction) {
-    // normal path: handler already knows how to show the dialog via Vue bridge
-    seq.push({
-      delay: 0,
-      block: () => {
-        console.log(
-          '[CMP] executing overlayAction block → Vue comparison overlay',
-        );
-        overlayAction.block();
-      },
-    });
-  } else if (
-    pendingActionType === ActionNames.RegularAttack &&
-    currentComparison?.atkCard &&
-    currentComparison?.defCard
-  ) {
-    // fallback path: we at least have atk/def cards from preActionWeb
     console.log(
-      '[CMP] fallback using currentComparison from hand-end + defenderIndex',
-    );
-
-    seq.push({
-      delay: 0,
-      block: () => {
-        const roles = getRoles();
-        const attacker: PlayerInfo = {
-          id: 'att',
-          name: roles.attacker,
-          playerType: 'Human',
-        };
-        const defender: PlayerInfo = {
-          id: 'def',
-          name: roles.defender,
-          playerType: 'Human',
-        };
-
-        const { atkCard, defCard, success } = currentComparison!;
-
-        showComparisonOverlay({
-          variant: 'single',
-          attacker,
-          defender,
-          attackingCard: atkCard,
-          defendingCard: defCard,
-          attackingCard2: null,
-          extraAttackerCard: null,
-          extraDefenderCard: null,
-          attackSuccess: success ?? false,
-          autoCloseMs: 3000,
-          onAutoClose: applyBufferedStateAfterOverlay,
-        });
-      },
-    });
-  } else {
-    console.warn(
-      '[CMP] overlayAction null; no currentComparison for',
+      '[CMP] runOverlay pending=',
       pendingActionType,
+      'hasAction=',
+      !!overlayAction,
     );
+
+    if (overlayAction) {
+      scheduler.runSequence(overlayAction);
+    } else {
+      console.warn(
+        '[CMP] overlayAction null; applying buffered state without comparison overlay for',
+        pendingActionType,
+      );
+      await applyBufferedStateAfterOverlay();
+    }
   }
 
-  if (seq.length > 0) {
-    scheduler.runSequence(...seq);
-  }
-}
 
 
   function afterServerApply(

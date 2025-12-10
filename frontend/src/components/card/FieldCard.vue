@@ -3,6 +3,9 @@ import { computed, ref, watch, onMounted } from 'vue';
 import { createCardAnimations } from '../../utils/cardAnimations';
 import type { SlotLike, FieldCardData, FieldSlot } from '../../types/FieldCards';
 import defeatedPng from '@/assets/images/cards/defeated.png';
+import { createCardImageRegistry } from '@/utils/cardImageRegistry';
+
+const cardRegistry = createCardImageRegistry();
 
 const props = withDefaults(
   defineProps<{
@@ -69,12 +72,18 @@ const imageUrl = computed<string | null>(() => {
   const d: any = data.value;
   if (!d) return null;
 
-  if (d.img) return d.img;
+  if (d.img) return d.img as string;
 
-  if (d.fileName) return `${props.cardBaseUrl}${d.fileName}.png`;
+  const fileName: string | null | undefined =
+    d.fileName ?? d.card?.fileName ?? null;
+
+  if (fileName) {
+    return cardRegistry.getImageForCard(fileName);
+  }
 
   return null;
 });
+
 
 const isDefeated = computed<boolean>(() => {
   const d: any = data.value;

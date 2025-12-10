@@ -2,6 +2,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { HandCardLike } from '../../types/HandCards';
+import { createCardImageRegistry } from '@/utils/cardImageRegistry';
+
+const cardRegistry = createCardImageRegistry();
 
 const props = defineProps<{
   card: HandCardLike;
@@ -26,7 +29,19 @@ const cardStyle = computed(() => {
     backgroundRepeat: 'no-repeat',
   };
 
-  const url = (props.card as any)?.img as string | undefined;
+  const anyCard = props.card as any;
+
+  let url: string | undefined = anyCard?.img as string | undefined;
+
+  if (!url) {
+    const fileName: string | null | undefined =
+      anyCard?.fileName ?? anyCard?.card?.fileName ?? null;
+
+    if (fileName) {
+      url = cardRegistry.getImageForCard(fileName);
+    }
+  }
+
   if (url) {
     styles.backgroundImage = `url("${url}")`;
   }
@@ -37,6 +52,9 @@ const cardStyle = computed(() => {
 
   return styles;
 });
+
+
+
 
 function onSelect() {
   if (!isClickable.value) return;

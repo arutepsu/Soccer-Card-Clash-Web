@@ -4,54 +4,18 @@ import type {
   WebGameState,
 } from '../../types/WebGameState';
 import type { PlayerLike } from '../../types/Player';
-import { UIActionScheduler, delayed } from '../../ui/uiActionScheduler';
-import type { ComparisonControllerLike } from '../../types/Comparison';
-import { showComparisonOverlay, type ComparisonVariant } from './comparisonOverlayBridge';
+import { delayed } from '../../ui/uiActionScheduler';
+import {
+  showComparisonOverlay,
+  type ComparisonVariant,
+} from './comparisonOverlayBridge';
+import type { PlayerAvatarRegistry } from '../../utils/playerAvatarRegistry'; 
 export type PlayerInfo = PlayerLike;
+export type ComparisonCard = CardView;
 
 export interface Roles {
   attacker: PlayerInfo;
   defender: PlayerInfo;
-}
-
-export type ComparisonCard = CardView;
-
-export interface ComparisonDialogGenerator {
-  showSingleComparison(
-    attacker: PlayerInfo,
-    defender: PlayerInfo,
-    attackingCard: ComparisonCard,
-    defendingCard: ComparisonCard,
-    attackSuccess: boolean,
-  ): HTMLElement;
-
-  showTieComparison(
-    attacker: PlayerInfo,
-    defender: PlayerInfo,
-    attackingCard: ComparisonCard,
-    defendingCard: ComparisonCard,
-    extraAttackerCard: ComparisonCard,
-    extraDefenderCard: ComparisonCard,
-  ): HTMLElement;
-
-  showDoubleComparison(
-    attacker: PlayerInfo,
-    defender: PlayerInfo,
-    attackingCard1: ComparisonCard,
-    attackingCard2: ComparisonCard,
-    defendingCard: ComparisonCard,
-    attackSuccess: boolean,
-  ): HTMLElement;
-
-  showDoubleTieComparison(
-    attacker: PlayerInfo,
-    defender: PlayerInfo,
-    attackingCard1: ComparisonCard,
-    attackingCard2: ComparisonCard,
-    defendingCard: ComparisonCard,
-    extraAttackerCard: ComparisonCard,
-    extraDefenderCard: ComparisonCard,
-  ): HTMLElement;
 }
 
 export interface GameContextLike {
@@ -93,9 +57,9 @@ export interface ComparisonEvent {
 }
 
 export interface ComparisonDialogHandlerDeps {
-  controller?: ComparisonControllerLike;
   contextHolder?: ContextHolderLike;
   onAutoClose?: () => void | Promise<void>;
+  avatarRegistry: PlayerAvatarRegistry;
 }
 
 export interface ComparisonDialogHandler {
@@ -105,10 +69,6 @@ export interface ComparisonDialogHandler {
 
   handleComparisonEvent: (e: ComparisonEvent | null | undefined) => void;
   resetLastCards: () => void;
-
-  runOverlayFor: (
-    actionEvent: AttackActionEvent | null | undefined,
-  ) => { cancel: () => void };
 
   debug: {
     readonly lastAttackingCard: ComparisonCard | undefined;
@@ -122,6 +82,7 @@ export interface ComparisonDialogHandler {
 export function createComparisonDialogHandler({
   contextHolder,
   onAutoClose,
+  avatarRegistry,
 }: ComparisonDialogHandlerDeps): ComparisonDialogHandler {
   let lastAttackingCard: ComparisonCard | undefined;
   let lastAttackingCard1: ComparisonCard | undefined;
@@ -131,7 +92,6 @@ export function createComparisonDialogHandler({
   let lastExtraDefenderCard: ComparisonCard | undefined;
   let lastAttackSuccess: boolean | undefined;
 
-  const scheduler = new UIActionScheduler();
   const autoCloseMs = 3000;
 
   function roles(): Roles {
@@ -148,13 +108,13 @@ export function createComparisonDialogHandler({
       st?.state?.roles?.defender ?? st?.roles?.defender ?? 'Defender';
 
     const attacker: PlayerInfo = {
-      id: 'att',
+      id: `seat1:${attackerName}`,
       name: attackerName,
       playerType: 'Human',
     };
 
     const defender: PlayerInfo = {
-      id: 'def',
+      id: `seat2:${defenderName}`,
       name: defenderName,
       playerType: 'Human',
     };
@@ -163,7 +123,7 @@ export function createComparisonDialogHandler({
   }
 
   function createOverlayAction(
-  actionEvent: AttackActionEvent | null | undefined,
+    actionEvent: AttackActionEvent | null | undefined,
   ): ReturnType<typeof delayed> | null {
     const { attacker, defender } = roles();
 
@@ -194,6 +154,7 @@ export function createComparisonDialogHandler({
             attackSuccess,
             autoCloseMs,
             onAutoClose,
+            avatarRegistry,
           });
         });
       }
@@ -232,6 +193,7 @@ export function createComparisonDialogHandler({
             attackSuccess,
             autoCloseMs,
             onAutoClose,
+            avatarRegistry,
           });
         });
       }
@@ -240,7 +202,6 @@ export function createComparisonDialogHandler({
         return null;
     }
   }
-
 
   function handleComparisonEvent(
     e: ComparisonEvent | null | undefined,
@@ -313,18 +274,10 @@ export function createComparisonDialogHandler({
     lastAttackSuccess = undefined;
   }
 
-  function runOverlayFor(
-    actionEvent: AttackActionEvent | null | undefined,
-  ): { cancel: () => void } {
-    const action = createOverlayAction(actionEvent);
-    return action ? scheduler.runSequence(action) : { cancel() {} };
-  }
-
   return {
     createOverlayAction,
     handleComparisonEvent,
     resetLastCards,
-    runOverlayFor,
     debug: {
       get lastAttackingCard() {
         return lastAttackingCard;
