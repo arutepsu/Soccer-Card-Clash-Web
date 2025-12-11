@@ -131,17 +131,18 @@ defineExpose({
 .menu-carousel {
   position: relative;
 
-  width: 100vw;
-  max-width: 100vw;
-  left: 50%;
-  transform: translateX(-50%);
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
 
   height: 360px;
   max-height: 60vh;
+
   display: flex;
   align-items: center;
   justify-content: center;
 }
+
 
 .menu-carousel__track {
   position: relative;
@@ -196,19 +197,22 @@ defineExpose({
 }
 
 .menu-carousel__nav--prev {
-  left: 10vw;
+  left: -370px;
+  transform: translateY(-20%);
 }
 
 .menu-carousel__nav--next {
-  right: 10vw;
+  right: -370px;
+  transform: translateY(-20%);
 }
 
 .menu-carousel__nav:hover {
   opacity: 1;
-  transform: translateY(-50%) scale(1.2);
-  box-shadow:
-    0 0 30px rgba(95, 62, 252, 0.9),
-    0 0 60px rgba(95, 62, 252, 0.6);
+  transform: translate(-20%, -20%) scale(1.2);
+}
+
+.menu-carousel__nav--next:hover {
+  transform: translate(20%, -20%) scale(1.2);
 }
 
 @media (max-width: 576px) {
@@ -219,11 +223,12 @@ defineExpose({
   }
 
   .menu-carousel__nav--prev {
-    left: 4vw;
+    transform: translate(-40%, -50%);
   }
 
   .menu-carousel__nav--next {
-    right: 4vw;
+    transform: translate(40%, -50%);
   }
 }
+
 </style>

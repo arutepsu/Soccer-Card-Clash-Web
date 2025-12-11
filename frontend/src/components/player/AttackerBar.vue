@@ -1,14 +1,20 @@
+<!-- frontend/src/components/AttackerBar.vue -->
 <script setup lang="ts">
 import { computed } from 'vue';
+import { VRow, VCol } from 'vuetify/components';
+
 import type {
   WebGameState,
   PlayerLike,
   ActionLimitsView,
 } from '../../types/WebGameState';
+
 import PlayerAvatar from './PlayerAvatar.vue';
-import type { PlayerAvatarRegistry } from '../../utils/playerAvatarRegistry';
+import PlayerName from './PlayerName.vue';
 import ActionLimits from './ActionLimits.vue';
+import type { PlayerAvatarRegistry } from '../../utils/playerAvatarRegistry';
 import frame from '@/assets/images/frames/frame.png';
+
 const props = defineProps<{
   web: WebGameState | null | undefined;
   avatarRegistry: PlayerAvatarRegistry;
@@ -42,56 +48,50 @@ const allowedForAttacker = computed<Partial<ActionLimitsView>>(() => {
   return base ?? keyed ?? {};
 });
 
-const actionsText = computed(() => {
-  const lim = allowedForAttacker.value;
-
-  const toNum = (x: unknown, fallback = 0): number =>
-    Number.isFinite(Number(x)) ? Number(x) : fallback;
-
-  const swap = toNum((lim as any).swapRemaining, 0);
-  const boost = toNum((lim as any).boostRemaining, 0);
-  const da = toNum((lim as any).doubleAttackRemaining, 0);
-
-  return `Swap: ${swap}\nBoost: ${boost}\nDoubleAttack: ${da}`;
-});
-
 const attackerName = computed(() => attacker.value?.name ?? 'Attacker');
 
 const attackerBarStyle = computed(() => ({
   backgroundImage: `url(${frame})`,
   backgroundRepeat: 'no-repeat',
-  backgroundSize: '60% 325%',
+  backgroundSize: '50% 325%',
   backgroundPosition: 'center',
   backgroundColor: 'transparent',
 }));
-
 </script>
 
 <template>
   <div class="attacker-bar" :style="attackerBarStyle">
-    <div class="attacker-bar__inner">
-      <div class="attacker-avatar-col">
+    <VRow
+      class="attacker-bar__inner"
+      align="center"
+      justify="center"
+      no-gutters
+    >
+      <VCol cols="auto" class="attacker-avatar-col">
         <PlayerAvatar
           :player="attacker"
           :avatarRegistry="avatarRegistry"
           alt="Attacker avatar"
           :neon="true"
         />
-      </div>
+      </VCol>
 
-      <div class="player-info">
-        <div class="player-name" data-attacker-name>
-          {{ attackerName }}
-        </div>
+      <VCol cols="auto" class="attacker-info-col">
+        <PlayerName
+          :name="attackerName"
+          neon
+          data-attacker-name
+        />
+
         <ActionLimits
+          class="attacker-actions"
           data-attacker-actions
           :limits="allowedForAttacker"
         />
-      </div>
-    </div>
+      </VCol>
+    </VRow>
   </div>
 </template>
-
 
 <style scoped>
 .attacker-bar {
@@ -103,21 +103,21 @@ const attackerBarStyle = computed(() => ({
 }
 
 .attacker-bar__inner {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 40px;
   width: min(900px, 80%);
-  padding-left: 350px;
+  /* if you still want a slight right shift, use padding-left;
+     otherwise, leave centered */
+  padding-right: 150px;
 }
 
-.attacker-bar .player-avatar-box {
+/* avatar column tweaks */
+.attacker-avatar-col .player-avatar-box {
   width: 115px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.attacker-bar .player__avatar.neon-avatar {
+
+.attacker-avatar-col .player__avatar.neon-avatar {
   width: 100px;
   height: auto;
   border-radius: 8px;
@@ -126,29 +126,47 @@ const attackerBarStyle = computed(() => ({
   filter: drop-shadow(0 2px 8px rgba(158, 75, 223, 0.8));
 }
 
-.attacker-bar .player-info {
+/* info column */
+.attacker-info-col {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  justify-content: center;
   gap: 6px;
 }
 
-.attacker-bar .player-name {
-  font-family: "Rajdhani", sans-serif;
-  font-size: 40px;
-  font-weight: 400;
-  color: #ffffff;
-  text-shadow: 0 1px 4px rgba(158, 75, 223, 0.8);
+/* ActionLimits gets base styling from its own component;
+   here we can just constrain width if needed */
+.attacker-actions {
+  max-width: 360px;
 }
 
-.attacker-bar .player-actions {
-  font-family: "Rajdhani", sans-serif;
-  font-size: 18px;
-  color: #dddddd;
-  white-space: pre-line;
-  line-height: 1.3;
-  text-shadow: 0 1px 0 rgba(0,0,0,0.15), 0 1px 4px rgba(158, 75, 223, 0.8);
-  max-width: 360px;
+/* responsive tweaks */
+@media (max-width: 1024px) {
+  .attacker-bar {
+    padding: 24px 0;
+  }
+  .attacker-bar__inner {
+    width: min(800px, 90%);
+  }
+}
+
+@media (max-width: 768px) {
+  .attacker-bar__inner {
+    width: 100%;
+    padding-inline: 16px;
+  }
+  .attacker-info-col {
+    align-items: center;
+    text-align: center;
+  }
+  .attacker-actions {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .attacker-bar {
+    padding: 18px 0;
+  }
 }
 </style>

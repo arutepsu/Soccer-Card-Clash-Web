@@ -7,13 +7,15 @@ import './assets/styles/buttons.css';
 import './assets/styles/dialogs.css';
 import './assets/styles/cards.css';
 import './assets/styles/theme.css';
-import './assets/styles/playersBar.css'; //refr later
 import {
   createAppServices,
   AppServicesKey,
 } from './app/appServices';
+import vuetify from './plugins/vuetify';
 
 const app = createApp(App);
+
+app.use(vuetify);
 
 const services = createAppServices();
 

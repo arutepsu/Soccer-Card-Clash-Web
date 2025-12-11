@@ -1,19 +1,37 @@
 <template>
   <div class="score-box">
-    <div class="scores-title">Scores</div>
-    <div class="score-row">
-      <span class="player-score" data-player1-score>
-        {{ seat1Score }}
-      </span>
-      <span class="spacer"></span>
-      <span class="player-score" data-player2-score>
-        {{ seat2Score }}
-      </span>
+    <div class="scores-title text-uppercase">
+      SCORES
     </div>
+
+    <VRow
+      class="score-row"
+      align="center"
+      justify="center"
+      no-gutters
+    >
+      <VCol cols="auto" class="text-right">
+        <span class="player-score" data-player1-score>
+          {{ seat1Score }}
+        </span>
+      </VCol>
+
+      <VCol cols="auto" class="text-center">
+        <span class="score-colon">:</span>
+      </VCol>
+
+      <VCol cols="auto" class="text-left">
+        <span class="player-score" data-player2-score>
+          {{ seat2Score }}
+        </span>
+      </VCol>
+    </VRow>
   </div>
 </template>
 
 <script setup lang="ts">
+import { VRow, VCol } from 'vuetify/components';
+
 const props = defineProps<{
   seat1Score: number | string;
   seat2Score: number | string;
@@ -21,9 +39,20 @@ const props = defineProps<{
 </script>
 
 <style scoped>
-/* .scores-title {
+.score-box {
+  background: transparent;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 180px;
+}
+
+/* TITLE – bigger now */
+.scores-title {
   font-family: "Rajdhani", sans-serif;
-  font-size: 32px;
+  font-size: 22px; /* adjust if you want even bigger */
   font-weight: 700;
   color: #dddddd;
   text-align: center;
@@ -32,12 +61,29 @@ const props = defineProps<{
     0 1px 4px rgba(158, 75, 223, 0.8);
 }
 
-.player-score {
+/* ROW */
+.score-row {
+  width: 100%;
+  margin-top: 2px;
+}
+
+/* NUMBERS + COLON */
+.player-score,
+.score-colon {
   font-family: "Rajdhani", sans-serif;
-  font-size: 58px;
+  font-size: 70px;
   font-weight: 700;
   color: #ffd700;
   text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.75);
+}
+
+/* colon just a hair smaller + pulls numbers closer */
+.score-colon {
+  font-size: 64px;
+  margin: 0 4px;
+}
+
+.player-score {
   transition: transform 0.2s ease, color 0.3s ease;
 }
 
@@ -46,143 +92,46 @@ const props = defineProps<{
   color: #fffcb3;
 }
 
-.score-box {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  min-width: 220px;
-}
-
-.score-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-}
-
-.score-row .spacer {
-  flex: 1 1 auto;
-}
-
+/* responsive */
 @media (max-width: 1200px) {
-  .scores-title {
-    font-size: 28px;
-  }
-
-  .player-score {
-    font-size: 52px;
-  }
-
-  .score-box {
-    min-width: 200px;
-  }
-
-  .score-row {
-    gap: 15px;
-  }
+  .score-box { min-width: 200px; }
+  .player-score,
+  .score-colon { font-size: 52px; }
 }
 
 @media (max-width: 1024px) {
-  .scores-title {
-    font-size: 26px;
-  }
-
-  .player-score {
-    font-size: 48px;
-  }
-
-  .score-box {
-    min-width: 180px;
-  }
+  .score-box { min-width: 180px; }
+  .player-score,
+  .score-colon { font-size: 48px; }
 }
 
 @media (max-width: 768px) {
-  .scores-title {
-    font-size: 22px;
-  }
-
-  .player-score {
-    font-size: 42px;
-  }
-
-  .score-box {
-    min-width: 160px;
-  }
-
-  .score-row {
-    gap: 10px;
-    flex-wrap: wrap;
-  }
+  .score-box { min-width: 160px; }
+  .player-score,
+  .score-colon { font-size: 42px; }
 }
 
 @media (max-width: 480px) {
-  .scores-title {
-    font-size: 20px;
-  }
-
-  .player-score {
-    font-size: 36px;
-  }
-
-  .score-box {
-    min-width: 140px;
-  }
-
-  .score-row {
-    gap: 8px;
-  }
+  .score-box { min-width: 140px; }
+  .player-score,
+  .score-colon { font-size: 36px; }
 }
 
 @media (max-height: 600px) and (orientation: landscape) {
-  .scores-title {
-    font-size: 18px;
-  }
-
-  .player-score {
-    font-size: 32px;
-  }
-
-  .score-box {
-    min-width: 120px;
-    gap: 3px;
-  }
-
-  .score-row {
-    gap: 8px;
-  }
+  .score-box { min-width: 120px; gap: 3px; }
+  .player-score,
+  .score-colon { font-size: 32px; }
 }
 
 @media (max-height: 500px) and (orientation: landscape) {
-  .scores-title {
-    font-size: 16px;
-  }
-
-  .player-score {
-    font-size: 28px;
-  }
-
-  .score-box {
-    min-width: 100px;
-  }
+  .score-box { min-width: 100px; }
+  .player-score,
+  .score-colon { font-size: 28px; }
 }
 
 @media (max-height: 400px) and (orientation: landscape) {
-  .scores-title {
-    font-size: 14px;
-  }
-
-  .player-score {
-    font-size: 24px;
-  }
-
-  .score-box {
-    min-width: 92px;
-    gap: 2px;
-  }
-
-  .score-row {
-    gap: 6px;
-  }
-} */
+  .score-box { min-width: 92px; gap: 2px; }
+  .player-score,
+  .score-colon { font-size: 24px; }
+}
 </style>
