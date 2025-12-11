@@ -1,5 +1,7 @@
 <!-- frontend/src/components/AttackerAvatar.vue -->
 <script setup lang="ts">
+import { VImg } from 'vuetify/components';
+
 const props = withDefaults(
   defineProps<{
     name: string;
@@ -13,8 +15,16 @@ const props = withDefaults(
 
 <template>
   <div class="attacker-avatar-box">
-    <div class="attacker-label">{{ name }}</div>
-    <img :src="img" :alt="name + ' avatar'"/>
+    <div class="attacker-label text-uppercase">
+      {{ name }}
+    </div>
+
+    <VImg
+      :src="img"
+      :alt="`${name} avatar`"
+      class="attacker-avatar-img"
+      cover
+    />
   </div>
 </template>
 
@@ -26,9 +36,7 @@ const props = withDefaults(
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-
   width: 115px;
-
   z-index: 5;
 }
 
@@ -41,7 +49,7 @@ const props = withDefaults(
   margin-bottom: 10px;
 }
 
-.attacker-avatar-box img {
+.attacker-avatar-img {
   width: 70px;
   height: auto;
   border-radius: 8px;
@@ -54,7 +62,7 @@ const props = withDefaults(
     right: 200px;
     width: 100px;
   }
-  .attacker-avatar-box img {
+  .attacker-avatar-img {
     width: 60px;
   }
   .attacker-label {
@@ -77,7 +85,7 @@ const props = withDefaults(
 }
 
 @media (max-width: 480px) {
-  .attacker-avatar-box img {
+  .attacker-avatar-img {
     width: 50px;
   }
   .attacker-label {
@@ -91,7 +99,7 @@ const props = withDefaults(
     bottom: 5px;
     width: 90px;
   }
-  .attacker-avatar-box img {
+  .attacker-avatar-img {
     width: 45px;
   }
   .attacker-label {
@@ -104,7 +112,7 @@ const props = withDefaults(
   .attacker-avatar-box {
     width: 80px;
   }
-  .attacker-avatar-box img {
+  .attacker-avatar-img {
     width: 40px;
   }
   .attacker-label {

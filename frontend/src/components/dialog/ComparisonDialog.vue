@@ -301,7 +301,7 @@ onBeforeUnmount(() => {
 }
 
 .cmp-avatar {
-  filter: drop-shadow(0 0 12px rgba(0, 255, 200, 0.6));
+  filter: drop-shadow(0 0 12px rgba(170, 59, 187, 0.6));
 }
 
 /* Cards */
@@ -380,7 +380,7 @@ onBeforeUnmount(() => {
 }
 
 .cmp-winner-text {
-  font-size: 1.6rem;
+  font-size: 2rem;
   font-weight: 700;
   color: #00ff9c;
   text-shadow:
@@ -390,8 +390,8 @@ onBeforeUnmount(() => {
 
 .cmp-result-text {
   margin-top: 4px;
-  font-size: 1rem;
-  color: rgba(255, 255, 255, 0.85);
+  font-size: 2rem;
+  color: rgba(106, 67, 253, 0.85);
 }
 
 .cmp-fade-enter-active,

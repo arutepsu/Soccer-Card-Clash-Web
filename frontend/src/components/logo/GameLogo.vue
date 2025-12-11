@@ -1,16 +1,24 @@
 <template>
-  <div class="game-logo">
-    <img
-      class="logo-image"
+  <VCard
+    class="logo-card pa-0"
+    elevation="0"
+    variant="text"
+  >
+    <VImg
       :src="src"
       :alt="alt"
+      class="logo-image"
+      width="300"
+      cover
       draggable="false"
     />
-  </div>
+  </VCard>
 </template>
 
 <script setup lang="ts">
+import { VCard, VImg } from 'vuetify/components';
 import logoDefault from '@/assets/images/logo/logo0.5k.png';
+
 const props = withDefaults(
   defineProps<{
     src?: string;
@@ -24,51 +32,75 @@ const props = withDefaults(
 </script>
 
 <style scoped>
-.game-logo {
+@keyframes slamIn {
+  0% {
+    transform: translateY(-40px) scale(0.7);
+    opacity: 0;
+  }
+  70% {
+    transform: translateY(10px) scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pulseGlow {
+  0% {
+    box-shadow: 0 0 12px var(--v-theme-primary);
+  }
+  50% {
+    box-shadow: 0 0 24px var(--v-theme-primary);
+  }
+  100% {
+    box-shadow: 0 0 12px var(--v-theme-primary);
+  }
+}
+
+.logo-card {
+  padding: 1rem;
+  margin: 0 auto 1rem;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
   text-align: center;
-  margin-bottom: 1rem;
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+  background-color: transparent !important;
+  border: 2px solid var(--v-theme-primary);
+  overflow: hidden;
+
+  animation:
+    slamIn 0.6s cubic-bezier(0.2, 1.2, 0.3, 1.0),
+    pulseGlow 3.5s ease-in-out infinite;
+}
+
+.logo-card:hover {
+  transform: scale(1.03);
+  box-shadow: 0 0 20px var(--v-theme-primary), 0 0 30px var(--v-theme-primary);
 }
 
 .logo-image {
-  width: 300px;
-  height: auto;
-  display: block;
-  margin: 0 auto;
-  image-rendering: auto;
   filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
-  transition: transform 0.3s ease;
   user-select: none;
 }
 
-.logo-image:hover {
-  transform: scale(1.03);
-}
-
 @media (max-width: 1024px) {
-  .logo-image { width: 260px; }
+  .logo-image :deep(img) { width: 260px !important; }
 }
 
 @media (max-width: 768px) {
-  .logo-image { width: 220px; }
+  .logo-image :deep(img) { width: 220px !important; }
 }
 
 @media (max-width: 600px) {
-  .logo-image { width: 200px; }
+  .logo-image :deep(img) { width: 200px !important; }
 }
 
 @media (max-width: 420px) {
-  .logo-image { width: 180px; }
+  .logo-image :deep(img) { width: 180px !important; }
 }
 
-@media (max-height: 600px) and (orientation: landscape) {
-  .logo-image { width: 200px; max-height: 16vh; }
-}
-
-@media (max-height: 500px) and (orientation: landscape) {
-  .logo-image { width: 180px; max-height: 14vh; }
-}
-
-@media (max-height: 400px) and (orientation: landscape) {
-  .logo-image { width: 160px; max-height: 12vh; }
-}
 </style>

@@ -1,14 +1,18 @@
 <script setup lang="ts">
+import { computed, ref, watch } from 'vue';
+import { VRow, VCol } from 'vuetify/components';
+
 import ActionLimits from './ActionLimits.vue';
 import ScoresBox from './ScoresBox.vue';
+import PlayerAvatar from './PlayerAvatar.vue';
+import PlayerName from './PlayerName.vue';
+
 import frameImg from '@/assets/images/frames/frame.png';
-import { computed, ref, watch } from 'vue';
 import type {
   WebGameState,
   AllowedActionsView,
   ActionLimitsView,
 } from '../../types/WebGameState';
-import PlayerAvatar from './PlayerAvatar.vue';
 import type { PlayerAvatarRegistry } from '../../utils/playerAvatarRegistry';
 
 const props = defineProps<{
@@ -19,16 +23,6 @@ const props = defineProps<{
 function toNum(x: unknown, fallback: number): number {
   const n = Number(x);
   return Number.isFinite(n) ? n : fallback;
-}
-
-function formatAllowed(lim?: ActionLimitsView | null): string {
-  if (!lim) {
-    return `Swap: 0\nBoost: 0\nDoubleAttack: 0`;
-  }
-  const swap = toNum(lim.swapRemaining, 0);
-  const boost = toNum(lim.boostRemaining, 0);
-  const da = toNum(lim.doubleAttackRemaining, 0);
-  return `Swap: ${swap}\nBoost: ${boost}\nDoubleAttack: ${da}`;
 }
 
 const seat1Name = ref<string>('Player 1');
@@ -57,6 +51,7 @@ function storeSeats(seat1: string, seat2: string): void {
     const payload: StoredSeats = { seat1Name: seat1, seat2Name: seat2 };
     window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch {
+    // ignore
   }
 }
 
@@ -131,9 +126,6 @@ const seat2Allowed = computed<ActionLimitsView | null>(() => {
   return getAllowedForSeat(st, seat2Name.value);
 });
 
-const seat1ActionsText = computed(() => formatAllowed(seat1Allowed.value));
-const seat2ActionsText = computed(() => formatAllowed(seat2Allowed.value));
-
 const seat1Score = computed(() => {
   const st = props.web;
   if (!st) return 0;
@@ -174,66 +166,75 @@ const playersBarStyle = {
   backgroundPosition: 'center',
   backgroundColor: 'transparent',
 };
-
 </script>
-
 
 <template>
   <div class="players-bar" :style="playersBarStyle">
-    <div class="players-bar__inner">
-      <div class="player-avatar-box">
+    <VRow
+      class="players-bar__inner"
+      align="center"
+      justify="center"
+      no-gutters
+    >
+      <VCol cols="auto" class="players-bar__avatar-col">
         <PlayerAvatar
           :player="seat1Player"
           :avatarRegistry="avatarRegistry"
           alt="Player 1 avatar"
           :neon="true"
         />
-      </div>
+      </VCol>
 
-      <div class="player-info">
-        <div class="player-name" data-player1-name>
-          {{ seat1Name }}
-        </div>
+      <VCol cols="auto" class="players-bar__info-col">
+        <PlayerName
+          :name="seat1Name"
+          neon
+          data-player1-name
+        />
+
         <ActionLimits
-          class="player-actions"
+          class="players-bar__actions"
           data-player1-actions
           :limits="seat1Allowed"
         />
-      </div>
+      </VCol>
 
-      <ScoresBox
-        :seat1-score="seat1Score"
-        :seat2-score="seat2Score"
-      />
+      <VCol cols="auto" class="players-bar__scores-col">
+        <ScoresBox
+          :seat1-score="seat1Score"
+          :seat2-score="seat2Score"
+        />
+      </VCol>
 
-      <div class="player-info">
-        <div class="player-name" data-player2-name>
-          {{ seat2Name }}
-        </div>
+      <VCol cols="auto" class="players-bar__info-col">
+        <PlayerName
+          :name="seat2Name"
+          neon
+          data-player2-name
+        />
+
         <ActionLimits
-          class="player-actions"
+          class="players-bar__actions"
           data-player2-actions
           :limits="seat2Allowed"
         />
-      </div>
+      </VCol>
 
-      <div class="player-avatar-box">
+      <VCol cols="auto" class="players-bar__avatar-col">
         <PlayerAvatar
           :player="seat2Player"
           :avatarRegistry="avatarRegistry"
           alt="Player 2 avatar"
         />
-      </div>
-    </div>
+      </VCol>
+    </VRow>
   </div>
 </template>
 
 <style scoped>
-/* :root {
-  --avatar-box-size: 140px;
-  --avatar-scale: 0.9;
+:root {
   --inner-gap: 10px;
-   --bar-top-margin: 25px;
+  --bar-top-margin: 25px;
 }
 
 .players-bar {
@@ -244,108 +245,30 @@ const playersBarStyle = {
   justify-content: center;
   align-items: flex-start;
   padding: 30px 0;
-
-  background-image: url("/assets/images/frames/frame.png");
-  background-repeat: no-repeat;
-  background-size: 60% 325%;
-  background-position: center;
-  background-color: transparent;
-
-  font-family: "Rajdhani", sans-serif;
   box-sizing: border-box;
 }
 
 .players-bar__inner {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  gap: var(--inner-gap);
   width: fit-content;
   max-width: 95%;
+  gap: var(--inner-gap);
 }
 
-.player-avatar-box {
-  position: relative;
+.players-bar__avatar-col {
+  display: flex;
+  justify-content: center;
+}
+
+.players-bar__info-col {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-
-  width: 115px;
-  background: none;
-  box-shadow: none;
-  padding: 0;
-  margin: 0;
-  z-index: 5;
+  gap: 4px;
 }
 
-.player__avatar {
-  width: clamp(52px, 8vw, 100px);
-  height: auto;
-  border-radius: 8px;
-  object-fit: contain;
-  display: block;
-}
-
-
-.scores-title {
-  font-family: "Rajdhani", sans-serif;
-  font-size: 32px;
-  font-weight: 700;
-  color: #dddddd;
-  text-align: center;
-  text-shadow: 0 1px 0 rgba(0,0,0,0.15),
-               0 1px 4px rgba(158, 75, 223, 0.8);
-}
-
-.player-name {
-  font-family: "Rajdhani", sans-serif;
-  font-size: 40px;
-  font-weight: 400;
-  color: #ffffff;
-}
-
-.player-actions {
-  font-family: "Rajdhani", sans-serif;
-  font-size: 18px;
-  color: #dddddd;
-  text-align: center;
-  white-space: pre-line;
-  text-shadow: 0 1px 0 rgba(0,0,0,0.15),
-               0 1px 4px rgba(158, 75, 223, 0.8);
-}
-
-.player-score {
-  font-family: "Rajdhani", sans-serif;
-  font-size: 58px;
-  font-weight: 700;
-  color: #FFD700;
-  text-shadow: 2px 2px 10px rgba(0,0,0,0.75);
-  transition: transform 0.2s ease, color 0.3s ease;
-}
-
-.player-score.updated {
-  transform: scale(1.12);
-  color: #fffcb3;
-}
-
-.score-box {
+.players-bar__scores-col {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 5px;
-  min-width: 220px;
-}
-
-.score-row {
-  display: flex;
-  align-items: center;
   justify-content: center;
-  gap: 20px;
-}
-.score-row .spacer {
-  flex: 1 1 auto;
 }
 
 @media (max-width: 1200px) {
@@ -358,38 +281,6 @@ const playersBarStyle = {
     padding: 25px 0;
     background-size: 65% 300%;
   }
-
-  .player-avatar-box {
-    width: 100px;
-  }
-
-  .player__avatar {
-    width: 85px;
-  }
-
-  .scores-title {
-    font-size: 28px;
-  }
-
-  .player-name {
-    font-size: 36px;
-  }
-
-  .player-score {
-    font-size: 52px;
-  }
-
-  .player-actions {
-    font-size: 16px;
-  }
-
-  .score-box {
-    min-width: 200px;
-  }
-
-  .score-row {
-    gap: 15px;
-  }
 }
 
 @media (max-width: 1024px) {
@@ -400,34 +291,6 @@ const playersBarStyle = {
   .players-bar {
     padding: 20px 0;
     background-size: 70% 280%;
-  }
-
-  .player-avatar-box {
-    width: 90px;
-  }
-
-  .player__avatar {
-    width: 75px;
-  }
-
-  .scores-title {
-    font-size: 26px;
-  }
-
-  .player-name {
-    font-size: 32px;
-  }
-
-  .player-score {
-    font-size: 48px;
-  }
-
-  .player-actions {
-    font-size: 15px;
-  }
-
-  .score-box {
-    min-width: 180px;
   }
 }
 
@@ -446,40 +309,6 @@ const playersBarStyle = {
     flex-wrap: wrap;
     gap: 10px;
   }
-
-  .player-avatar-box {
-    width: 80px;
-    gap: 4px;
-  }
-
-  .player__avatar {
-    width: 65px;
-  }
-
-  .scores-title {
-    font-size: 22px;
-  }
-
-  .player-name {
-    font-size: 28px;
-  }
-
-  .player-score {
-    font-size: 42px;
-  }
-
-  .player-actions {
-    font-size: 14px;
-  }
-
-  .score-box {
-    min-width: 160px;
-  }
-
-  .score-row {
-    gap: 10px;
-    flex-wrap: wrap;
-  }
 }
 
 @media (max-width: 480px) {
@@ -490,38 +319,6 @@ const playersBarStyle = {
   .players-bar {
     padding: 12px 0;
     background-size: 90% 220%;
-  }
-
-  .player-avatar-box {
-    width: 70px;
-  }
-
-  .player__avatar {
-    width: 55px;
-  }
-
-  .scores-title {
-    font-size: 20px;
-  }
-
-  .player-name {
-    font-size: 24px;
-  }
-
-  .player-score {
-    font-size: 36px;
-  }
-
-  .player-actions {
-    font-size: 13px;
-  }
-
-  .score-box {
-    min-width: 140px;
-  }
-
-  .score-row {
-    gap: 8px;
   }
 }
 
@@ -539,40 +336,6 @@ const playersBarStyle = {
   .players-bar__inner {
     gap: 8px;
   }
-
-  .player-avatar-box {
-    width: 60px;
-    gap: 3px;
-  }
-
-  .player__avatar {
-    width: 45px;
-  }
-
-  .scores-title {
-    font-size: 18px;
-  }
-
-  .player-name {
-    font-size: 22px;
-  }
-
-  .player-score {
-    font-size: 32px;
-  }
-
-  .player-actions {
-    font-size: 12px;
-  }
-
-  .score-box {
-    min-width: 120px;
-    gap: 3px;
-  }
-
-  .score-row {
-    gap: 8px;
-  }
 }
 
 @media (max-height: 500px) and (orientation: landscape) {
@@ -582,34 +345,6 @@ const playersBarStyle = {
 
   .players-bar {
     padding: 5px 0;
-  }
-
-  .player-avatar-box {
-    width: 50px;
-  }
-
-  .player__avatar {
-    width: 38px;
-  }
-
-  .scores-title {
-    font-size: 16px;
-  }
-
-  .player-name {
-    font-size: 20px;
-  }
-
-  .player-score {
-    font-size: 28px;
-  }
-
-  .player-actions {
-    font-size: 11px;
-  }
-
-  .score-box {
-    min-width: 100px;
   }
 }
 
@@ -624,19 +359,8 @@ const playersBarStyle = {
     background-size: 45% 180%;
   }
 
-  .players-bar__inner { gap: 6px; }
-
-  .player-avatar-box { width: 44px; }
-  .player__avatar { width: 34px; }
-
-  .scores-title { font-size: 14px; }
-  .player-name  { font-size: 18px; }
-  .player-score { font-size: 24px; }
-  .player-actions { font-size: 10px; }
-
-  .score-box { min-width: 92px; gap: 2px; }
-  .score-row { gap: 6px; }
-} */
-
-
+  .players-bar__inner {
+    gap: 6px;
+  }
+}
 </style>

@@ -1,18 +1,19 @@
 <template>
-  <button
-    ref="btnRef"
+  <VBtn
     class="gbtn game-btn"
     type="button"
+    :elevation="0"
+    :ripple="false"
     :data-action="action"
     :disabled="isDisabled"
     :title="tooltip"
     :aria-label="ariaLabel"
     :style="buttonStyle"
+    variant="text"
     @click="onClick"
     @mouseenter="onMouseEnter"
     @mouseleave="onMouseLeave"
   >
-
     <span
       v-if="showSpinner"
       class="game-btn-spinner"
@@ -30,11 +31,12 @@
     <span v-if="hotkey" class="game-btn-hotkey-badge">
       {{ normalizedHotkeyDisplay }}
     </span>
-  </button>
+  </VBtn>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref } from 'vue';
+import { computed, onMounted, onBeforeUnmount } from 'vue';
+import { VBtn } from 'vuetify/components';
 import btnBg from '@/assets/images/buttons/button.png';
 
 type GameCommandType = string;
@@ -69,8 +71,6 @@ const emit = defineEmits<{
   (e: 'hover', payload: { action: GameCommandType; hovering: boolean }): void;
   (e: 'hotkey', payload: { action: GameCommandType; key: string }): void;
 }>();
-
-const btnRef = ref<HTMLButtonElement | null>(null);
 
 const isDisabled = computed(() => {
   if (props.disabled) return true;
@@ -114,16 +114,14 @@ function onGlobalKeydown(e: KeyboardEvent) {
     const target = e.target as HTMLElement | null;
     if (
       target &&
-      ['input', 'textarea', 'select'].includes(
-        target.tagName.toLowerCase(),
-      )
+      ['input', 'textarea', 'select'].includes(target.tagName.toLowerCase())
     ) {
       return;
     }
 
     e.preventDefault();
     emit('hotkey', { action: props.action, key: e.key });
-    btnRef.value?.click();
+    onClick();
   }
 }
 
@@ -145,7 +143,6 @@ const buttonStyle = {
   backgroundRepeat: 'no-repeat',
   backgroundPosition: 'center top',
 };
-
 </script>
 
 <style scoped>
@@ -155,6 +152,7 @@ const buttonStyle = {
   align-items: center;
   gap: 0.35rem;
   padding-inline: 1.2rem;
+  transition: transform 0.15s ease, filter 0.2s ease;
 }
 
 .game-btn-spinner {
@@ -183,10 +181,28 @@ const buttonStyle = {
   padding: 0.1rem 0.3rem;
   border: 1px solid currentColor;
 }
+.game-btn :deep(.v-btn__overlay),
+.game-btn :deep(.v-btn__underlay) {
+  background-color: transparent !important;
+  opacity: 0 !important;
+}
 
+.game-btn:focus-visible {
+  box-shadow: none;
+  outline: none;
+}
 @keyframes game-btn-spin {
   to {
     transform: rotate(360deg);
   }
 }
+.game-btn:hover:not(.v-btn--disabled) {
+  transform: scale(1.05);
+  filter: drop-shadow(0 0 6px rgba(255, 220, 150, 0.6));
+}
+
+.game-btn:active:not(.v-btn--disabled) {
+  transform: scale(0.97);
+}
+
 </style>

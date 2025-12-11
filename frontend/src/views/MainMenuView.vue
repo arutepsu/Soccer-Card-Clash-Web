@@ -271,6 +271,10 @@ html, body {
   max-width: 400px;
   margin: 0 auto;
   padding: 0px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
 }
 
 .buttons {
