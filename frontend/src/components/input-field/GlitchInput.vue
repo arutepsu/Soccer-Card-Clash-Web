@@ -76,7 +76,7 @@ function onEnter() {
 
 <style scoped>
 .glitch-input-wrapper {
-  --bg-color: #0d0d0d;
+  --bg-color: #0d002a;
   --primary-color: #d72e80;
   --secondary-color: #a855f7;
   --text-color: #e5e5e5;
@@ -101,9 +101,9 @@ function onEnter() {
 .holo-input {
   width: 100%;
   height: 3.5rem;
-  background: rgba(13, 13, 13, 0.7);
+  background: rgba(2, 4, 10, 0.7);
   border: none;
-  border-bottom: 2px solid #333;
+  border-bottom: 2px solid #0d002a;
   outline: none;
   padding: 0 1rem;
   color: var(--primary-color);
@@ -152,7 +152,7 @@ function onEnter() {
 
 .holo-input:focus + .input-label::before {
   color: var(--secondary-color);
-  background-color: #212121;
+  background-color: #090222;
   mix-blend-mode: screen;
   animation: glitch-label var(--glitch-anim-duration)
     cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
@@ -160,7 +160,7 @@ function onEnter() {
 
 .holo-input:focus + .input-label::after {
   color: var(--primary-color);
-  background-color: #212121;
+  background-color: #090222;
   mix-blend-mode: lighten;
   animation: glitch-label var(--glitch-anim-duration)
     cubic-bezier(0.25, 0.46, 0.45, 0.94) reverse both;
@@ -180,7 +180,7 @@ function onEnter() {
 }
 
 .input-border {
-  border: 1px solid rgba(158, 54, 187, 0.2);
+  border: 1px solid rgba(254, 47, 97, 0.2);
   opacity: 0.5;
   transition: all 0.3s ease;
 }

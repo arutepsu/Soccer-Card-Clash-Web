@@ -29,6 +29,7 @@ module.exports = {
         loader: 'ts-loader',
         options: {
           appendTsSuffixTo: [/\.vue$/],
+          transpileOnly: true,
         },
         exclude: /node_modules/,
       },
@@ -44,6 +45,24 @@ module.exports = {
           },
         ],
       },
+      {
+      test: /\.s[ac]ss$/i,
+      use: [
+        'style-loader',
+        {
+          loader: 'css-loader',
+          options: {
+            url: true,
+          },
+        },
+        {
+          loader: 'sass-loader',
+          options: {
+            implementation: require('sass'),
+          },
+        },
+      ],
+    },
       {
         test: /\.(png|jpe?g|gif|svg)$/i,
         type: 'asset/resource',

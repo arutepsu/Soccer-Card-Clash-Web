@@ -72,3 +72,41 @@ watch(
     </div>
   </div>
 </template>
+
+<style scoped>
+.player__avatar {
+  width: clamp(52px, 8vw, 100px);
+  height: auto;
+  border-radius: 8px;
+  object-fit: contain;
+  display: block;
+}
+
+@media (max-width: 1200px) {
+  .player__avatar { width: 85px; }
+}
+
+@media (max-width: 1024px) {
+  .player__avatar { width: 75px; }
+}
+
+@media (max-width: 768px) {
+  .player__avatar { width: 65px; }
+}
+
+@media (max-width: 480px) {
+  .player__avatar { width: 55px; }
+}
+
+@media (max-height: 600px) and (orientation: landscape) {
+  .player__avatar { width: 45px; }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .player__avatar { width: 38px; }
+}
+
+@media (max-height: 400px) and (orientation: landscape) {
+  .player__avatar { width: 34px; }
+}
+</style>
