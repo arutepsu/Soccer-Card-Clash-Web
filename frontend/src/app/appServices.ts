@@ -42,6 +42,7 @@ function createGameContextService(): GameContextService {
 
 export function createAppServices(): AppServices {
   const pushClient = createServerPushClient({
+    path: '/api/ws',
     getPlayerId: () => currentPlayerId,
   });
   const streamClient = createGameEventStream();

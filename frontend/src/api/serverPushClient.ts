@@ -1,4 +1,3 @@
-// frontend/src/api/serverPushClient.ts
 import type { WebGameState } from '../types/WebGameState';
 
 let wsSessionUnavailable = false;
@@ -23,8 +22,10 @@ export interface GameEnvelope {
   kind: 'command';
   type: GameCommandType;
   gameId: string;
-  playerId: string;
+  playerId: string | null;
   requestId: string | null;
+
+  // IMPORTANT: backend decoder reads fields from env.payload
   payload: unknown;
 }
 
@@ -37,16 +38,13 @@ export interface PushClient {
   close(): void;
 
   /** command with WS + response, used by GameApi */
-  sendCommand(
-    type: GameCommandType,
-    payload?: unknown,
-  ): Promise<WebGameState | null>;
+  sendCommand(type: GameCommandType, payload?: unknown): Promise<WebGameState | null>;
 
   // Legacy helpers – convenience wrappers around sendCommand
   getState(): void;
-  regularAttack(target: string, index?: number | null): void;
-  doubleAttack(index: number | string): void;
-  boost(target: string, index?: number | null): void;
+  regularAttack(target: 'defender' | 'goalkeeper', index?: number | null): void;
+  doubleAttack(target: 'defender' | 'goalkeeper', index?: number | null): void;
+  boost(target: 'defender' | 'goalkeeper', index?: number | null): void;
   swap(index: number | string): void;
   reverseSwap(): void;
   undo(): void;
@@ -68,14 +66,15 @@ export interface CreateServerPushClientOptions {
 /**
  * WebSocket-based push client.
  *
+ * - Connects to backend /api/ws
  * - Sends command envelopes to the server
- * - Receives raw messages (e.g. envelopes or states) and forwards to handlers
- * - Supports request/response via requestId, returning WebGameState from commands
+ * - Supports request/response via requestId
  */
 export function createServerPushClient(
   opts: CreateServerPushClientOptions = {},
 ): PushClient {
-  const { path = '/ws/game', reconnectDelayMs = 1000 } = opts;
+  // FIX 1: correct backend route
+  const { path = '/api/ws', reconnectDelayMs = 1000 } = opts;
 
   let ws: WebSocket | null = null;
   let connected = false;
@@ -87,10 +86,7 @@ export function createServerPushClient(
   let reqCounter = 0;
   const pending = new Map<
     string,
-    {
-      resolve: (state: WebGameState | null) => void;
-      reject: (err: unknown) => void;
-    }
+    { resolve: (state: WebGameState | null) => void; reject: (err: unknown) => void }
   >();
 
   function buildWsUrl(): string {
@@ -121,6 +117,7 @@ export function createServerPushClient(
 
     ws.onopen = () => {
       connected = true;
+      wsSessionUnavailable = false; // if it reconnects successfully, re-enable WS
       console.log('[WS] connected');
     };
 
@@ -146,6 +143,7 @@ export function createServerPushClient(
         return;
       }
 
+      // request/response resolution
       try {
         const requestId = msg?.requestId as string | undefined;
         if (requestId && pending.has(requestId)) {
@@ -213,18 +211,13 @@ export function createServerPushClient(
     connected = false;
   }
 
-  function sendCommand(
-    type: GameCommandType,
-    payload: unknown = {},
-  ): Promise<WebGameState | null> {
+  function sendCommand(type: GameCommandType, payload: unknown = {}): Promise<WebGameState | null> {
     // If we already know WS session doesn't exist, skip WS entirely
-    if (wsSessionUnavailable) {
-      return Promise.resolve(null); // → GameApi will use REST immediately
-    }
+    if (wsSessionUnavailable) return Promise.resolve(null);
 
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       console.warn('[WS] not connected, cannot send command:', type);
-      return Promise.resolve(null); // → REST fallback
+      return Promise.resolve(null);
     }
 
     const requestId = `req-${Date.now()}-${++reqCounter}`;
@@ -235,7 +228,7 @@ export function createServerPushClient(
       gameId: 'ignored',
       playerId: opts.getPlayerId?.() ?? null,
       requestId,
-      payload,
+      payload, // IMPORTANT: backend reads fields from here
     };
 
     return new Promise<WebGameState | null>((resolve, reject) => {
@@ -269,30 +262,35 @@ export function createServerPushClient(
     });
   }
 
-
-  // Convenience wrappers that just fire-and-forget
+  // Convenience wrappers (payload MUST match decoder views)
   function getState(): void {
     void sendCommand('GetState', {});
   }
 
-  function regularAttack(target: string, index: number | string | null = null): void {
-    const idx = index == null ? null : Number(index);
-    void sendCommand('RegularAttack', { target, index: idx });
+  function regularAttack(target: 'defender' | 'goalkeeper', index: number | null = null): void {
+    void sendCommand('RegularAttack', {
+      target,
+      index: target === 'defender' ? index : null,
+    });
   }
 
-  function doubleAttack(index: number | string): void {
-    const idx = Number(index);
-    void sendCommand('DoubleAttack', { index: idx });
+  // FIX 2: DoubleAttack requires target in decoder
+  function doubleAttack(target: 'defender' | 'goalkeeper', index: number | null = null): void {
+    void sendCommand('DoubleAttack', {
+      target,
+      index: target === 'defender' ? index ?? 0 : 0, // keep an int if your view requires it
+    });
   }
 
-  function boost(target: string, index: number | string | null = null): void {
-    const idx = index == null ? null : Number(index);
-    void sendCommand('Boost', { target, index: idx });
+  function boost(target: 'defender' | 'goalkeeper', index: number | null = null): void {
+    void sendCommand('Boost', {
+      target,
+      index: target === 'defender' ? index : null,
+    });
   }
 
   function swap(index: number | string): void {
-    const idx = Number(index);
-    void sendCommand('RegularSwap', { index: idx });
+    void sendCommand('RegularSwap', { index: Number(index) });
   }
 
   function reverseSwap(): void {

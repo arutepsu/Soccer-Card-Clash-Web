@@ -37,6 +37,8 @@ interface CreateGameApiOptions {
   pushClient?: PushClient | null;
 }
 
+type FlatCommandBody = Record<string, unknown> & { type: string };
+
 export function createGameApi(options: CreateGameApiOptions = {}): GameApi {
   const { streamClient, pushClient } = options;
 
@@ -47,7 +49,8 @@ export function createGameApi(options: CreateGameApiOptions = {}): GameApi {
 
   const commonHeaders: HeadersInit = {
     'Content-Type': 'application/json',
-    ...(csrf ? { 'Csrf-Token': csrf } : { 'Csrf-Token': 'nocheck' }),
+    Accept: 'application/json',
+    ...(csrf ? { 'Csrf-Token': csrf } : {}),
   };
 
   async function postJSON<T = unknown>(
@@ -95,50 +98,34 @@ export function createGameApi(options: CreateGameApiOptions = {}): GameApi {
     return !!(pushClient && pushClient.isConnected());
   }
 
-  /**
-   * Send a command:
-   * - Prefer WebSocket (sendCommand with GameCommandType)
-   * - Fallback to REST endpoint returning WebGameState
-   */
-async function commandWithWsFallback(
-  type: GameCommandType,
-  restUrl: string,
-  payload?: unknown,
-): Promise<WebGameState | null> {
-  console.log('[GameApi] commandWithWsFallback type:', type, 'restUrl:', restUrl, 'payload:', payload);
+  async function commandWithWsFallback(
+    type: GameCommandType,
+    fields: Record<string, unknown> = {},
+  ): Promise<WebGameState | null> {
+    const body: FlatCommandBody = { type, ...fields };
 
-  if (pushClient && canUseWs()) {
-    console.log('[GameApi] using WebSocket for command:', type);
-    try {
-      const result = await pushClient.sendCommand(type, payload);
-      console.log('[GameApi] WS sendCommand result:', result);
+    console.log('[GameApi] command type:', type, 'body:', body);
 
-      if (result) {
-        return result;
+    if (pushClient && canUseWs()) {
+      console.log('[GameApi] using WebSocket for command:', type);
+      try {
+        const result = await pushClient.sendCommand(type, body);
+        console.log('[GameApi] WS result:', result);
+
+        if (result) return result;
+
+        console.warn('[GameApi] WS returned null, falling back to REST:', type);
+      } catch (err) {
+        console.warn('[GameApi] WS sendCommand threw, falling back to REST:', err);
       }
-
-      console.warn(
-        '[GameApi] WS returned null for',
-        type,
-        '– falling back to REST',
-      );
-    } catch (err) {
-      console.warn(
-        '[GameApi] WS sendCommand threw, falling back to REST:',
-        err,
-      );
-      // fall through to REST
+    } else {
+      console.log('[GameApi] WS not connected, using REST for', type);
     }
-  } else {
-    console.log('[GameApi] WS not connected, using REST for', type);
+
+    const restResult = await postJSON<WebGameState>('/api/command', body);
+    console.log('[GameApi] REST result for', type, ':', restResult);
+    return restResult;
   }
-
-  const restResult = await postJSON<WebGameState>(restUrl, payload);
-  console.log('[GameApi] REST result for', type, ':', restResult);
-  return restResult;
-}
-
-
 
   function openStream(onState: (state: WebGameState) => void): StreamHandle {
     if (streamClient && typeof streamClient.open === 'function') {
@@ -156,71 +143,58 @@ async function commandWithWsFallback(
     return getJSON<WebGameState>('/api/state');
   }
 
-  /**
-   * Restart: currently always via REST.
-   * Backend returns WebGameState directly.
-   */
+  function createLocalMultiplayer(
+    attackerName: string,
+    defenderName: string,
+  ): Promise<WebGameState | null> {
+    return commandWithWsFallback('CreateGame', {
+      p1: attackerName,
+      p2: defenderName,
+    });
+  }
+
   function restart(
     attackerName?: string | null,
     defenderName?: string | null,
   ): Promise<WebGameState | null> {
-    const body: Record<string, unknown> = {};
-    if (attackerName) body.attackerName = attackerName;
-    if (defenderName) body.defenderName = defenderName;
-
-    // NEW endpoint in GameApiController, no wrapper, just WebGameState
-    return postJSON<WebGameState>('/api/game/restart', body);
-  }
-
-    function createLocalMultiplayer(
-      attackerName: string,
-      defenderName: string,
-    ): Promise<WebGameState | null> {
-      return postJSON<WebGameState>('/api/game/local-multiplayer', {
-        attackerName,
-        defenderName,
-      });
-    }
-
-
-  function singleAttackDefender(
-    index: number | string,
-  ): Promise<WebGameState | null> {
-    const idx = Number(index);
-    if (!Number.isInteger(idx)) {
+    const p1 = attackerName?.trim();
+    const p2 = defenderName?.trim();
+    if (!p1 || !p2) {
       return Promise.reject(
-        new Error(`singleAttackDefender: invalid index ${index}`),
+        new Error('restart: backend has no Restart command; provide both attackerName and defenderName'),
       );
     }
+    return commandWithWsFallback('CreateGame', { p1, p2 });
+  }
 
-    return commandWithWsFallback(
-      'RegularAttack', // GameCommandType
-      '/api/attack/single',
-      { target: 'defender', index: idx },
-    );
+  function singleAttackDefender(index: number | string): Promise<WebGameState | null> {
+    const idx = Number(index);
+    if (!Number.isInteger(idx)) {
+      return Promise.reject(new Error(`singleAttackDefender: invalid index ${index}`));
+    }
+
+    return commandWithWsFallback('RegularAttack', {
+      target: 'defender',
+      index: idx,
+    });
   }
 
   function singleAttackGoalkeeper(): Promise<WebGameState | null> {
-    return commandWithWsFallback(
-      'RegularAttack', // GameCommandType
-      '/api/attack/single',
-      { target: 'goalkeeper' },
-    );
+    return commandWithWsFallback('RegularAttack', {
+      target: 'goalkeeper',
+    });
   }
 
   function doubleAttack(index: number | string): Promise<WebGameState | null> {
     const idx = Number(index);
     if (!Number.isInteger(idx)) {
-      return Promise.reject(
-        new Error(`doubleAttack: invalid index ${index}`),
-      );
+      return Promise.reject(new Error(`doubleAttack: invalid index ${index}`));
     }
 
-    return commandWithWsFallback(
-      'DoubleAttack', // GameCommandType
-      '/api/attack/double',
-      { index: idx },
-    );
+    return commandWithWsFallback('DoubleAttack', {
+      target: 'defender',
+      index: idx,
+    });
   }
 
   function boost(payload: any): Promise<WebGameState | null> {
@@ -231,17 +205,11 @@ async function commandWithWsFallback(
     if (payload.target === 'defender') {
       const idx = Number(payload.index);
       if (!Number.isInteger(idx)) {
-        return Promise.reject(
-          new Error(`boost: invalid defender index ${payload.index}`),
-        );
+        return Promise.reject(new Error(`boost: invalid defender index ${payload.index}`));
       }
     }
 
-    return commandWithWsFallback(
-      'Boost', // GameCommandType
-      '/api/boost',
-      payload,
-    );
+    return commandWithWsFallback('Boost', payload);
   }
 
   function swap(index: number | string): Promise<WebGameState | null> {
@@ -250,43 +218,23 @@ async function commandWithWsFallback(
       return Promise.reject(new Error(`swap: invalid index ${index}`));
     }
 
-    return commandWithWsFallback(
-      'RegularSwap', // GameCommandType
-      '/api/swap',
-      { index: idx },
-    );
+    return commandWithWsFallback('RegularSwap', { index: idx });
   }
 
   function reverseSwap(): Promise<WebGameState | null> {
-    return commandWithWsFallback(
-      'ReverseSwap', // GameCommandType
-      '/api/swap/reverse',
-      {},
-    );
+    return commandWithWsFallback('ReverseSwap', {});
   }
 
   function undo(): Promise<WebGameState | null> {
-    return commandWithWsFallback(
-      'Undo', // GameCommandType
-      '/api/undo',
-      {},
-    );
+    return commandWithWsFallback('Undo', {});
   }
 
   function redo(): Promise<WebGameState | null> {
-    return commandWithWsFallback(
-      'Redo', // GameCommandType
-      '/api/redo',
-      {},
-    );
+    return commandWithWsFallback('Redo', {});
   }
 
   function executeAI(action: any): Promise<WebGameState | null> {
-    return commandWithWsFallback(
-      'ExecuteAI', // GameCommandType
-      '/api/ai/execute',
-      action,
-    );
+    return commandWithWsFallback('ExecuteAI', action);
   }
 
   return {
