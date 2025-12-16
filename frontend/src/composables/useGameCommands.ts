@@ -11,74 +11,74 @@ export function useGameCommands() {
 
   async function runCommand(
     fn: () => Promise<WebGameState | null>,
-  ): Promise<WebGameState | null> {
+    errMsg: string,
+  ): Promise<WebGameState> {
     busy.value = true;
     try {
       const next = await fn();
-      if (next) {
-        gameContext.setState(next);
-      }
+      if (!next) throw new Error(errMsg);
+      gameContext.setState(next);
       return next;
     } finally {
       busy.value = false;
     }
   }
 
-  function createLocalMultiplayer(attackerName: string, defenderName: string) {
-    return runCommand(() =>
-      api.createLocalMultiplayer(attackerName, defenderName),
-    );
-  }
-
-  function restart(
-    attackerName?: string | null,
-    defenderName?: string | null,
-  ) {
-    return runCommand(() =>
-      api.restart(attackerName ?? null, defenderName ?? null),
+  function startLocalMultiplayer(attackerName: string, defenderName: string) {
+    return runCommand(
+      () => api.createLocalMultiplayer(attackerName, defenderName),
+      'CreateGame returned null WebGameState',
     );
   }
 
   function singleAttackDefender(index: number) {
-    return runCommand(() => api.singleAttackDefender(index));
+    return runCommand(
+      () => api.singleAttackDefender(index),
+      'RegularAttack(defender) returned null WebGameState',
+    );
   }
 
   function singleAttackGoalkeeper() {
-    return runCommand(() => api.singleAttackGoalkeeper());
+    return runCommand(
+      () => api.singleAttackGoalkeeper(),
+      'RegularAttack(goalkeeper) returned null WebGameState',
+    );
   }
 
   function doubleAttack(index: number) {
-    return runCommand(() => api.doubleAttack(index));
+    return runCommand(
+      () => api.doubleAttack(index),
+      'DoubleAttack returned null WebGameState',
+    );
   }
 
   function boost(payload: any) {
-    return runCommand(() => api.boost(payload));
+    return runCommand(() => api.boost(payload), 'Boost returned null WebGameState');
   }
 
   function swap(index: number) {
-    return runCommand(() => api.swap(index));
+    return runCommand(() => api.swap(index), 'Swap returned null WebGameState');
   }
 
   function reverseSwap() {
-    return runCommand(() => api.reverseSwap());
+    return runCommand(() => api.reverseSwap(), 'ReverseSwap returned null WebGameState');
   }
 
   function undo() {
-    return runCommand(() => api.undo());
+    return runCommand(() => api.undo(), 'Undo returned null WebGameState');
   }
 
   function redo() {
-    return runCommand(() => api.redo());
+    return runCommand(() => api.redo(), 'Redo returned null WebGameState');
   }
 
   function executeAI(action: any) {
-    return runCommand(() => api.executeAI(action));
+    return runCommand(() => api.executeAI(action), 'ExecuteAI returned null WebGameState');
   }
 
   return {
     busy,
-    createLocalMultiplayer,
-    restart,
+    startLocalMultiplayer,
     singleAttackDefender,
     singleAttackGoalkeeper,
     doubleAttack,

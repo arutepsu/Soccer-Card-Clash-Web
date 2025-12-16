@@ -68,7 +68,7 @@ class ViewStateMapper @Inject()() extends IViewStateMapper {
   }
 
   private def qToSeq(q: IHandCardsQueue): Seq[ICard] =
-    q.toList // or q.cards, depending on your API
+    q.toList
 
   private def toCardView(c: ICard): CardView = {
     val isBoosted = c match {

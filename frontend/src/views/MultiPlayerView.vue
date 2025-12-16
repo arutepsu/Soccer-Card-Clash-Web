@@ -12,7 +12,7 @@ import GameLogo from '../components/logo/GameLogo.vue';
 import multiBg from '@/assets/images/frames/background2.jpg';
 
 const router = useRouter();
-const { createLocalMultiplayer } = useGameCommands();
+const { startLocalMultiplayer } = useGameCommands();
 const { show, hide } = useOverlay();
 
 const player1 = ref('');
@@ -74,7 +74,7 @@ async function onSubmit() {
   onButtonClick();
 
   try {
-    await createLocalMultiplayer(player1.value, player2.value);
+  await startLocalMultiplayer(player1.value, player2.value);
     await router.push({ name: 'PlayingField' });
   } catch (err) {
     console.error('[MultiplayerView] restart failed:', err);

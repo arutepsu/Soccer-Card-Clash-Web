@@ -8,7 +8,6 @@ import de.htwg.se.soccercardclash.util._
   */
 object AIActionJson {
 
-  // ---------- Zone ----------
   implicit val zoneReads: Reads[Zone] = Reads {
     case JsString("DefenderZone")   => JsSuccess(DefenderZone)
     case JsString("GoalkeeperZone") => JsSuccess(GoalkeeperZone)
@@ -22,7 +21,6 @@ object AIActionJson {
 
   implicit val zoneFormat: Format[Zone] = Format(zoneReads, zoneWrites)
 
-  // ---------- AIAction ----------
   implicit val aiActionReads: Reads[AIAction] = Reads { json =>
     (json \ "type").asOpt[String] match {
       case Some("SingleAttackAIAction") =>
