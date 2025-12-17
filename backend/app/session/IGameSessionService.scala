@@ -1,14 +1,26 @@
 package app.session
 
-import de.htwg.se.soccercardclash.model.gameComponent.context.GameContext
 import app.api.command.GameCommand
+import de.htwg.se.soccercardclash.model.gameComponent.context.GameContext
 import app.auth.AuthPrincipal
 
 trait IGameSessionService {
 
-  def createSession(principal: AuthPrincipal, hostName: String): Either[GameSessionError, SessionCreated]
+  def listSessions(): Seq[(GameSessionId, SessionInfo)]
 
-  def joinSession(principal: AuthPrincipal, id: GameSessionId, guestName: String): Either[GameSessionError, SessionJoined]
+  def getSession(id: GameSessionId): Either[GameSessionError, SessionInfo]
+  
+  def createSession(
+    principal: AuthPrincipal,
+    hostName: String,
+    sessionName: String
+  ): Either[GameSessionError, SessionCreated]
+
+  def joinSession(
+    principal: AuthPrincipal,
+    id: GameSessionId,
+    guestName: String
+  ): Either[GameSessionError, SessionJoined]
 
   def submitCommand(
     id: GameSessionId,
@@ -16,13 +28,9 @@ trait IGameSessionService {
     cmd: GameCommand
   ): Either[GameSessionError, GameContext]
 
-  def createSession(hostName: String): Either[GameSessionError, SessionCreated]
+  def leaveSession( 
+    principal: AuthPrincipal,
+    id: GameSessionId
+  ): Either[GameSessionError, SessionInfo]
 
-  def joinSession(id: GameSessionId, guestName: String): Either[GameSessionError, SessionJoined]
-
-  def submitCommand(
-    id: GameSessionId,
-    token: PlayerToken,
-    cmd: GameCommand
-  ): Either[GameSessionError, GameContext]
 }

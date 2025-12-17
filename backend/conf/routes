@@ -16,3 +16,9 @@ DELETE /api/files/delete       controllers.fileIO.FileIOController.deleteGameFil
 
 GET   /                        app.controllers.ui.SpaController.index()
 GET   /assets/*file            controllers.Assets.versioned(path="/public", file: Asset)
+
+GET   /api/sessions                 app.controllers.session.SessionController.list
+POST  /api/sessions                 app.controllers.session.SessionController.create
+POST  /api/sessions/:id/join        app.controllers.session.SessionController.join(id: String)
+POST  /api/sessions/:id/leave       app.controllers.session.SessionController.leave(id: String)
+GET   /api/sessions/:id             app.controllers.session.SessionController.get(id: String)
