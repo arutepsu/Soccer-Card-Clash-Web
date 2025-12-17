@@ -2,19 +2,16 @@ package app.controllers.ws
 
 import javax.inject._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.control.NonFatal
 
-import akka.stream.Materializer
-import akka.stream.OverflowStrategy
-import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.stream.scaladsl.Flow
 import play.api.libs.json._
 import play.api.mvc._
-import akka.NotUsed
-import akka.stream.scaladsl.{Source, SourceQueueWithComplete}
+import app.auth.AuthPrincipal
 import controllers.support.ControllerSupport
-import app.controllers.ws.IGameWsController
 import app.api.command.{GameCommandDecoder, IGameCommandFacade}
 import app.api.protocol.{Envelope, MessageTypes}
-import app.models.AppError
+import app.models.{AppError}
 import app.models.state.WebGameState
 import app.session.GameSessionId
 
@@ -23,62 +20,59 @@ final class GameWsController @Inject()(
   cc: ControllerComponents,
   decoder: GameCommandDecoder,
   facade: IGameCommandFacade
-)(implicit ec: ExecutionContext, mat: Materializer)
+)(implicit ec: ExecutionContext)
   extends AbstractController(cc)
     with ControllerSupport
     with IGameWsController {
 
-    override def ws: WebSocket =
+  override def ws: WebSocket =
     WebSocket.acceptOrResult[JsValue, JsValue] { req =>
-        requirePrincipal(req) match {
-        case Left(res) => Future.successful(Left(res))
+      val principal = principalOpt(req)     // Option[AuthPrincipal]
+      val sid = getOrCreateSid(req)         // always present (new if missing)
 
-        case Right(principalOpt) =>
-            req.session.get("sid") match {
-            case None =>
-                Future.successful(Left(Unauthorized("Missing sid in session")))
+      val flow: Flow[JsValue, JsValue, _] =
+        Flow[JsValue]
+          .map(_.validate[Envelope].asOpt)
+          .collect { case Some(env) => env }
+          .map(env => env.copy(gameId = sid.value))
+          .mapAsync(1) { env =>
+            handle(env, sid, principal)
+          }
 
-            case Some(rawSid) =>
-                val sid = GameSessionId(rawSid)
-
-                val (queue, src): (SourceQueueWithComplete[JsValue], Source[JsValue, NotUsed]) =
-                Source.queue[JsValue](64, OverflowStrategy.dropHead).preMaterialize()
-
-                val sink: Sink[JsValue, _] =
-                Sink.foreach[JsValue] { js =>
-                    js.validate[Envelope] match {
-                    case JsError(_) => ()
-                    case JsSuccess(env, _) =>
-                        val envWithSid = env.copy(gameId = sid.value)
-
-                        decoder.fromEnvelope(envWithSid) match {
-                        case Left(err) =>
-                            queue.offer(Json.toJson(errorEnvelope(envWithSid, sid, err)))
-
-                        case Right(cmd) =>
-                            facade.execute(sid, principalOpt, cmd, envWithSid.requestId) match {
-                            case Left(err) =>
-                                queue.offer(Json.toJson(errorEnvelope(envWithSid, sid, err)))
-
-                            case Right(web) =>
-                                queue.offer(Json.toJson(stateEnvelope(envWithSid, sid, web)))
-                            }
-                        }
-                    }
-                }
-
-                val flow = Flow.fromSinkAndSourceCoupled(sink, src)
-                Future.successful(Right(flow))
-            }
-        }
+      Future.successful(Right(flow))
     }
 
-
-  private def stateEnvelope(
-    in: Envelope,
+  private def handle(
+    env: Envelope,
     sid: GameSessionId,
-    web: WebGameState
-  ): Envelope =
+    principalOpt: Option[AuthPrincipal]
+  ): Future[JsValue] = {
+
+    decoder.fromEnvelope(env) match {
+      case Left(err) =>
+        Future.successful(Json.toJson(errorEnvelope(env, sid, err)))
+
+      case Right(cmd) =>
+        // facade.execute is synchronous in your GameCommandController (returns Either)
+        // so we keep it synchronous but protect against exceptions.
+        try {
+          facade.execute(sid, principalOpt, cmd, env.requestId) match {
+            case Left(appErr) =>
+              Future.successful(Json.toJson(errorEnvelope(env, sid, appErr)))
+
+            case Right(web) =>
+              Future.successful(Json.toJson(stateEnvelope(env, sid, web)))
+          }
+        } catch {
+          case NonFatal(t) =>
+            Future.successful(Json.toJson(
+              errorEnvelope(env, sid, AppError(Option(t.getMessage).getOrElse("WS execute failed")))
+            ))
+        }
+    }
+  }
+
+  private def stateEnvelope(in: Envelope, sid: GameSessionId, web: WebGameState): Envelope =
     Envelope(
       kind      = "event",
       `type`    = MessageTypes.StateUpdated,
@@ -87,11 +81,7 @@ final class GameWsController @Inject()(
       payload   = Json.toJson(web)
     )
 
-  private def errorEnvelope(
-    in: Envelope,
-    sid: GameSessionId,
-    err: AppError
-  ): Envelope =
+  private def errorEnvelope(in: Envelope, sid: GameSessionId, err: AppError): Envelope =
     Envelope(
       kind      = "error",
       `type`    = MessageTypes.GameError,

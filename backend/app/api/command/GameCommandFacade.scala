@@ -45,7 +45,7 @@ final class GameCommandFacade @Inject()(
 
     ctxE.map { ctx =>
       val web: WebGameState = viewStateMapper.toWebState(ctx)
-      eventHub.publish(sid, web) // ✅ single place for publishing
+      eventHub.publish(sid, web)
       web
     }
   }

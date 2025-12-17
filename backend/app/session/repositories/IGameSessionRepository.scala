@@ -8,4 +8,5 @@ trait IGameSessionRepository {
   def set(id: GameSessionId, info: SessionInfo): Unit
   def clear(id: GameSessionId): Unit
   def keys: Seq[GameSessionId]
+  def all(): Seq[(GameSessionId, SessionInfo)]
 }
