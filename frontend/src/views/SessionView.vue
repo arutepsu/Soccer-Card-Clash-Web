@@ -6,7 +6,6 @@
     aria-hidden="false"
     :style="sessionSceneStyle"
   >
-
     <div class="session-container">
       <h1 class="session-header">ONLINE MULTIPLAYER</h1>
 
@@ -38,7 +37,9 @@
             >
               <span class="session-indicator">▸</span>
               <span class="session-name">{{ session.name }}</span>
-              <span class="session-players">{{ session.players }}</span>
+              <span class="session-players">
+                {{ session.playerCount }}/2
+              </span>
               <span class="session-status">{{ session.status }}</span>
 
               <button
@@ -49,6 +50,7 @@
               >
                 [ Join ]
               </button>
+
               <button
                 v-else
                 class="btn-full"
@@ -68,7 +70,7 @@
 
             <div class="form-content">
               <div class="form-row">
-                <label class="form-label">Your Name:</label>
+                <label class="form-label">Session Name:</label>
                 <input
                   type="text"
                   v-model="newSessionName"
@@ -79,21 +81,8 @@
               </div>
 
               <div class="form-row">
-                <label class="form-label">Game Mode:</label>
-                <select
-                  v-model="newSessionMode"
-                  class="form-select"
-                  @mouseenter="handleMouseEnter"
-                >
-                  <option value="Standard">Standard</option>
-                  <option value="Quick">Quick</option>
-                  <option value="Custom">Custom</option>
-                </select>
-              </div>
-
-              <div class="form-row">
                 <label class="form-label">Max Players:</label>
-                <span class="form-value">{{ maxPlayers }}</span>
+                <span class="form-value">2</span>
               </div>
 
               <div class="form-buttons">
@@ -123,27 +112,35 @@
               <span class="detail-label">Selected:</span>
               <span class="detail-value">{{ sessionDetails.name }}</span>
             </div>
+
             <div class="detail-row">
               <span class="detail-label">Host:</span>
-              <span class="detail-value">{{ sessionDetails.host }}</span>
+              <span class="detail-value">{{ sessionDetails.hostName }}</span>
             </div>
-            <div class="detail-row">
-              <span class="detail-label">Mode:</span>
-              <span class="detail-value">{{ sessionDetails.mode }}</span>
-            </div>
+
             <div class="detail-row">
               <span class="detail-label">Players:</span>
               <span class="detail-value">
-                {{ sessionDetails.host }}, (waiting slot)
+                {{ sessionDetails.playerCount }}/2
               </span>
             </div>
 
             <button
               class="btn-join-session"
+              :disabled="sessionDetails.status !== 'Waiting'"
               @click="joinSession"
               @mouseenter="handleMouseEnter"
             >
               [ Join Session ]
+            </button>
+
+            <button
+              v-if="currentSessionId"
+              class="btn-form-cancel"
+              @click="leaveSession"
+              @mouseenter="handleMouseEnter"
+            >
+              [ Leave ]
             </button>
           </div>
 
@@ -160,51 +157,47 @@
   </div>
 </template>
 
+
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { createSoundManager, type SoundManager } from '../utils/soundManager';
 import bgSessions from '@/assets/images/frames/background1.jpg';
+import { createSoundManager, type SoundManager } from '../utils/soundManager';
+import { useAppServices, setCurrentPlayerId } from '@/app/appServices';
+import type { SessionDto } from '@/types/SessionDtos';
 
-interface Session {
-  id: number;
-  name: string;
-  players: string;
-  status: 'Waiting' | 'Full';
-  host: string;
-  mode: string;
-}
+const services = useAppServices();
 
 const soundManager: SoundManager = createSoundManager({
   basePath: '/assets/sounds/',
 });
 
-const sessions = ref<Session[]>([
-  { id: 1, name: "Alice's Room", players: '1/2', status: 'Waiting', host: 'Alice', mode: 'Standard' },
-  { id: 2, name: "Bob's Lobby", players: '2/2', status: 'Full', host: 'Bob', mode: 'Standard' },
-  { id: 3, name: 'FunTest123', players: '1/2', status: 'Waiting', host: 'FunTest123', mode: 'Standard' },
-]);
-
-const selectedSessionId = ref<number | null>(null);
+const sessions = ref<SessionDto[]>([]);
+const selectedSessionId = ref<string | null>(null);
 const showCreateForm = ref(false);
 const newSessionName = ref('');
-const newSessionMode = ref<'Standard' | 'Quick' | 'Custom'>('Standard');
-const maxPlayers = ref(2);
 
-const sessionDetails = computed<Session | null>(() => {
-  if (selectedSessionId.value == null) return null;
+const currentSessionId = ref<string | null>(null);
+
+const sessionDetails = computed<SessionDto | null>(() => {
+  if (!selectedSessionId.value) return null;
   return sessions.value.find((s) => s.id === selectedSessionId.value) ?? null;
 });
 
-onMounted(() => {
+onMounted(async () => {
   soundManager.preload('hover', 'hover.wav');
   soundManager.preload('click', 'attack.wav');
+  await refreshSessions();
 });
+
+async function refreshSessions(): Promise<void> {
+  sessions.value = await services.sessions.listSessions();
+}
 
 function handleMouseEnter(): void {
   soundManager.play('hover', { volume: 0.8 });
 }
 
-function selectSession(sessionId: number): void {
+function selectSession(sessionId: string): void {
   soundManager.play('click', { volume: 0.6 });
   selectedSessionId.value = sessionId;
   showCreateForm.value = false;
@@ -220,41 +213,82 @@ function cancelCreate(): void {
   soundManager.play('click', { volume: 0.6 });
   showCreateForm.value = false;
   newSessionName.value = '';
-  newSessionMode.value = 'Standard';
 }
 
-function submitCreate(): void {
-  if (!newSessionName.value.trim()) return;
+async function submitCreate(): Promise<void> {
+  const name = newSessionName.value.trim();
+  if (!name) return;
 
   soundManager.play('click', { volume: 0.6 });
-  console.log('Creating session:', {
-    name: newSessionName.value,
-    mode: newSessionMode.value,
-    maxPlayers: maxPlayers.value,
+
+  try {
+    const res = await services.sessions.createSession({
+      hostName: 'host',
+      name,
+    });
+
+    setCurrentPlayerId(res.hostToken);
+    currentSessionId.value = res.sessionId;
+    selectedSessionId.value = res.sessionId;
+    showCreateForm.value = false;
+    newSessionName.value = '';
+
+    await refreshSessions();
+    services.push.reconnect();
+  } catch (e) {
+    console.error('[SessionScreen] createSession failed:', e);
+  }
+}
+
+
+async function joinSession(): Promise<void> {
+  const sid = selectedSessionId.value;
+  if (!sid) return;
+
+  const s = sessionDetails.value;
+  if (!s || s.status !== 'Waiting') return;
+
+  soundManager.play('click', { volume: 0.6 });
+
+  const res = await services.sessions.joinSession(sid, {
+    playerName: 'guest', // dummy for now
   });
 
-  // TODO: later call backend API here
+  if (res.playerToken) setCurrentPlayerId(res.playerToken);
 
-  showCreateForm.value = false;
-  newSessionName.value = '';
+  currentSessionId.value = res.sessionId;
+
+  await refreshSessions();
+
+  services.push.reconnect()
 }
 
-function joinSession(): void {
-  if (selectedSessionId.value == null) return;
+async function leaveSession(): Promise<void> {
+  const sid = currentSessionId.value;
+  if (!sid) return;
 
   soundManager.play('click', { volume: 0.6 });
-  console.log('Joining session:', selectedSessionId.value);
 
-  // TODO: later navigate / call backend join endpoint
+  await services.sessions.leaveSession(sid);
+
+  currentSessionId.value = null;
+  selectedSessionId.value = null;
+
+  // Optional: reset player id back to default
+  setCurrentPlayerId('frontend');
+
+  await refreshSessions();
+  services.push.reconnect()
 }
+
 const sessionSceneStyle = {
   backgroundImage: `url(${bgSessions})`,
   backgroundSize: 'cover',
   backgroundPosition: 'center',
   backgroundRepeat: 'no-repeat',
 };
-
 </script>
+
 
 <style scoped>
     .scene--sessionscreen {

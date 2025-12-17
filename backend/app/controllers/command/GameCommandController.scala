@@ -17,44 +17,40 @@ final class GameCommandController @Inject()(
   facade: IGameCommandFacade
 )(implicit ec: ExecutionContext)
   extends AbstractController(cc)
-  with ControllerSupport
-  with IGameCommandController {
+    with ControllerSupport
+    with IGameCommandController {
 
-    private val JSON = "application/json"
+  private val JSON = "application/json"
 
-    override def command: Action[JsValue] = Action(parse.json).async { implicit req =>
-    requirePrincipal(req) match {
-        case Left(res) => Future.successful(res)
+  override def command: Action[JsValue] =
+    Action(parse.json).async { implicit req =>
+      val sid = getOrCreateSid(req)
+      val principal = principalOpt(req)
 
-        case Right(principalOpt) =>
-        val sid = getOrCreateSid(req)
+      decoder.fromRestJson(req.body) match {
+        case Left(err) =>
+          Future.successful(
+            BadRequest(Json.obj("error" -> err.message))
+              .as(JSON)
+              .addingToSession("sid" -> sid.value)
+          )
 
-        decoder.fromRestJson(req.body) match {
-            case Left(err) =>
-            Future.successful(
-                BadRequest(Json.obj("error" -> err.message))
-                .as(JSON)
-                .addingToSession("sid" -> sid.value)
-            )
+        case Right(cmd) =>
+          facade.execute(sid, principal, cmd, None) match {
+            case Left(appErr) =>
+              Future.successful(
+                BadRequest(Json.obj("error" -> appErr.message))
+                  .as(JSON)
+                  .addingToSession("sid" -> sid.value)
+              )
 
-            case Right(cmd) =>
-            facade.execute(sid, principalOpt, cmd, None) match {
-                case Left(appErr) =>
-                Future.successful(
-                    BadRequest(Json.obj("error" -> appErr.message))
-                    .as(JSON)
-                    .addingToSession("sid" -> sid.value)
-                )
-
-                case Right(web) =>
-                Future.successful(
-                    Ok(Json.toJson(web))
-                    .as(JSON)
-                    .addingToSession("sid" -> sid.value)
-                )
-            }
-        }
+            case Right(web) =>
+              Future.successful(
+                Ok(Json.toJson(web))
+                  .as(JSON)
+                  .addingToSession("sid" -> sid.value)
+              )
+          }
+      }
     }
-    }
-  
 }

@@ -37,10 +37,9 @@ export interface PushClient {
   offMessage(handler: PushMessageHandler): void;
   close(): void;
 
-  /** command with WS + response, used by GameApi */
   sendCommand(type: GameCommandType, payload?: unknown): Promise<WebGameState | null>;
 
-  // Legacy helpers – convenience wrappers around sendCommand
+  reconnect(): void;
   getState(): void;
   regularAttack(target: 'defender' | 'goalkeeper', index?: number | null): void;
   doubleAttack(target: 'defender' | 'goalkeeper', index?: number | null): void;
@@ -62,6 +61,7 @@ export interface CreateServerPushClientOptions {
   reconnectDelayMs?: number;
   getPlayerId?: () => string | null;
 }
+
 
 /**
  * WebSocket-based push client.
@@ -117,7 +117,7 @@ export function createServerPushClient(
 
     ws.onopen = () => {
       connected = true;
-      wsSessionUnavailable = false; // if it reconnects successfully, re-enable WS
+      wsSessionUnavailable = false;
       console.log('[WS] connected');
     };
 
@@ -143,7 +143,6 @@ export function createServerPushClient(
         return;
       }
 
-      // request/response resolution
       try {
         const requestId = msg?.requestId as string | undefined;
         if (requestId && pending.has(requestId)) {
@@ -161,16 +160,15 @@ export function createServerPushClient(
             }
 
             console.warn('[WS] command error payload:', msg.payload);
-            entry.resolve(null); // → REST fallback
+            entry.resolve(null);
           } else {
-            entry.resolve(null); // → REST fallback
+            entry.resolve(null);
           }
         }
       } catch (err) {
         console.warn('[WS] error handling response for requestId:', err);
       }
 
-      // Notify generic listeners
       handlers.forEach((h) => {
         try {
           h(msg);
@@ -211,8 +209,28 @@ export function createServerPushClient(
     connected = false;
   }
 
+  function reconnect(): void {
+    intentionallyClosed = false;
+    wsSessionUnavailable = false;
+
+    if (reconnectTimer != null) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+
+    if (ws) {
+      try {
+        ws.close();
+      } catch {
+      }
+      ws = null;
+    }
+
+    connected = false;
+    connect();
+  }
+
   function sendCommand(type: GameCommandType, payload: unknown = {}): Promise<WebGameState | null> {
-    // If we already know WS session doesn't exist, skip WS entirely
     if (wsSessionUnavailable) return Promise.resolve(null);
 
     if (!ws || ws.readyState !== WebSocket.OPEN) {
@@ -228,7 +246,7 @@ export function createServerPushClient(
       gameId: 'ignored',
       playerId: opts.getPlayerId?.() ?? null,
       requestId,
-      payload, // IMPORTANT: backend reads fields from here
+      payload,
     };
 
     return new Promise<WebGameState | null>((resolve, reject) => {
@@ -236,7 +254,7 @@ export function createServerPushClient(
         if (pending.has(requestId)) {
           pending.delete(requestId);
           console.warn('[WS] command timed out:', type, requestId);
-          resolve(null); // → REST fallback
+          resolve(null);
         }
       }, 10000);
 
@@ -257,12 +275,11 @@ export function createServerPushClient(
         console.error('[WS] failed to send envelope:', err, env);
         clearTimeout(timeout);
         pending.delete(requestId);
-        resolve(null); // → REST fallback
+        resolve(null);
       }
     });
   }
 
-  // Convenience wrappers (payload MUST match decoder views)
   function getState(): void {
     void sendCommand('GetState', {});
   }
@@ -274,11 +291,10 @@ export function createServerPushClient(
     });
   }
 
-  // FIX 2: DoubleAttack requires target in decoder
   function doubleAttack(target: 'defender' | 'goalkeeper', index: number | null = null): void {
     void sendCommand('DoubleAttack', {
       target,
-      index: target === 'defender' ? index ?? 0 : 0, // keep an int if your view requires it
+      index: target === 'defender' ? index ?? 0 : 0,
     });
   }
 
@@ -337,6 +353,7 @@ export function createServerPushClient(
     offMessage,
     close,
     sendCommand,
+    reconnect,
     getState,
     regularAttack,
     doubleAttack,

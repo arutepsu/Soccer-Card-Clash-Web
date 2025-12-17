@@ -22,4 +22,8 @@ final class InMemoryGameSessionRepository @Inject()() extends IGameSessionReposi
 
   override def keys: Seq[GameSessionId] =
     store.keySet().asScala.toSeq.sorted.map(GameSessionId.apply)
+  
+  override def all(): Seq[(GameSessionId, SessionInfo)] =
+    store.entrySet().asScala.toSeq
+      .map(e => GameSessionId(e.getKey) -> e.getValue)
 }

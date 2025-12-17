@@ -16,6 +16,7 @@ import app.api.context._
 import app.controllers.stream.{IGameStreamController, GameStreamController}
 import app.controllers.ws.{IGameWsController, GameWsController}
 import app.controllers.command._
+import app.controllers.session._
 import app.api.command.{IGameCommandFacade, GameCommandFacade, GameCommandDecoder}
 
 final class Module extends AbstractModule {
@@ -36,5 +37,6 @@ final class Module extends AbstractModule {
     bind(classOf[IGameWsController]).to(classOf[GameWsController])
     bind(classOf[IGameStreamController]).to(classOf[GameStreamController])
     bind(classOf[IGameCommandController]).to(classOf[GameCommandController])
+    bind(classOf[ISessionController]).to(classOf[SessionController])
   }
 }

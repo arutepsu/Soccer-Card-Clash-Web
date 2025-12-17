@@ -1,18 +1,13 @@
 package app.session
 
 import javax.inject._
-import java.util.concurrent.ConcurrentHashMap
-import scala.jdk.CollectionConverters._
-
 import app.api.usecases.IGameUseCases
 import app.api.command.GameCommand
-import app.session.SessionInfo
 import app.models.AppError
 import de.htwg.se.soccercardclash.model.gameComponent.context.GameContext
 import app.session.repositories._
 import app.api.context._
 import GameSessionError._
-import scala.util.Random
 import app.auth.AuthPrincipal
 
 @Singleton
@@ -28,18 +23,32 @@ final class GameSessionService @Inject()(
   private def newToken(): PlayerToken =
     PlayerToken(java.util.UUID.randomUUID().toString)
 
-  private def getSession(id: GameSessionId): Option[SessionInfo] =
+  private def getSessionOpt(id: GameSessionId): Option[SessionInfo] =
     sessionRepo.get(id)
 
   private def updateSession(id: GameSessionId, info: SessionInfo): Unit =
     sessionRepo.set(id, info)
 
-  override def createSession(principal: AuthPrincipal, hostName: String): Either[GameSessionError, SessionCreated] = {
+  override def listSessions(): Seq[(GameSessionId, SessionInfo)] =
+    sessionRepo.all()
+
+  override def createSession(
+    principal: AuthPrincipal,
+    hostName: String,
+    sessionName: String
+  ): Either[GameSessionError, SessionCreated] = {
+
+    val hn = hostName.trim
+    val sn = sessionName.trim
+    if (hn.isEmpty) return Left(CommandFailed("hostName must be non-empty"))
+    if (sn.isEmpty) return Left(CommandFailed("sessionName must be non-empty"))
+
     val id   = newSessionId()
     val host = newToken()
 
     val info = SessionInfo(
-      hostName    = hostName,
+      sessionName = sn,
+      hostName    = hn,
       hostToken   = host,
       hostUserId  = principal.userId,
       guestName   = None,
@@ -51,12 +60,39 @@ final class GameSessionService @Inject()(
     Right(SessionCreated(id, host))
   }
 
+  override def getSession(id: GameSessionId): Either[GameSessionError, SessionInfo] =
+    getSessionOpt(id).toRight(GameSessionError.NotFound(id))
+
+  override def leaveSession(
+    principal: AuthPrincipal,
+    id: GameSessionId
+    ): Either[GameSessionError, SessionInfo] =
+      getSessionOpt(id) match {
+        case None => Left(NotFound(id))
+        case Some(info) =>
+          if (!isAuthorized(info, principal)) Left(Unauthorized(id, principal.userId))
+          else if (info.hostUserId == principal.userId) {
+            sessionRepo.clear(id)
+            Left(CommandFailed("Session closed"))
+          } else {
+            val updated = info.copy(
+              guestName = None,
+              guestToken = None,
+              guestUserId = None
+            )
+            updateSession(id, updated)
+            Right(updated)
+          }
+      }
+
+
   override def joinSession(
     principal: AuthPrincipal,
     id: GameSessionId,
     guestName: String
   ): Either[GameSessionError, SessionJoined] =
-    getSession(id) match {
+    getSessionOpt(id) match {
+
       case None =>
         Left(NotFound(id))
 
@@ -64,11 +100,14 @@ final class GameSessionService @Inject()(
         Left(SessionFull(id))
 
       case Some(info) =>
+        val gn = guestName.trim
+        if (gn.isEmpty) return Left(CommandFailed("guestName must be non-empty"))
+
         val guestToken = newToken()
 
-        gameUseCases.createGame(info.hostName, guestName, id) match {
-          case Left(AppError(message)) =>
-            Left(CommandFailed(message))
+        gameUseCases.createGame(info.hostName, gn, id) match {
+          case Left(err) =>
+            Left(CommandFailed(err.message))
 
           case Right(_) =>
             ctxRepo.get(id) match {
@@ -77,7 +116,7 @@ final class GameSessionService @Inject()(
 
               case Some(ctx) =>
                 val updated = info.copy(
-                  guestName   = Some(guestName),
+                  guestName   = Some(gn),
                   guestToken  = Some(guestToken),
                   guestUserId = Some(principal.userId)
                 )
@@ -92,36 +131,19 @@ final class GameSessionService @Inject()(
     principal: AuthPrincipal,
     cmd: GameCommand
   ): Either[GameSessionError, GameContext] =
-    getSession(id) match {
-      case None => Left(NotFound(id))
+    getSessionOpt(id) match {
+      case None =>
+        Left(NotFound(id))
+
       case Some(info) =>
-        if (!isAuthorized(info, principal)) Left(Unauthorized(id, principal.userId))
-        else executeCommandThroughUseCases(id, cmd)
+        if (!isAuthorized(info, principal))
+          Left(Unauthorized(id, principal.userId))
+        else
+          executeCommandThroughUseCases(id, cmd)
     }
 
   private def isAuthorized(info: SessionInfo, p: AuthPrincipal): Boolean =
     info.hostUserId == p.userId || info.guestUserId.contains(p.userId)
-
-  override def createSession(hostName: String): Either[GameSessionError, SessionCreated] =
-    createSession(AuthPrincipal(userId = hostName, username = hostName), hostName)
-
-  override def joinSession(id: GameSessionId, guestName: String): Either[GameSessionError, SessionJoined] =
-    joinSession(AuthPrincipal(userId = guestName, username = guestName), id, guestName)
-
-  override def submitCommand(
-    id: GameSessionId,
-    token: PlayerToken,
-    cmd: GameCommand
-  ): Either[GameSessionError, GameContext] =
-    getSession(id) match {
-      case None => Left(NotFound(id))
-      case Some(info) =>
-        if (!isAuthorized(info, token)) Left(Unauthorized(id, token.value))
-        else executeCommandThroughUseCases(id, cmd)
-    }
-
-  private def isAuthorized(info: SessionInfo, token: PlayerToken): Boolean =
-    info.hostToken == token || info.guestToken.contains(token)
 
   private def executeCommandThroughUseCases(
     id: GameSessionId,
