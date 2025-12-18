@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Soccer Card Clash – Offline</title>
+  <link rel="stylesheet" href="stylesheets/scenes/fullgamerules.css">
+</head>
+<body class="scene--fullgamerules">
+  <section id="gamerules">
+    <h1>You are offline</h1>
+    <p>This page is not available in offline mode.<br>Please connect to the internet.</p>
+    <button id="show-rules-btn" style="margin-top:2em;">👀 show game rules</button>
+    <div id="easter-egg-rules" style="display:none;text-align:left;margin:2em auto;max-width:600px;background:#fff8;border-radius:8px;padding:1.5em;box-shadow:0 2px 8px #0001;overflow:auto;">
+      <h2>⚽ Game Rules</h2>
+      <ul>
+        <li>🔄 Players alternate roles each round.</li>
+        <li>🃏 The <b>attacker</b> always uses the last card(s) in hand.</li>
+        <li>🛡️ The <b>defender</b> does not act — only endures the attack.</li>
+        <li>🆚 Cards are compared — the stronger card wins.</li>
+        <li>⚠️ Exception: 2 can beat an Ace to maintain fairness.</li>
+        <li>🚫 You can't attack the goalkeeper until all defenders are defeated.</li>
+        <li>🥅 Beating the goalkeeper scores a goal and switches roles.</li>
+      </ul>
+      <h3>🗡️ Attack Types</h3>
+      <b>🔹 Single Attack:</b> Uses the <b>last card</b> in the attacker’s hand.<br>
+      <b>🔸 Double Attack:</b> Uses the <b>last two cards</b> in the attacker’s hand.<br>
+      <h3>🎯 Attack Outcomes</h3>
+      <b>✅ Success:</b> Beaten defender(s) are added to the end of the attacker's hand. The attacker continues.<br>
+      <b>❌ Failure:</b> Roles switch — the defender becomes the new attacker.<br>
+      <b>🤝 Tie:</b> The next-to-last cards are compared. The stronger pair wins.<br>
+      <h3>💥 Boosting</h3>
+      <ul>
+        <li>The attacker can <b>boost</b> their own defenders or goalkeeper.</li>
+        <li>Boosting increases card strength based on the boosting card's value:</li>
+      </ul>
+      <table style="border-collapse:collapse;margin:1em 0;">
+        <tr><th style="border:1px solid #ccc;padding:2px 8px;">Boost Card</th><th style="border:1px solid #ccc;padding:2px 8px;">Boost Value</th></tr>
+        <tr><td style="border:1px solid #ccc;padding:2px 8px;">Two</td><td style="border:1px solid #ccc;padding:2px 8px;">+6</td></tr>
+        <tr><td>Three</td><td>+5</td></tr>
+        <tr><td>Four</td><td>+5</td></tr>
+        <tr><td>Five</td><td>+4</td></tr>
+        <tr><td>Six</td><td>+4</td></tr>
+        <tr><td>Seven</td><td>+3</td></tr>
+        <tr><td>Eight</td><td>+3</td></tr>
+        <tr><td>Nine</td><td>+2</td></tr>
+        <tr><td>Ten</td><td>+2</td></tr>
+        <tr><td>Jack</td><td>+1</td></tr>
+        <tr><td>Queen</td><td>+1</td></tr>
+        <tr><td>King</td><td>+1</td></tr>
+        <tr><td>Ace</td><td>+0</td></tr>
+      </table>
+      <ul>
+        <li>⚠️ Boosting counts as <b>one action</b> per turn.</li>
+        <li>❗ If no actions remain, boosting is disabled and a warning appears.</li>
+        <li>🔁 Whenever a boosted card is moved to a player's hand, its original value is restored.</li>
+      </ul>
+      <h3>🔄 Swap Mechanics</h3>
+      <b>🔁 Regular Swap:</b> Select a card from your hand. Swap it with the <b>last card</b> in your hand.<br>
+      <b>🔃 Reverse Swap:</b> Instantly <b>reverses the entire hand order</b>.<br>
+      <ul>
+        <li>Every swap (regular or reverse) <b>consumes one action</b>.</li>
+        <li>When all actions are used up, no further actions are allowed for that turn.</li>
+      </ul>
+      <h3>🧮 Action Limit</h3>
+      <p>Each turn comes with a limited number of actions. Once you've used all your actions, you won’t be able to perform any more until the next turn.</p>
+      <b>📝 Actions that count toward the limit:</b>
+      <ul>
+        <li>🔄 Regular Swap</li>
+        <li>🔁 Reverse Swap</li>
+        <li>⚡ Defender Boost</li>
+        <li>⚡ Goalkeeper Boost</li>
+        <li>⚔️ Double Attack</li>
+      </ul>
+      <i>⛔ Once the limit is reached, further actions are blocked for that turn.</i>
+    </div>
+    <script>
+      document.getElementById('show-rules-btn').onclick = function() {
+        var rules = document.getElementById('easter-egg-rules');
+        if (rules.style.display === 'none') {
+          rules.style.display = 'block';
+          this.textContent = '🙈 hide rules';
+        } else {
+          rules.style.display = 'none';
+          this.textContent = '👀 show game rules';
+        }
+      };
+    </script>
+  </section>
+</body>
+</html>

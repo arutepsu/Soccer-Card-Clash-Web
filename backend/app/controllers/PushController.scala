@@ -47,20 +47,27 @@ class GamePushController @Inject()(
 
   def wsGame: WebSocket =
     WebSocket.acceptOrResult[JsValue, JsValue] { request =>
-      sidOrResultEither[Flow[JsValue, JsValue, _]](request) { sid =>
-        val sink: Sink[JsValue, _] =
-          Sink.foreach[JsValue] { js =>
-            val env     = js.as[Envelope]
-            val withSid = env.copy(gameId = sid)
-            gamePush.handleCommand(withSid)
-          }
+      // Try to get sid from session first, then from query parameter
+      val sidOpt = request.session.get("sid")
+        .orElse(request.queryString.get("sid").flatMap(_.headOption))
+      
+      sidOpt match {
+        case None =>
+          Future.successful(Left(Unauthorized("No session id (sid) in cookie/session or query parameter")))
+        case Some(sid) =>
+          val sink: Sink[JsValue, _] =
+            Sink.foreach[JsValue] { js =>
+              val env     = js.as[Envelope]
+              val withSid = env.copy(gameId = sid)
+              gamePush.handleCommand(withSid)
+            }
 
-        val source: Source[JsValue, _] =
-          gamePush.eventStream(sid).map(env => Json.toJson(env))
+          val source: Source[JsValue, _] =
+            gamePush.eventStream(sid).map(env => Json.toJson(env))
 
-        Future.successful(
-          Right(Flow.fromSinkAndSource(sink, source))
-        )
+          Future.successful(
+            Right(Flow.fromSinkAndSource(sink, source))
+          )
       }
     }
 

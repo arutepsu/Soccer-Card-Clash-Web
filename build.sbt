@@ -5,7 +5,7 @@ import play.sbt.PlayScala
 
 ThisBuild / scalaVersion := "3.3.3"
 
-lazy val scc = ProjectRef(file("../SoccerCardClash"), "root")
+lazy val scc = ProjectRef(file("../Soccer-Card-Clash"), "root")
 
 lazy val backend = (project in file("backend"))
   .enablePlugins(PlayScala)
