@@ -1,16 +1,36 @@
 package app.session
 
+import app.api.command.GameCommand
 import de.htwg.se.soccercardclash.model.gameComponent.context.GameContext
-import app.domain.commands.GameCommand
+import app.auth.AuthPrincipal
 
 trait IGameSessionService {
-  def createSession(hostName: String): Either[GameSessionError, SessionCreated]
 
-  def joinSession(id: GameSessionId, guestName: String): Either[GameSessionError, SessionJoined]
+  def listSessions(): Seq[(GameSessionId, SessionInfo)]
+
+  def getSession(id: GameSessionId): Either[GameSessionError, SessionInfo]
+  
+  def createSession(
+    principal: AuthPrincipal,
+    hostName: String,
+    sessionName: String
+  ): Either[GameSessionError, SessionCreated]
+
+  def joinSession(
+    principal: AuthPrincipal,
+    id: GameSessionId,
+    guestName: String
+  ): Either[GameSessionError, SessionJoined]
 
   def submitCommand(
     id: GameSessionId,
-    token: PlayerToken,
+    principal: AuthPrincipal,
     cmd: GameCommand
   ): Either[GameSessionError, GameContext]
+
+  def leaveSession( 
+    principal: AuthPrincipal,
+    id: GameSessionId
+  ): Either[GameSessionError, SessionInfo]
+
 }

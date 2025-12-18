@@ -1,8 +1,12 @@
 package app.session
 
 final case class SessionInfo(
+  sessionName: String,
   hostName: String,
   hostToken: PlayerToken,
-  guestName: Option[String] = None,
-  guestToken: Option[PlayerToken] = None
+  hostUserId: String,
+
+  guestName: Option[String],
+  guestToken: Option[PlayerToken],
+  guestUserId: Option[String]
 )

@@ -1,10 +1,11 @@
 // app/appServices.ts
 import { ref, type Ref, inject, provide, type InjectionKey } from 'vue';
 import { createGameApi, type GameApi } from '../api/gameApi';
-import { createServerPushClient } from '../api/serverPushClient';
+import { createServerPushClient, PushClient } from '../api/serverPushClient';
 import { createGameEventStream } from '../api/gameEventStream';
 import { createSoundManager, type SoundManager } from '../utils/soundManager';
 import type { WebGameState } from '../types/WebGameState';
+import { createSessionApi, type SessionApi } from '../api/sessionApi';
 
 export interface GameContextService {
   state: Ref<WebGameState | null>;
@@ -14,6 +15,8 @@ export interface GameContextService {
 
 export interface AppServices {
   api: GameApi;
+  sessions: SessionApi;
+  push: PushClient;
   soundManager: SoundManager | null;
   gameContext: GameContextService;
 }
@@ -40,16 +43,23 @@ function createGameContextService(): GameContextService {
   return { state, setState, clear };
 }
 
+
 export function createAppServices(): AppServices {
   const pushClient = createServerPushClient({
+    path: '/api/ws',
     getPlayerId: () => currentPlayerId,
   });
   const streamClient = createGameEventStream();
   const api = createGameApi({ streamClient, pushClient });
   const soundManager = createSoundManager();
   const gameContext = createGameContextService();
+  const sessions = createSessionApi({
+    getJSON: api.getJSON,
+    postJSON: api.postJSON,
+  });
 
-  return { api, soundManager, gameContext };
+
+  return { api, sessions,  push: pushClient, soundManager, gameContext };
 }
 
 export function useAppServices(): AppServices {

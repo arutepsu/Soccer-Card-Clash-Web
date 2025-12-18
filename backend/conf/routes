@@ -1,3 +1,18 @@
+GET   /login                   app.controllers.auth.AuthController.loginPage()
+POST  /login                   app.controllers.auth.AuthController.doLogin()
+POST  /logout                  app.controllers.auth.AuthController.logout()
+
+POST  /api/command             app.controllers.command.GameCommandController.command
+GET   /api/stream/sse          app.controllers.stream.GameStreamController.sse
+GET   /api/stream/comet        app.controllers.stream.GameStreamController.comet(lastEventId: Long ?= 0)
+GET   /api/ws                  app.controllers.ws.GameWsController.ws
+
+GET   /api/state               app.controllers.state.GameStateController.state
+
+GET    /api/files/list         controllers.fileIO.FileIOController.listSavedGames()
+POST   /api/files/load         controllers.fileIO.FileIOController.loadGameFromFile()
+POST   /api/files/save         controllers.fileIO.FileIOController.saveGameToFile()
+DELETE /api/files/delete       controllers.fileIO.FileIOController.deleteGameFile()
 
 GET     /manifest.json       controllers.Assets.at(path="/public", file="manifest.json")
 GET     /    controllers.SpaController.index(path = "")
@@ -56,14 +71,8 @@ GET     /offline.html        controllers.Assets.at(path="/public", file="offline
 GET     /manifest.json       controllers.Assets.at(path="/public", file="manifest.json")
 GET     /service-worker.js   controllers.Assets.at(path="/public", file="service-worker.js")
 
-
-POST   /multiplayer/start    controllers.UiController.startMultiplayerGame
-POST   /game/start-multiplayer    controllers.UiController.startMultiplayerGame
-POST   /api/restart    controllers.UiController.restart
-POST  /api/game/restart   controllers.GameApiController.restart
-
-
-GET     /assets/*file           controllers.Assets.versioned(path="/public", file: Asset)
+GET   /                        app.controllers.ui.SpaController.index()
+GET   /assets/*file            controllers.Assets.versioned(path="/public", file: Asset)
 
 GET   /ws/game                 controllers.GamePushController.wsGame
 GET   /sseEvents               controllers.GamePushController.sseEvents
