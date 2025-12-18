@@ -89,9 +89,40 @@ export function createServerPushClient(
     { resolve: (state: WebGameState | null) => void; reject: (err: unknown) => void }
   >();
 
+  function getCookie(name: string): string | null {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+      const cookieValue = parts.pop()?.split(';').shift();
+      return cookieValue ? decodeURIComponent(cookieValue) : null;
+    }
+    return null;
+  }
+
+  function getSessionId(): string | null {
+    const cookie = getCookie('PLAY_SESSION');
+    if (!cookie) return null;
+  
+    try {
+      const decoded = decodeURIComponent(cookie);
+      const params = new URLSearchParams(decoded);
+      return params.get('sid');
+    } catch (e) {
+      console.warn('[WS] failed to parse session cookie:', e);
+      return null;
+    }
+  }
+
   function buildWsUrl(): string {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    return `${proto}://${location.host}${path}`;
+    let url = `${proto}://${location.host}${path}`;
+    
+    const sid = getSessionId();
+    if (sid) {
+      url += `?sid=${encodeURIComponent(sid)}`;
+    }
+    
+    return url;
   }
 
   function scheduleReconnect(): void {
@@ -370,3 +401,5 @@ export function createServerPushClient(
     quit,
   };
 }
+
+
