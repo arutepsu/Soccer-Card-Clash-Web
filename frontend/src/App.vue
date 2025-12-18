@@ -3,7 +3,6 @@ import AppOverlay from './components/overlay/AppOverlay.vue';
 </script>
 
 <template>
-  <link rel="manifest" href="/manifest.json" />
   <div class="app-root">
     <router-view v-slot="{ Component }">
       <transition name="fade" mode="out-in">
