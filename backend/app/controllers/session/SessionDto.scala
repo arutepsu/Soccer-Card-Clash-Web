@@ -1,16 +1,15 @@
 package app.controllers.session
 
 import play.api.libs.json.*
-import app.session.{GameSessionId, SessionInfo}
+import app.session.{GameSessionId, SessionInfo, SessionState}
 
 enum SessionStatus:
-  case Waiting, Full
+  case Waiting, Ready, Started
 
 object SessionStatus:
   given Writes[SessionStatus] = Writes { s =>
     JsString(s.toString)
   }
-
 
 final case class SessionDto(
   id: String,
@@ -40,12 +39,20 @@ object SessionJoinedResponseDto:
   given Writes[SessionJoinedResponseDto] = Json.writes[SessionJoinedResponseDto]
 
 object SessionMapper:
+
+  private def toStatus(state: SessionState): SessionStatus =
+    state match
+      case SessionState.Waiting  => SessionStatus.Waiting
+      case SessionState.Ready    => SessionStatus.Ready
+      case SessionState.Started  => SessionStatus.Started
+
   def toDto(id: GameSessionId, info: SessionInfo): SessionDto =
     val count = if info.guestName.isDefined then 2 else 1
+
     SessionDto(
-      id = id.value,
-      name = info.sessionName,
-      hostName = info.hostName,
+      id          = id.value,
+      name        = info.sessionName,
+      hostName    = info.hostName,
       playerCount = count,
-      status = if count >= 2 then SessionStatus.Full else SessionStatus.Waiting
+      status      = toStatus(info.state)
     )

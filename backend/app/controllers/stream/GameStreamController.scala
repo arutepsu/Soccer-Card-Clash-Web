@@ -12,15 +12,21 @@ import akka.util.ByteString
 
 import play.api.libs.json._
 import play.api.mvc._
-
+import app.mapping.IViewStateMapper
 import controllers.support.ControllerSupport
 import app.controllers.stream.IGameStreamController
 import app.api.eventHub.{GameEvent, GameEventHub}
+import app.auth.AuthPrincipal
+import app.session.{GameSessionId, SessionInfo}
+import app.session.repositories.IGameSessionRepository
+import app.models.state.WebGameState
 
 @Singleton
 final class GameStreamController @Inject()(
   cc: ControllerComponents,
-  eventHub: GameEventHub
+  eventHub: GameEventHub,
+  viewStateMapper: IViewStateMapper,
+  sessionRepo: IGameSessionRepository
 )(implicit ec: ExecutionContext, system: ActorSystem, mat: Materializer)
   extends AbstractController(cc)
   with ControllerSupport
@@ -29,50 +35,60 @@ final class GameStreamController @Inject()(
   override def sse: Action[AnyContent] = Action.async { implicit req =>
     requirePrincipal(req) match {
       case Left(res) => Future.successful(res)
+      case Right(principal) =>
+        requireSid(req) match {
+          case Left(res) => Future.successful(res)
+          case Right(sid) =>
+            val (queue, src) =
+              Source.queue[GameEvent](32, OverflowStrategy.dropHead).preMaterialize()
 
-      case Right(_) =>
-        val sid = getOrCreateSid(req)
+            val unsubscribe = eventHub.subscribe(sid) { ev =>
+              queue.offer(ev); ()
+            }
+            queue.watchCompletion().foreach(_ => unsubscribe())(ec)
 
-        val (queue, src) =
-          Source.queue[GameEvent](32, OverflowStrategy.dropHead).preMaterialize()
+            val infoOpt = sessionRepo.get(sid)
+            val eventSource =
+              src.map { ev =>
+                val web = viewStateMapper.toWebState(ev.ctx, Some(principal), infoOpt)
+                val json = Json.obj("eventId" -> ev.eventId, "state" -> Json.toJson(web))
+                ByteString(s"data: ${Json.stringify(json)}\n\n")
+              }
 
-        val unsubscribe = eventHub.subscribe(sid) { ev =>
-          queue.offer(ev); ()
-        }
-
-        queue.watchCompletion().foreach(_ => unsubscribe())(ec)
-
-        val eventSource =
-          src.map { ev =>
-            val json = Json.obj(
-              "eventId" -> ev.eventId,
-              "state"   -> Json.toJson(ev.state)
+            Future.successful(
+              Ok.chunked(eventSource)
+                .as("text/event-stream")
             )
-            ByteString(s"data: ${Json.stringify(json)}\n\n")
-          }
-
-        Future.successful(
-          Ok.chunked(eventSource)
-            .as("text/event-stream")
-            .addingToSession("sid" -> sid.value)
-        )
+        }
     }
   }
+
 
   override def comet(lastEventId: Long): Action[AnyContent] = Action.async { implicit req =>
     requirePrincipal(req) match {
       case Left(res) => Future.successful(res)
 
-      case Right(_) =>
+      case Right(principal) =>
         val sid = getOrCreateSid(req)
+
+        val infoOpt: Option[SessionInfo] = sessionRepo.get(sid)
+
         val pending = eventHub.getSince(sid, lastEventId)
 
+        def encode(events: Seq[GameEvent]): String =
+          events.map { ev =>
+            val web: WebGameState =
+              viewStateMapper.toWebState(ev.ctx, Some(principal), infoOpt)
+
+            Json.stringify(Json.obj(
+              "eventId" -> ev.eventId,
+              "state"   -> Json.toJson(web)
+            ))
+          }.mkString("\n")
+
         if (pending.nonEmpty) {
-          val lines = pending.map { ev =>
-            Json.stringify(Json.obj("eventId" -> ev.eventId, "state" -> Json.toJson(ev.state)))
-          }
           Future.successful(
-            Ok(lines.mkString("\n"))
+            Ok(encode(pending))
               .as("application/json")
               .addingToSession("sid" -> sid.value)
           )
@@ -84,11 +100,8 @@ final class GameStreamController @Inject()(
             eventHub.subscribe(sid) { ev =>
               if (ev.eventId > lastEventId && !p.isCompleted) {
                 val all = eventHub.getSince(sid, lastEventId)
-                val lines = all.map { e =>
-                  Json.stringify(Json.obj("eventId" -> e.eventId, "state" -> Json.toJson(e.state)))
-                }
                 p.trySuccess(
-                  Ok(lines.mkString("\n"))
+                  Ok(encode(all))
                     .as("application/json")
                     .addingToSession("sid" -> sid.value)
                 )

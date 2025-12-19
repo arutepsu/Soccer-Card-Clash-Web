@@ -1,16 +1,14 @@
 package app.api.eventHub
 
-
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.concurrent.TrieMap
 import scala.collection.immutable.Vector
 import scala.concurrent.ExecutionContext
 
-import play.api.libs.json._
-import app.models.state.WebGameState
 import app.session.GameSessionId
+import de.htwg.se.soccercardclash.model.gameComponent.context.GameContext
 
-final case class GameEvent(eventId: Long, state: WebGameState)
+final case class GameEvent(eventId: Long, ctx: GameContext)
 
 @javax.inject.Singleton
 class GameEventHub @javax.inject.Inject()()(implicit ec: ExecutionContext) {
@@ -23,25 +21,17 @@ class GameEventHub @javax.inject.Inject()()(implicit ec: ExecutionContext) {
   private val listenersBySid =
     TrieMap.empty[String, List[GameEvent => Unit]]
 
-  def publish(sid: GameSessionId, state: WebGameState): GameEvent = {
+  def publish(sid: GameSessionId, ctx: GameContext): GameEvent = {
     val id  = nextId.getAndIncrement()
-    val ev  = GameEvent(id, state)
+    val ev  = GameEvent(id, ctx)
     val key = sid.value
 
     historyBySid.updateWith(key) {
-      case Some(vec) =>
-        val updated = (vec :+ ev).takeRight(500)
-        Some(updated)
-      case None =>
-        Some(Vector(ev))
+      case Some(vec) => Some((vec :+ ev).takeRight(500))
+      case None      => Some(Vector(ev))
     }
 
-    listenersBySid.get(key).foreach { listeners =>
-      listeners.foreach { cb =>
-        try cb(ev) catch { case _: Throwable => () }
-      }
-    }
-
+    listenersBySid.get(key).foreach(_.foreach(cb => try cb(ev) catch { case _: Throwable => () }))
     ev
   }
 
@@ -62,9 +52,6 @@ class GameEventHub @javax.inject.Inject()()(implicit ec: ExecutionContext) {
     }
   }
 
-  def getSince(sid: GameSessionId, lastEventId: Long): Seq[GameEvent] = {
-    historyBySid
-      .getOrElse(sid.value, Vector.empty)
-      .filter(ev => ev.eventId > lastEventId)
-  }
+  def getSince(sid: GameSessionId, lastEventId: Long): Seq[GameEvent] =
+    historyBySid.getOrElse(sid.value, Vector.empty).filter(_.eventId > lastEventId)
 }

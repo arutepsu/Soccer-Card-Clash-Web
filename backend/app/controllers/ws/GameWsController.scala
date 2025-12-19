@@ -14,33 +14,40 @@ import app.api.protocol.{Envelope, MessageTypes}
 import app.models.{AppError}
 import app.models.state.WebGameState
 import app.session.GameSessionId
+import play.api.Configuration
 
+//fix after real auth
 @Singleton
 final class GameWsController @Inject()(
   cc: ControllerComponents,
   decoder: GameCommandDecoder,
-  facade: IGameCommandFacade
+  facade: IGameCommandFacade,
+  config: Configuration
 )(implicit ec: ExecutionContext)
   extends AbstractController(cc)
     with ControllerSupport
     with IGameWsController {
 
+  given Configuration = config
+
   override def ws: WebSocket =
     WebSocket.acceptOrResult[JsValue, JsValue] { req =>
-      val principal = principalOpt(req)     // Option[AuthPrincipal]
-      val sid = getOrCreateSid(req)         // always present (new if missing)
+      (for {
+        sid <- requireSid(req)
+        p   <- principalOrAnonymous(req)
+      } yield (sid, p)) match {
+        case Left(res) => Future.successful(Left(res))
+        case Right((sid, principal)) =>
+          val flow = Flow[JsValue]
+            .map(_.validate[Envelope].asOpt)
+            .collect { case Some(env) => env }
+            .map(env => env.copy(gameId = sid.value))
+            .mapAsync(1)(env => handle(env, sid, Some(principal)))
 
-      val flow: Flow[JsValue, JsValue, _] =
-        Flow[JsValue]
-          .map(_.validate[Envelope].asOpt)
-          .collect { case Some(env) => env }
-          .map(env => env.copy(gameId = sid.value))
-          .mapAsync(1) { env =>
-            handle(env, sid, principal)
-          }
-
-      Future.successful(Right(flow))
+          Future.successful(Right(flow))
+      }
     }
+
 
   private def handle(
     env: Envelope,
@@ -53,8 +60,6 @@ final class GameWsController @Inject()(
         Future.successful(Json.toJson(errorEnvelope(env, sid, err)))
 
       case Right(cmd) =>
-        // facade.execute is synchronous in your GameCommandController (returns Either)
-        // so we keep it synchronous but protect against exceptions.
         try {
           facade.execute(sid, principalOpt, cmd, env.requestId) match {
             case Left(appErr) =>
@@ -65,9 +70,15 @@ final class GameWsController @Inject()(
           }
         } catch {
           case NonFatal(t) =>
-            Future.successful(Json.toJson(
-              errorEnvelope(env, sid, AppError(Option(t.getMessage).getOrElse("WS execute failed")))
-            ))
+            Future.successful(
+              Json.toJson(
+                errorEnvelope(
+                  env,
+                  sid,
+                  AppError(Option(t.getMessage).getOrElse("WS execute failed"))
+                )
+              )
+            )
         }
     }
   }

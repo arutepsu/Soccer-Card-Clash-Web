@@ -16,6 +16,11 @@ trait IGameSessionService {
     sessionName: String
   ): Either[GameSessionError, SessionCreated]
 
+  def startSession(
+    principal: AuthPrincipal,
+    id: GameSessionId
+  ): Either[GameSessionError, GameContext]
+
   def joinSession(
     principal: AuthPrincipal,
     id: GameSessionId,

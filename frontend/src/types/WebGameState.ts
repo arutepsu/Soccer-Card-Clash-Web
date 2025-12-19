@@ -1,3 +1,5 @@
+import { PlayerSide } from "@/utils/playerSideRegistry";
+
 export interface CardView {
   id: string;
   rank: string;
@@ -60,11 +62,20 @@ export interface PlayerLike {
   playerType?: PlayerType;
 }
 
+export interface YouView {
+  userId: string;
+  username: string;
+  side: PlayerSide;
+  isAttacker: boolean;
+}
+
 export interface WebGameState {
   roles: RolesView;
   scores: ScoresView;
   cards: CardsView;
   allowed: AllowedActionsView;
+
+  you?: YouView;
 
   players?: {
     attacker?: PlayerLike;

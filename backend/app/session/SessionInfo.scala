@@ -8,5 +8,7 @@ final case class SessionInfo(
 
   guestName: Option[String],
   guestToken: Option[PlayerToken],
-  guestUserId: Option[String]
+  guestUserId: Option[String],
+
+  state: SessionState
 )

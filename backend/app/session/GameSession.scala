@@ -18,7 +18,6 @@ final case class SessionCreated(
 final case class SessionJoined(
   id: GameSessionId,
   guestToken: PlayerToken,
-  ctx: GameContext
 )
 
 case class GameSession(

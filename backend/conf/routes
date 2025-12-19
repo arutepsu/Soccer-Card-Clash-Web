@@ -22,3 +22,4 @@ POST  /api/sessions                 app.controllers.session.SessionController.cr
 POST  /api/sessions/:id/join        app.controllers.session.SessionController.join(id: String)
 POST  /api/sessions/:id/leave       app.controllers.session.SessionController.leave(id: String)
 GET   /api/sessions/:id             app.controllers.session.SessionController.get(id: String)
+POST  /api/sessions/:id/start       app.controllers.session.SessionController.start(id: String)
