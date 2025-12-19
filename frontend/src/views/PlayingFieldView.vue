@@ -19,6 +19,7 @@ import type { WebGameState } from '../types/WebGameState';
 import type { GameApi } from '../api/gameApi';
 import playingBg from '@/assets/images/frames/background5.jpg';
 import { SelectedTarget } from '@/types/AttackerDefenders';
+import CinemaMode from '@/components/cinemaMode/CinemaMode.vue';
 
 const {
   gameContext,
@@ -119,7 +120,33 @@ orchestrator = createComparisonOrchestrator({
   soundManager,
 });
 
+const you = computed(() => webState.value?.you ?? null);
 
+const isOnline = computed(() => !!you.value);
+
+const isMyTurn = computed(() => {
+  const st = webState.value;
+  const me = you.value?.username;
+  if (!st?.roles?.attacker || !me) return false;
+  return st.roles.attacker === me;
+});
+
+const cinemaActive = computed(() => isOnline.value && !isMyTurn.value);
+
+const opponentName = computed(() => {
+  const st = webState.value;
+  const me = you.value?.username;
+  if (!st?.roles || !me) return 'Opponent';
+  return st.roles.attacker === me ? st.roles.defender : st.roles.attacker;
+});
+
+function requireMyTurn(): boolean {
+  if (!isMyTurn.value) {
+    showInfoAlert("It's not your turn.");
+    return false;
+  }
+  return true;
+}
 
 function handleDefenderSelected(index: number | null) {
   if (index == null) {
@@ -135,6 +162,7 @@ function handleGoalkeeperSelected(selected: boolean) {
 
 
 async function handleAttackDefender() {
+  if (!requireMyTurn()) return;
   const sel = selectedTarget.value;
 
   if (!sel) {
@@ -174,6 +202,7 @@ async function handleAttackDefender() {
 
 
 async function handleAttackGoalkeeper() {
+  if (!requireMyTurn()) return;
   try {
     orchestrator?.setPendingAction('RegularAttack');
     await attackGoalkeeper();
@@ -194,6 +223,7 @@ async function handleAttackGoalkeeper() {
 }
 
 async function handleDoubleAttack() {
+  if (!requireMyTurn()) return;
   const sel = selectedTarget.value;
 
   if (!sel || sel.kind !== 'defender') {
@@ -219,8 +249,6 @@ async function handleDoubleAttack() {
     selectedTarget.value = null;
   }
 }
-
-
 
 function handleInfo() {
   showInfoAlert('Select a defender or the goalkeeper, then choose an attack.');
@@ -284,7 +312,7 @@ const playingSceneStyle = {
 
       <aside id="action-bar" aria-label="Action buttons">
         <ActionButtonBar
-          :busy="busy"
+          :busy="busy || cinemaActive"
           @attack-defender="handleAttackDefender"
           @attack-goalkeeper="handleAttackGoalkeeper"
           @double-attack="handleDoubleAttack"
@@ -302,6 +330,13 @@ const playingSceneStyle = {
       </section>
     </footer>
   </div>
+
+  <CinemaMode
+    :active="cinemaActive"
+    message="Opponent’s turn"
+    :subMessage="`Waiting for ${opponentName}…`"
+  />
+
 </template>
 
 <style scoped>

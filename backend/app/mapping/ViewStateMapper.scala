@@ -17,15 +17,26 @@ import de.htwg.se.soccercardclash.model.cardComponent.base.types.BoostedCard
 import scala.reflect.Selectable.reflectiveSelectable
 import de.htwg.se.soccercardclash.model.cardComponent.ICard
 import de.htwg.se.soccercardclash.model.cardComponent.base.types.BoostedCard
+import app.auth.AuthPrincipal
+import app.session.SessionInfo
 
 trait IViewStateMapper {
-  def toWebState(ctx: GameContext): WebGameState
+  def toWebState(
+    ctx: GameContext,
+    principal: Option[AuthPrincipal],
+    infoOpt: Option[SessionInfo]
+  ): WebGameState
 }
 
 @Singleton
 class ViewStateMapper @Inject()() extends IViewStateMapper {
 
-  override def toWebState(ctx: GameContext): WebGameState = {
+  override def toWebState(
+    ctx: GameContext,
+    principal: Option[AuthPrincipal],
+    infoOpt: Option[SessionInfo]
+  ): WebGameState = {
+
     val s         = ctx.state
     val roles     = s.getRoles
     val gameCards = s.getGameCards
@@ -49,23 +60,53 @@ class ViewStateMapper @Inject()() extends IViewStateMapper {
 
     val allowed = ActionLimitsMapper.toAllowed(att, de)
 
-    WebGameState(
-      roles = RolesView(attacker = att.name, defender = de.name),
-      scores = ScoresView(
-        attacker = scores.getScore(att),
-        defender = scores.getScore(de)
-      ),
-      cards = CardsView(
-        attackerHand       = handFor(att),
-        defenderHand       = handFor(de),
-        attackerField      = fieldSlotsFor(att, "att"),
-        defenderField      = fieldSlotsFor(de,  "def"),
-        attackerGoalkeeper = attackerGK,
-        defenderGoalkeeper = defenderGK
-      ),
-      allowed = allowed
-    )
-  }
+    val youView: Option[YouView] =
+          for {
+            p    <- principal
+            info <- infoOpt
+
+            youIsHost <- {
+              if (info.hostUserId == p.userId) Some(true)
+              else if (info.guestUserId.contains(p.userId)) Some(false)
+              else None
+            }
+          } yield {
+            val hostIsAttackerNow = ctx.state.getRoles.attacker.name == info.hostName
+
+            val youIsAttackerNow =
+              (youIsHost && hostIsAttackerNow) ||
+              (!youIsHost && !hostIsAttackerNow)
+
+            val sideEnum =
+              if (youIsAttackerNow) PlayerSide.attacker else PlayerSide.defender
+
+            YouView(
+              userId     = p.userId,
+              username   = p.username,
+              side       = sideEnum,
+              isAttacker = youIsAttackerNow
+            )
+          }
+
+        WebGameState(
+          roles = RolesView(attacker = att.name, defender = de.name),
+          scores = ScoresView(
+            attacker = scores.getScore(att),
+            defender = scores.getScore(de)
+          ),
+          cards = CardsView(
+            attackerHand       = handFor(att),
+            defenderHand       = handFor(de),
+            attackerField      = fieldSlotsFor(att, "att"),
+            defenderField      = fieldSlotsFor(de, "def"),
+            attackerGoalkeeper = attackerGK,
+            defenderGoalkeeper = defenderGK
+          ),
+          allowed = allowed,
+          you = youView
+        )
+    }
+
 
   private def qToSeq(q: IHandCardsQueue): Seq[ICard] =
     q.toList

@@ -1,3 +1,4 @@
+import type { WebGameState } from '@/types/WebGameState';
 import type {
   SessionDto,
   CreateSessionRequestDto,
@@ -11,12 +12,11 @@ export interface SessionApi {
   getSession(sessionId: string): Promise<SessionDto>;
 
   createSession(req: CreateSessionRequestDto): Promise<SessionCreatedResponseDto>;
-  joinSession(
-    sessionId: string,
-    req: JoinSessionRequestDto,
-  ): Promise<SessionJoinedResponseDto>;
+  joinSession(sessionId: string, req: JoinSessionRequestDto): Promise<SessionJoinedResponseDto>;
 
   leaveSession(sessionId: string): Promise<void>;
+
+  startSession(sessionId: string): Promise<WebGameState>;
 }
 
 interface CreateSessionApiOptions {
@@ -50,6 +50,15 @@ export function createSessionApi(opts: CreateSessionApiOptions): SessionApi {
 
     leaveSession: async (sessionId: string) => {
       await postJSON(`/api/sessions/${encodeURIComponent(sessionId)}/leave`, {});
+    },
+
+    startSession: async (sessionId: string) => {
+      const web = await postJSON<WebGameState>(
+        `/api/sessions/${encodeURIComponent(sessionId)}/start`,
+        {},
+      );
+      if (!web) throw new Error('startSession returned null');
+      return web;
     },
   };
 }

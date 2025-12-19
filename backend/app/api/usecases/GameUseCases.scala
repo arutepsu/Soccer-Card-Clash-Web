@@ -17,6 +17,8 @@ import de.htwg.se.soccercardclash.util.AIAction
 import app.session.GameSessionId
 import scala.util.{Try, Success, Failure}
 import app.mapping.IViewStateMapper
+import app.auth.AuthPrincipal
+import app.session.repositories.IGameSessionRepository
 
 @Singleton
 final class GameUseCases @Inject()(
@@ -24,8 +26,10 @@ final class GameUseCases @Inject()(
   repo: IGameContextRepository,
   actionMgr: IPlayerActionManager,
   val holder: IGameContextHolder,
-  viewStateMapper: IViewStateMapper
+  viewStateMapper: IViewStateMapper,
+  sessionRepo: IGameSessionRepository
 ) extends IGameUseCases {
+
 
   private def noGame(sessionId: GameSessionId): Left[AppError, Nothing] = {
     val ks = try repo.keys.map(_.value).mkString(", ") catch
@@ -34,7 +38,9 @@ final class GameUseCases @Inject()(
     Left(AppError(s"No active game for sessionId: '${sessionId.value}'"))
   }
 
-  private def withCtx[A](sessionId: GameSessionId)(f: GameContext => Either[AppError, A]): Either[AppError, A] =
+  private def withCtx[A](sessionId: GameSessionId)(
+    f: GameContext => Either[AppError, A]
+  ): Either[AppError, A] =
     repo.get(sessionId).map(f).getOrElse(noGame(sessionId))
 
   private def getFromHolder: Either[AppError, GameContext] =
@@ -43,42 +49,168 @@ final class GameUseCases @Inject()(
       case Failure(_)   => Left(AppError("Controller did not provide a GameContext"))
     }
 
-  private def render(ctx: GameContext): Either[AppError, WebGameState] =
-    Right(viewStateMapper.toWebState(ctx))
+  private def render(
+    sid: GameSessionId,
+    ctx: GameContext,
+    principal: Option[AuthPrincipal]
+  ): Either[AppError, WebGameState] =
+    Right(viewStateMapper.toWebState(ctx, principal, sessionRepo.get(sid)))
 
-  private def saveAndRender(sessionId: GameSessionId, ctx: GameContext): Either[AppError, WebGameState] = {
-    repo.set(sessionId, ctx)
-    render(ctx)
+  private def saveAndRender(
+    sid: GameSessionId,
+    ctx: GameContext,
+    principal: Option[AuthPrincipal]
+  ): Either[AppError, WebGameState] = {
+    repo.set(sid, ctx)
+    render(sid, ctx, principal)
   }
 
-  override def createGame(p1: String, p2: String, sessionId: GameSessionId): Either[AppError, WebGameState] = {
+
+  override def createGame(
+    p1: String,
+    p2: String,
+    sid: GameSessionId,
+    principal: Option[AuthPrincipal]
+  ): Either[AppError, WebGameState] = {
     controller.createGame(p1, p2)
     for {
       ctx <- getFromHolder
-      res <- saveAndRender(sessionId, ctx)
+      res <- saveAndRender(sid, ctx, principal)
     } yield res
   }
 
-  override def createGameWithAI(humanPlayer: String, aiName: String, sessionId: GameSessionId): Either[AppError, WebGameState] = {
+  override def createGameWithAI(
+    humanPlayer: String,
+    aiName: String,
+    sid: GameSessionId,
+    principal: Option[AuthPrincipal]
+  ): Either[AppError, WebGameState] = {
     controller.createGameWithAI(humanPlayer, aiName)
     for {
       ctx <- getFromHolder
-      res <- saveAndRender(sessionId, ctx)
+      res <- saveAndRender(sid, ctx, principal)
     } yield res
   }
 
-  override def load(fileName: String, sessionId: GameSessionId): Either[AppError, WebGameState] = {
+  override def load(
+    fileName: String,
+    sid: GameSessionId,
+    principal: Option[AuthPrincipal]
+  ): Either[AppError, WebGameState] = {
     if (!controller.loadGame(fileName)) Left(AppError(s"Failed to load: $fileName"))
     else for {
       ctx <- getFromHolder
-      res <- saveAndRender(sessionId, ctx)
+      res <- saveAndRender(sid, ctx, principal)
     } yield res
   }
 
-  override def save(sessionId: GameSessionId): Either[AppError, WebGameState] =
-    withCtx(sessionId) { ctx =>
-      if (controller.saveGame(ctx)) render(ctx)
+  override def save(
+    sid: GameSessionId,
+    principal: Option[AuthPrincipal]
+  ): Either[AppError, WebGameState] =
+    withCtx(sid) { ctx =>
+      if (controller.saveGame(ctx)) render(sid, ctx, principal)
       else Left(AppError("Save failed"))
+    }
+
+
+  override def state(
+    sid: GameSessionId,
+    principal: Option[AuthPrincipal]
+  ): Either[AppError, WebGameState] =
+    repo.get(sid).map(ctx => render(sid, ctx, principal)).getOrElse(noGame(sid))
+
+
+  private def requireAttackerTurn(ctx: GameContext, principal: AuthPrincipal): Either[AppError, Unit] = {
+    val attackerName = ctx.state.getRoles.attacker.name
+    if (principal.username != attackerName) Left(AppError("Not your turn (only attacker may act)"))
+    else Right(())
+  }
+
+  private def requireDefenderTurn(ctx: GameContext, principal: AuthPrincipal): Either[AppError, Unit] = {
+    val defenderName = ctx.state.getRoles.defender.name
+    if (principal.username != defenderName) Left(AppError("Not your turn (only defender may act)"))
+    else Right(())
+  }
+
+  override def swap(index: Int, sid: GameSessionId, principal: AuthPrincipal): Either[AppError, WebGameState] =
+    withCtx(sid) { ctx =>
+      for {
+        _ <- requireAttackerTurn(ctx, principal)
+        att = ctx.state.getRoles.attacker
+        _ <- if (!actionMgr.canPerform(att, PlayerActionPolicies.Swap)) Left(AppError("No swaps remaining")) else Right(())
+        (next, ok) = controller.regularSwap(index, ctx)
+        res <- if (!ok) Left(AppError("Swap not allowed")) else saveAndRender(sid, next, Some(principal))
+      } yield res
+    }
+
+  override def reverseSwap(sid: GameSessionId, principal: AuthPrincipal): Either[AppError, WebGameState] =
+    withCtx(sid) { ctx =>
+      for {
+        _ <- requireAttackerTurn(ctx, principal)
+        (next, ok) = controller.reverseSwap(ctx)
+        res <- if (!ok) Left(AppError("Reverse swap not allowed")) else saveAndRender(sid, next, Some(principal))
+      } yield res
+    }
+
+  override def boost(defenderIndex: Int, sid: GameSessionId, goalkeeper: Boolean, principal: AuthPrincipal): Either[AppError, WebGameState] =
+    withCtx(sid) { ctx =>
+      for {
+        _ <- requireDefenderTurn(ctx, principal)
+        defn = ctx.state.getRoles.defender
+        _ <- if (!actionMgr.canPerform(defn, PlayerActionPolicies.Boost)) Left(AppError("No boosts remaining")) else Right(())
+        (next, ok) =
+          if (goalkeeper) controller.boostGoalkeeper(ctx)
+          else            controller.boostDefender(defenderIndex, ctx)
+        res <- if (!ok) Left(AppError("Boost not allowed")) else saveAndRender(sid, next, Some(principal))
+      } yield res
+    }
+
+  override def doubleAttack(defenderIndex: Int, sid: GameSessionId, principal: AuthPrincipal): Either[AppError, WebGameState] =
+    withCtx(sid) { ctx =>
+      for {
+        _ <- requireAttackerTurn(ctx, principal)
+        att = ctx.state.getRoles.attacker
+        _ <- if (!actionMgr.canPerform(att, PlayerActionPolicies.DoubleAttack)) Left(AppError("No double-attacks remaining")) else Right(())
+        (next, ok) = controller.doubleAttack(defenderIndex, ctx)
+        res <- if (!ok) Left(AppError("Double attack not allowed")) else saveAndRender(sid, next, Some(principal))
+      } yield res
+    }
+
+  override def singleAttack(defenderIndex: Int, sid: GameSessionId, principal: AuthPrincipal): Either[AppError, WebGameState] =
+    withCtx(sid) { ctx =>
+      for {
+        _ <- requireAttackerTurn(ctx, principal)
+        (next, ok) = controller.singleAttack(defenderIndex, ctx)
+        res <- if (!ok) Left(AppError("Attack not allowed")) else saveAndRender(sid, next, Some(principal))
+      } yield res
+    }
+
+  override def undo(sid: GameSessionId, principal: AuthPrincipal): Either[AppError, WebGameState] =
+    withCtx(sid) { ctx =>
+      for {
+        _ <- requireAttackerTurn(ctx, principal)
+        next = controller.undo(ctx)
+        res <- saveAndRender(sid, next, Some(principal))
+      } yield res
+    }
+
+  override def redo(sid: GameSessionId, principal: AuthPrincipal): Either[AppError, WebGameState] =
+    withCtx(sid) { ctx =>
+      for {
+        _ <- requireAttackerTurn(ctx, principal)
+        next = controller.redo(ctx)
+        res <- saveAndRender(sid, next, Some(principal))
+      } yield res
+    }
+
+  override def executeAI(action: AIAction, sid: GameSessionId, principal: AuthPrincipal): Either[AppError, WebGameState] =
+    withCtx(sid) { ctx =>
+      for {
+        _ <- requireAttackerTurn(ctx, principal)
+        (next, ok) = controller.executeAIAction(action, ctx)
+        res <- if (!ok) Left(AppError("AI action not allowed")) else saveAndRender(sid, next, Some(principal))
+      } yield res
     }
 
   override def quit(): Either[AppError, Unit] = {
@@ -86,66 +218,7 @@ final class GameUseCases @Inject()(
     Right(())
   }
 
-  override def state(sessionId: GameSessionId): Either[AppError, WebGameState] =
-    repo.get(sessionId).map(render).getOrElse(noGame(sessionId))
+  override def getCtx(sid: GameSessionId): Option[GameContext] =
+    repo.get(sid)
 
-  override def swap(index: Int, sessionId: GameSessionId): Either[AppError, WebGameState] =
-    withCtx(sessionId) { ctx =>
-      val att = ctx.state.getRoles.attacker
-      if (!actionMgr.canPerform(att, PlayerActionPolicies.Swap))
-        Left(AppError("No swaps remaining"))
-      else {
-        val (next, ok) = controller.regularSwap(index, ctx)
-        if (!ok) Left(AppError("Swap not allowed")) else saveAndRender(sessionId, next)
-      }
-    }
-
-  override def reverseSwap(sessionId: GameSessionId): Either[AppError, WebGameState] =
-    withCtx(sessionId) { ctx =>
-      val (next, ok) = controller.reverseSwap(ctx)
-      if (!ok) Left(AppError("Reverse swap not allowed")) else saveAndRender(sessionId, next)
-    }
-
-  override def boost(defenderIndex: Int, sessionId: GameSessionId, goalkeeper: Boolean): Either[AppError, WebGameState] =
-    withCtx(sessionId) { ctx =>
-      val defn = ctx.state.getRoles.defender
-      if (!actionMgr.canPerform(defn, PlayerActionPolicies.Boost))
-        Left(AppError("No boosts remaining"))
-      else {
-        val (next, ok) =
-          if (goalkeeper) controller.boostGoalkeeper(ctx)
-          else            controller.boostDefender(defenderIndex, ctx)
-
-        if (!ok) Left(AppError("Boost not allowed")) else saveAndRender(sessionId, next)
-      }
-    }
-
-  override def doubleAttack(defenderIndex: Int, sessionId: GameSessionId): Either[AppError, WebGameState] =
-    withCtx(sessionId) { ctx =>
-      val att = ctx.state.getRoles.attacker
-      if (!actionMgr.canPerform(att, PlayerActionPolicies.DoubleAttack))
-        Left(AppError("No double-attacks remaining"))
-      else {
-        val (next, ok) = controller.doubleAttack(defenderIndex, ctx)
-        if (!ok) Left(AppError("Double attack not allowed")) else saveAndRender(sessionId, next)
-      }
-    }
-
-  override def singleAttack(defenderIndex: Int, sessionId: GameSessionId): Either[AppError, WebGameState] =
-    withCtx(sessionId) { ctx =>
-      val (next, ok) = controller.singleAttack(defenderIndex, ctx)
-      if (!ok) Left(AppError("Attack not allowed")) else saveAndRender(sessionId, next)
-    }
-
-  override def undo(sessionId: GameSessionId): Either[AppError, WebGameState] =
-    withCtx(sessionId) { ctx => saveAndRender(sessionId, controller.undo(ctx)) }
-
-  override def redo(sessionId: GameSessionId): Either[AppError, WebGameState] =
-    withCtx(sessionId) { ctx => saveAndRender(sessionId, controller.redo(ctx)) }
-
-  override def executeAI(action: AIAction, sessionId: GameSessionId): Either[AppError, WebGameState] =
-    withCtx(sessionId) { ctx =>
-      val (next, ok) = controller.executeAIAction(action, ctx)
-      if (!ok) Left(AppError("AI action not allowed")) else saveAndRender(sessionId, next)
-    }
 }

@@ -53,12 +53,54 @@ final class GameSessionService @Inject()(
       hostUserId  = principal.userId,
       guestName   = None,
       guestToken  = None,
-      guestUserId = None
+      guestUserId = None,
+      state       = SessionState.Waiting
     )
 
     sessionRepo.set(id, info)
     Right(SessionCreated(id, host))
   }
+
+  override def startSession(
+    principal: AuthPrincipal,
+    id: GameSessionId
+  ): Either[GameSessionError, GameContext] =
+    getSessionOpt(id) match {
+
+      case None =>
+        Left(NotFound(id))
+
+      case Some(info) =>
+        if (!isAuthorized(info, principal))
+          Left(Unauthorized(id, principal.userId))
+        else if (info.hostUserId != principal.userId)
+          Left(CommandFailed("Only host can start the game"))
+        else if (info.guestName.isEmpty)
+          Left(CommandFailed("Cannot start: waiting for guest to join"))
+        else if (info.state != SessionState.Ready)
+          Left(CommandFailed("Session is not ready to start"))
+        else {
+
+        gameUseCases
+          .createGame(info.hostName, info.guestName.get, id, Some(principal))
+          .match {
+            case Left(err) =>
+              Left(CommandFailed(err.message))
+
+            case Right(_) =>
+              ctxRepo.get(id) match {
+                case None =>
+                  Left(CommandFailed("Game context missing after startSession"))
+
+                case Some(ctx) =>
+                  val startedInfo = info.copy(state = SessionState.Started)
+                  updateSession(id, startedInfo)
+                  Right(ctx)
+              }
+          }
+        }
+    }
+
 
   override def getSession(id: GameSessionId): Either[GameSessionError, SessionInfo] =
     getSessionOpt(id).toRight(GameSessionError.NotFound(id))
@@ -99,32 +141,27 @@ final class GameSessionService @Inject()(
       case Some(info) if info.guestToken.isDefined =>
         Left(SessionFull(id))
 
+      case Some(info) if info.state != SessionState.Waiting =>
+        Left(CommandFailed("Cannot join: session already started"))
+
       case Some(info) =>
         val gn = guestName.trim
         if (gn.isEmpty) return Left(CommandFailed("guestName must be non-empty"))
 
         val guestToken = newToken()
 
-        gameUseCases.createGame(info.hostName, gn, id) match {
-          case Left(err) =>
-            Left(CommandFailed(err.message))
+        val updated = info.copy(
+          guestName   = Some(gn),
+          guestToken  = Some(guestToken),
+          guestUserId = Some(principal.userId),
+          state       = SessionState.Ready
+        )
 
-          case Right(_) =>
-            ctxRepo.get(id) match {
-              case None =>
-                Left(CommandFailed("Game context missing after createGame"))
+        updateSession(id, updated)
+        Right(SessionJoined(id, guestToken))
 
-              case Some(ctx) =>
-                val updated = info.copy(
-                  guestName   = Some(gn),
-                  guestToken  = Some(guestToken),
-                  guestUserId = Some(principal.userId)
-                )
-                updateSession(id, updated)
-                Right(SessionJoined(id, guestToken, ctx))
-            }
-        }
     }
+
 
   override def submitCommand(
     id: GameSessionId,
@@ -139,7 +176,7 @@ final class GameSessionService @Inject()(
         if (!isAuthorized(info, principal))
           Left(Unauthorized(id, principal.userId))
         else
-          executeCommandThroughUseCases(id, cmd)
+          executeCommandThroughUseCases(id, principal, cmd)
     }
 
   private def isAuthorized(info: SessionInfo, p: AuthPrincipal): Boolean =
@@ -147,39 +184,51 @@ final class GameSessionService @Inject()(
 
   private def executeCommandThroughUseCases(
     id: GameSessionId,
+    principal: AuthPrincipal,
     cmd: GameCommand
   ): Either[GameSessionError, GameContext] = {
 
     val result: Either[AppError, _] = cmd match {
       case GameCommand.SingleAttack(index) =>
-        gameUseCases.singleAttack(index, id)
+        gameUseCases.singleAttack(index, id, principal)
+
       case GameCommand.DoubleAttack(index) =>
-        gameUseCases.doubleAttack(index, id)
+        gameUseCases.doubleAttack(index, id, principal)
+
       case GameCommand.Boost(index, goalkeeper) =>
-        gameUseCases.boost(index, id, goalkeeper)
+        gameUseCases.boost(index, id, goalkeeper, principal)
+
       case GameCommand.RegularSwap(index) =>
-        gameUseCases.swap(index, id)
+        gameUseCases.swap(index, id, principal)
+
       case GameCommand.ReverseSwap =>
-        gameUseCases.reverseSwap(id)
+        gameUseCases.reverseSwap(id, principal)
+
       case GameCommand.Undo =>
-        gameUseCases.undo(id)
+        gameUseCases.undo(id, principal)
+
       case GameCommand.Redo =>
-        gameUseCases.redo(id)
+        gameUseCases.redo(id, principal)
+
       case GameCommand.ExecuteAI(action) =>
-        gameUseCases.executeAI(action, id)
+        gameUseCases.executeAI(action, id, principal)
+
       case GameCommand.CreateGame(p1, p2) =>
-        gameUseCases.createGame(p1, p2, id)
+        gameUseCases.createGame(p1, p2, id, Some(principal))
+
       case GameCommand.CreateGameWithAI(human, aiName) =>
-        gameUseCases.createGameWithAI(human, aiName, id)
+        gameUseCases.createGameWithAI(human, aiName, id, Some(principal))
+
       case GameCommand.LoadGame(fileName) =>
-        gameUseCases.load(fileName, id)
+        gameUseCases.load(fileName, id, Some(principal))
+
       case GameCommand.SaveGame =>
-        gameUseCases.save(id)
-      case GameCommand.QuitGame =>
-        gameUseCases.quit()
+        gameUseCases.save(id, Some(principal))
+
       case GameCommand.GetState =>
-        gameUseCases.state(id)
+        gameUseCases.state(id, Some(principal))
     }
+
 
     result match {
       case Left(AppError(message)) =>

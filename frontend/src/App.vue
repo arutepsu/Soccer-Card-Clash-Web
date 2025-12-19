@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import AppOverlay from './components/overlay/AppOverlay.vue';
+import { useGameRouting } from '@/composables/useGameRouting';
+
+useGameRouting();
 </script>
 
 <template>

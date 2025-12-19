@@ -1,4 +1,7 @@
-export type SessionStatusDto = 'Waiting' | 'Full';
+export type SessionStatusDto =
+  | 'Waiting'
+  | 'Ready'
+  | 'Started';
 
 export interface SessionDto {
   id: string;

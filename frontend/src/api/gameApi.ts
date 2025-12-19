@@ -11,6 +11,8 @@ export interface GameApi {
 
   fetchGameState(): Promise<WebGameState>;
 
+  getState(): Promise<WebGameState | null>;
+
   createLocalMultiplayer(
     attackerName: string,
     defenderName: string,
@@ -143,6 +145,11 @@ export function createGameApi(options: CreateGameApiOptions = {}): GameApi {
     return getJSON<WebGameState>('/api/state');
   }
 
+  function getState(): Promise<WebGameState | null> {
+    return commandWithWsFallback('GetState', {});
+  }
+
+
   function createLocalMultiplayer(
     attackerName: string,
     defenderName: string,
@@ -242,6 +249,7 @@ export function createGameApi(options: CreateGameApiOptions = {}): GameApi {
     getJSON,
     openStream,
     fetchGameState,
+    getState,
     restart,
     createLocalMultiplayer,
     singleAttackDefender,

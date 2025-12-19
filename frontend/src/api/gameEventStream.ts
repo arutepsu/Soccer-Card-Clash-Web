@@ -27,6 +27,7 @@ function getEventId(msg: any): number | null {
   return null;
 }
 
+// frontend/src/api/gameEventStream.ts (or wherever createGameEventStream is)
 export function createGameEventStream(): StreamClient {
   function startSseStream(
     onState: (state: WebGameState) => void,
@@ -37,10 +38,13 @@ export function createGameEventStream(): StreamClient {
       return null;
     }
 
-    const url = '/sseEvents';
+    // ✅ FIX: match backend route
+    const url = '/api/stream/sse';
     console.log('[STREAM][SSE] connecting to', url);
 
+    // ✅ Keep this (needed for sid cookie)
     const es = new EventSource(url, { withCredentials: true });
+
     let closed = false;
     let gotAnyMessage = false;
 
@@ -49,7 +53,7 @@ export function createGameEventStream(): StreamClient {
       try {
         const msg = JSON.parse(e.data);
         const state = unwrapToState(msg);
-        if (state && onState) onState(state);
+        if (state) onState(state);
       } catch (err) {
         console.warn('[STREAM][SSE] invalid JSON:', err, e.data);
       }
@@ -60,10 +64,7 @@ export function createGameEventStream(): StreamClient {
       if (es.readyState === EventSource.CLOSED && !closed) {
         closed = true;
         es.close();
-        // Only treat as fatal if we never got a message (e.g. 404/500 at startup)
-        if (!gotAnyMessage) {
-          onFatalError();
-        }
+        if (!gotAnyMessage) onFatalError();
       }
     };
 
@@ -76,9 +77,7 @@ export function createGameEventStream(): StreamClient {
     };
   }
 
-  function startCometStream(
-    onState: (state: WebGameState) => void,
-  ): StreamHandle {
+  function startCometStream(onState: (state: WebGameState) => void): StreamHandle {
     let aborted = false;
     let lastEventId = 0;
     let consecutiveErrors = 0;
@@ -88,49 +87,37 @@ export function createGameEventStream(): StreamClient {
     async function pollOnce() {
       if (aborted) return;
 
-      const url = `/cometEvents?lastEventId=${encodeURIComponent(lastEventId)}`;
+      const url = `/api/stream/comet?lastEventId=${encodeURIComponent(lastEventId)}`;
+
       try {
         const res = await fetch(url, {
           method: 'GET',
-          credentials: 'same-origin',
+          credentials: 'include',
           headers: { Accept: 'application/json' },
         });
 
         if (!res.ok) {
           console.warn('[STREAM][COMET] response not OK:', res.status);
           consecutiveErrors += 1;
-
-          // If endpoint doesn't exist (404), or keeps failing, stop polling
-          if (res.status === 404 || consecutiveErrors >= 5) {
-            console.warn(
-              '[STREAM][COMET] disabling Comet – endpoint missing or repeatedly failing',
-            );
-            aborted = true;
-          }
+          if (res.status === 404 || consecutiveErrors >= 5) aborted = true;
           return;
         }
 
-        // success -> reset error counter
         consecutiveErrors = 0;
 
         const text = await res.text();
         if (!text) return;
 
-        const lines = text
-          .split('\n')
-          .map((l) => l.trim())
-          .filter(Boolean);
+        const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
 
         for (const line of lines) {
           try {
             const msg = JSON.parse(line);
             const state = unwrapToState(msg);
-            if (state && onState) onState(state);
+            if (state) onState(state);
 
             const eid = getEventId(msg);
-            if (typeof eid === 'number' && eid > lastEventId) {
-              lastEventId = eid;
-            }
+            if (typeof eid === 'number' && eid > lastEventId) lastEventId = eid;
           } catch (err) {
             console.warn('[STREAM][COMET] invalid JSON line:', err, line);
           }
@@ -138,52 +125,33 @@ export function createGameEventStream(): StreamClient {
       } catch (err) {
         console.warn('[STREAM][COMET] poll failed:', err);
         consecutiveErrors += 1;
-        if (consecutiveErrors >= 5) {
-          console.warn(
-            '[STREAM][COMET] disabling Comet – too many polling failures',
-          );
-          aborted = true;
-        }
+        if (consecutiveErrors >= 5) aborted = true;
       }
     }
 
-    async function loop() {
+    (async function loop() {
       while (!aborted) {
         await pollOnce();
-        if (!aborted) {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
+        if (!aborted) await new Promise((r) => setTimeout(r, 1000));
       }
-    }
+    })();
 
-    void loop();
-
-    return {
-      type: 'comet',
-      close() {
-        aborted = true;
-      },
-    };
+    return { type: 'comet', close() { aborted = true; } };
   }
 
   function open(onState: (state: WebGameState) => void): StreamHandle {
-    let current: StreamHandle | null = null;
-
     const startComet = () => {
-      current = startCometStream(onState);
-      console.log('[STREAM] using Comet /cometEvents');
+      const h = startCometStream(onState);
+      console.log('[STREAM] using Comet /api/stream/comet');
+      return h;
     };
 
-    // 1) Try SSE first
-    current = startSseStream(onState, startComet);
-    if (current) {
-      console.log('[STREAM] using SSE /sseEvents');
-      return current;
+    const sse = startSseStream(onState, () => { /* fallback */ });
+    if (sse) {
+      console.log('[STREAM] using SSE /api/stream/sse');
+      return sse;
     }
-
-    // 2) If SSE is not available at all, fall back immediately to Comet
-    startComet();
-    return current!;
+    return startComet();
   }
 
   return { open };

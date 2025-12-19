@@ -24,6 +24,10 @@ export function useGameCommands() {
     }
   }
 
+  function getState() {
+    return runCommand(() => api.getState(), 'GetState returned null WebGameState');
+  }
+
   function startLocalMultiplayer(attackerName: string, defenderName: string) {
     return runCommand(
       () => api.createLocalMultiplayer(attackerName, defenderName),
@@ -78,6 +82,7 @@ export function useGameCommands() {
 
   return {
     busy,
+    getState,
     startLocalMultiplayer,
     singleAttackDefender,
     singleAttackGoalkeeper,

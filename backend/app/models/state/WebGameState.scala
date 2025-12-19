@@ -7,7 +7,8 @@ final case class WebGameState(
   roles: RolesView,
   scores: ScoresView,
   cards: CardsView,
-  allowed: AllowedActionsView
+  allowed: AllowedActionsView,
+  you: Option[YouView]
 )
 
 object WebGameState {

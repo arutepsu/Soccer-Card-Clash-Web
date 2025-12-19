@@ -1,26 +1,32 @@
 package app.api.command
 
-import javax.inject._
 import scala.util.control.NonFatal
-import app.api.eventHub.GameEventHub
+import javax.inject._
+
 import app.auth.AuthPrincipal
-import app.models.state.WebGameState
+import app.api.eventHub.GameEventHub
+import app.api.command.IGameCommandFacade
 import app.models.AppError
-import app.session.{GameSessionError, GameSessionId}
-import app.api.context.IGameContextRepository
-import app.session.IGameSessionService
+import app.models.state.WebGameState
+import app.session.{GameSessionId, GameSessionError, IGameSessionService}
 import app.mapping.IViewStateMapper
-import app.api.usecases.IGameUseCases
 import de.htwg.se.soccercardclash.model.gameComponent.context.GameContext
+import app.api.command.GameCommand
+import app.api.usecases.IGameUseCases
 
 @Singleton
 final class GameCommandFacade @Inject()(
   sessionService: IGameSessionService,
   gameUseCases: IGameUseCases,
-  ctxRepo: IGameContextRepository,
   viewStateMapper: IViewStateMapper,
   eventHub: GameEventHub
 ) extends IGameCommandFacade {
+
+  private val LocalPrincipal: AuthPrincipal =
+    AuthPrincipal(userId = "local", username = "local")
+
+  private def effectivePrincipal(p: Option[AuthPrincipal]): Option[AuthPrincipal] =
+    p.orElse(Some(LocalPrincipal))
 
   override def execute(
     sid: GameSessionId,
@@ -29,92 +35,65 @@ final class GameCommandFacade @Inject()(
     requestId: Option[String]
   ): Either[AppError, WebGameState] = {
 
+    val eff = effectivePrincipal(principal)
+
     val ctxE: Either[AppError, GameContext] =
-      principal match {
+      eff match {
+        case Some(p) if principal.isDefined =>
+          sessionService
+            .submitCommand(sid, p, cmd)
+            .left.map(err => AppError(errorMessage(err)))
+
         case Some(p) =>
-          // ONLINE multiplayer (auth required): must have session + user must be member
-          sessionService.submitCommand(sid, p, cmd) match {
-            case Left(err)  => Left(AppError(errorMessage(err)))
-            case Right(ctx) => Right(ctx)
-          }
+          executeLocallyCtx(sid, cmd, p)
 
         case None =>
-          // LOCAL / OFFLINE: no sessionRepo needed
-          executeLocally(sid, cmd)
+          Left(AppError("Principal resolution failed"))
       }
 
     ctxE.map { ctx =>
-      val web: WebGameState = viewStateMapper.toWebState(ctx)
-      eventHub.publish(sid, web)
+      val infoOpt = sessionService.getSession(sid).toOption
+      val web = viewStateMapper.toWebState(ctx, principal, infoOpt)
+      eventHub.publish(sid, ctx)
       web
     }
   }
 
-  private def executeLocally(
+  private def executeLocallyCtx(
     sid: GameSessionId,
-    cmd: GameCommand
+    cmd: GameCommand,
+    p: AuthPrincipal
   ): Either[AppError, GameContext] = {
 
-    val res: Either[AppError, _] =
-      try {
-        cmd match {
-          case GameCommand.SingleAttack(index) =>
-            gameUseCases.singleAttack(index, sid)
-          case GameCommand.DoubleAttack(index) =>
-            gameUseCases.doubleAttack(index, sid)
-          case GameCommand.Boost(index, goalkeeper) =>
-            gameUseCases.boost(index, sid, goalkeeper)
-          case GameCommand.RegularSwap(index) =>
-            gameUseCases.swap(index, sid)
-          case GameCommand.ReverseSwap =>
-            gameUseCases.reverseSwap(sid)
-          case GameCommand.Undo =>
-            gameUseCases.undo(sid)
-          case GameCommand.Redo =>
-            gameUseCases.redo(sid)
-          case GameCommand.ExecuteAI(action) =>
-            gameUseCases.executeAI(action, sid)
-          case GameCommand.CreateGame(p1, p2) =>
-            gameUseCases.createGame(p1, p2, sid)
-          case GameCommand.CreateGameWithAI(human, aiName) =>
-            gameUseCases.createGameWithAI(human, aiName, sid)
-          case GameCommand.LoadGame(fileName) =>
-            gameUseCases.load(fileName, sid)
-          case GameCommand.SaveGame =>
-            gameUseCases.save(sid)
-          case GameCommand.QuitGame =>
-            gameUseCases.quit()
-          case GameCommand.GetState =>
-            gameUseCases.state(sid)
-        }
-      } catch {
-        case NonFatal(e) =>
-          Left(AppError(s"Local command execution failed: ${e.getMessage}"))
-      }
+    val res: Either[AppError, WebGameState] = cmd match {
+      case GameCommand.SingleAttack(i)     => gameUseCases.singleAttack(i, sid, p)
+      case GameCommand.DoubleAttack(i)     => gameUseCases.doubleAttack(i, sid, p)
+      case GameCommand.Boost(i, gk)        => gameUseCases.boost(i, sid, gk, p)
+      case GameCommand.RegularSwap(i)      => gameUseCases.swap(i, sid, p)
+      case GameCommand.ReverseSwap         => gameUseCases.reverseSwap(sid, p)
+      case GameCommand.Undo                => gameUseCases.undo(sid, p)
+      case GameCommand.Redo                => gameUseCases.redo(sid, p)
+      case GameCommand.ExecuteAI(a)        => gameUseCases.executeAI(a, sid, p)
 
-    res.flatMap { _ =>
-      ctxRepo.get(sid) match {
-        case Some(ctx) => Right(ctx)
-        case None      => Left(AppError("Game context missing after local command execution"))
-      }
+      case GameCommand.CreateGame(p1, p2)  => gameUseCases.createGame(p1, p2, sid, Some(p))
+      case GameCommand.CreateGameWithAI(h, ai) => gameUseCases.createGameWithAI(h, ai, sid, Some(p))
+      case GameCommand.LoadGame(f)         => gameUseCases.load(f, sid, Some(p))
+      case GameCommand.SaveGame            => gameUseCases.save(sid, Some(p))
+      case GameCommand.GetState            => gameUseCases.state(sid, Some(p))
     }
+
+    res.flatMap(_ =>
+      gameUseCases
+        .getCtx(sid)
+        .toRight(AppError("Game context missing after local command"))
+    )
   }
 
-  private def errorMessage(err: GameSessionError): String =
-    err match {
-      case GameSessionError.NotFound(id) =>
-        s"Session not found: ${id.value}"
-
-      case GameSessionError.Unauthorized(id, userId) =>
-        s"Unauthorized: user $userId cannot act in session ${id.value}"
-
-      case GameSessionError.SessionFull(id) =>
-        s"Session is full: ${id.value}"
-
-      case GameSessionError.AlreadyJoined(id) =>
-        s"Session already joined: ${id.value}"
-
-      case GameSessionError.CommandFailed(msg) =>
-        msg
-    }
+  private def errorMessage(err: GameSessionError): String = err match {
+    case GameSessionError.NotFound(id)           => s"Session not found: ${id.value}"
+    case GameSessionError.Unauthorized(id, uid)  => s"Unauthorized: user $uid cannot act in session ${id.value}"
+    case GameSessionError.SessionFull(id)        => s"Session is full: ${id.value}"
+    case GameSessionError.AlreadyJoined(id)      => s"Session already joined: ${id.value}"
+    case GameSessionError.CommandFailed(msg)     => msg
+  }
 }
