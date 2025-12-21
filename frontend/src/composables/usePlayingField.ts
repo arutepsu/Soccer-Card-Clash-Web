@@ -29,7 +29,7 @@ export function usePlayingField() {
   });
 
   async function init(): Promise<void> {
-    await gameContext.init();
+    await cardRegistry.preloadAll().catch(() => {});
   }
 
   async function attackDefender(index: number): Promise<void> {

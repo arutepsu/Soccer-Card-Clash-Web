@@ -34,7 +34,6 @@ export function useAttackerHand() {
 
   async function init() {
     await cardRegistry.preloadAll().catch(() => {});
-    await gameContext.init();
   }
 
   async function doSwap() {

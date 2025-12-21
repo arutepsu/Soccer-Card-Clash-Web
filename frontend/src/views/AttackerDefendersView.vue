@@ -22,12 +22,13 @@ const {
   canBoost,
   init,
   doBoost,
+  busy,
 } = useAttackerDefenders();
 
 const webState = computed<WebGameState | null>(() => {
   return gameContext.state.value as WebGameState | null;
 });
-const busy = computed(() => gameContext.loading.value);
+
 
 const avatarRegistry = createPlayerAvatarRegistry({
   avatarsPath: '/assets/images/players/',

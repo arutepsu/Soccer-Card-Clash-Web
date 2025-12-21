@@ -1,33 +1,47 @@
 // frontend/src/composables/useGameRouting.ts
 import { watch } from 'vue';
-import { useRouter } from 'vue-router';
-import { useGameContext } from './useGameContext';
-import { useOverlayStore } from '@/stores/overlayStore';
+import { useRoute } from 'vue-router';
+import { useAppServices } from '@/app/appServices';
+
+const GAMEPLAY_ROUTES = new Set(['PlayingField', 'AttackerHand', 'AttackerDefenders']);
+const ONLINE_ONLY_ROUTES = new Set(['SessionView']); // only this forces online
+
+function keyOf(name: unknown): string {
+  return typeof name === 'string' ? name : '';
+}
 
 export function useGameRouting() {
-  const router = useRouter();
-  const gameContext = useGameContext();
-  const overlay = useOverlayStore();
+  const route = useRoute();
+  const services = useAppServices();
 
   watch(
-    () => gameContext.state.value,
-    async (state) => {
-      if (!state) return;
-      if (!state.you) return;
+    () => route.name,
+    async (name) => {
+      const key = keyOf(name);
 
-      const currentName = router.currentRoute.value.name;
-      if (currentName === 'Login') return;
-
-      if (currentName === 'PlayingField') {
-        overlay.hide();
+      // leaving gameplay / session → stop streaming
+      if (key === 'Login' || key === 'MainMenu') {
+        services.gameContext.stop();
+        services.gameContext.clear();
         return;
       }
 
-      try {
-        await router.push({ name: 'PlayingField' });
-      } finally {
-        overlay.hide();
+      // SessionView ALWAYS online
+      if (ONLINE_ONLY_ROUTES.has(key)) {
+        await services.gameContext.start('online');
+        return;
       }
+
+      // Gameplay routes use CURRENT mode (sticky)
+      if (GAMEPLAY_ROUTES.has(key)) {
+        const current = services.gameContext.mode.value;
+        // default to local if unknown
+        await services.gameContext.start(current ?? 'local');
+        return;
+      }
+
+      // Everything else defaults to local menus / flows
+      await services.gameContext.start('local');
     },
     { immediate: true },
   );

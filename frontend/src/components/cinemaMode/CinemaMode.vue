@@ -18,7 +18,7 @@ defineProps<{
 </script>
 
 <style scoped>
-/* .cinema {
+.cinema {
   position: fixed;
   inset: 0;
   z-index: 9999;
@@ -27,7 +27,7 @@ defineProps<{
 
 
   background: rgba(0, 0, 0, 0.55);
-} */
+}
 
 .cinema__card {
   padding: 18px 22px;

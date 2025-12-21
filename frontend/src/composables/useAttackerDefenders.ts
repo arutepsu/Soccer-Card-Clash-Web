@@ -120,7 +120,6 @@ export function useAttackerDefenders() {
 
   async function init(): Promise<void> {
     await cardRegistry.preloadAll().catch(() => {});
-    await gameContext.init();
   }
 
   async function doBoost(): Promise<void> {
