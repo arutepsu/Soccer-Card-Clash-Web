@@ -4,7 +4,7 @@ import javax.inject.*
 import play.api.Configuration
 import play.api.mvc.*
 import play.api.libs.json.*
-import controllers.support.ControllerSupport
+import app.controllers.support.ControllerSupport
 import app.session.*
 import app.session.GameSessionError as GSE
 import app.auth.AuthPrincipal

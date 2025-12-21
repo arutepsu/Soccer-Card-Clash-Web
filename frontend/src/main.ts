@@ -13,14 +13,24 @@ import {
 } from './app/appServices';
 import vuetify from './plugins/vuetify';
 
-const app = createApp(App);
+async function bootstrap() {
+  try {
+    await fetch('/api/bootstrap', { method: 'GET', credentials: 'include' });
+  } catch (e) {
+    console.warn('bootstrap failed', e);
+  }
+}
 
-app.use(vuetify);
+bootstrap().then(() => {
+  const app = createApp(App);
 
-const services = createAppServices();
+  app.use(vuetify);
 
-app.provide(AppServicesKey, services);
+  const services = createAppServices();
 
-app.use(router);
+  app.provide(AppServicesKey, services);
 
-app.mount('#app');
+  app.use(router);
+
+  app.mount('#app');
+});

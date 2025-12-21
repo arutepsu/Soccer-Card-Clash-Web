@@ -1,21 +1,27 @@
 // frontend/src/composables/useGameCommands.ts
-import { ref } from 'vue';
-import { useAppServices } from '../app/appServices';
+import { computed, ref } from 'vue';
+import { useRoute } from 'vue-router';
+import { useAppServices } from '@/app/appServices';
 import { useGameContext } from './useGameContext';
+import type { GameApi } from '../api/gameApi';
 import type { WebGameState } from '../types/WebGameState';
 
-export function useGameCommands() {
-  const { api } = useAppServices();
+export function useGameCommands(overrideApi?: GameApi) {
   const gameContext = useGameContext();
   const busy = ref(false);
 
+  const services = useAppServices();
+  const route = useRoute();
+
+  const api = computed<GameApi>(() => overrideApi ?? services.game.forRouteName(route.name));
+
   async function runCommand(
-    fn: () => Promise<WebGameState | null>,
+    fn: (api: GameApi) => Promise<WebGameState | null>,
     errMsg: string,
   ): Promise<WebGameState> {
     busy.value = true;
     try {
-      const next = await fn();
+      const next = await fn(api.value);
       if (!next) throw new Error(errMsg);
       gameContext.setState(next);
       return next;
@@ -25,59 +31,56 @@ export function useGameCommands() {
   }
 
   function getState() {
-    return runCommand(() => api.getState(), 'GetState returned null WebGameState');
+    return runCommand((a) => a.getState(), 'GetState returned null WebGameState');
   }
 
   function startLocalMultiplayer(attackerName: string, defenderName: string) {
     return runCommand(
-      () => api.createLocalMultiplayer(attackerName, defenderName),
+      (a) => a.createLocalMultiplayer(attackerName, defenderName),
       'CreateGame returned null WebGameState',
     );
   }
 
   function singleAttackDefender(index: number) {
     return runCommand(
-      () => api.singleAttackDefender(index),
+      (a) => a.singleAttackDefender(index),
       'RegularAttack(defender) returned null WebGameState',
     );
   }
 
   function singleAttackGoalkeeper() {
     return runCommand(
-      () => api.singleAttackGoalkeeper(),
+      (a) => a.singleAttackGoalkeeper(),
       'RegularAttack(goalkeeper) returned null WebGameState',
     );
   }
 
   function doubleAttack(index: number) {
-    return runCommand(
-      () => api.doubleAttack(index),
-      'DoubleAttack returned null WebGameState',
-    );
+    return runCommand((a) => a.doubleAttack(index), 'DoubleAttack returned null WebGameState');
   }
 
   function boost(payload: any) {
-    return runCommand(() => api.boost(payload), 'Boost returned null WebGameState');
+    return runCommand((a) => a.boost(payload), 'Boost returned null WebGameState');
   }
 
   function swap(index: number) {
-    return runCommand(() => api.swap(index), 'Swap returned null WebGameState');
+    return runCommand((a) => a.swap(index), 'Swap returned null WebGameState');
   }
 
   function reverseSwap() {
-    return runCommand(() => api.reverseSwap(), 'ReverseSwap returned null WebGameState');
+    return runCommand((a) => a.reverseSwap(), 'ReverseSwap returned null WebGameState');
   }
 
   function undo() {
-    return runCommand(() => api.undo(), 'Undo returned null WebGameState');
+    return runCommand((a) => a.undo(), 'Undo returned null WebGameState');
   }
 
   function redo() {
-    return runCommand(() => api.redo(), 'Redo returned null WebGameState');
+    return runCommand((a) => a.redo(), 'Redo returned null WebGameState');
   }
 
   function executeAI(action: any) {
-    return runCommand(() => api.executeAI(action), 'ExecuteAI returned null WebGameState');
+    return runCommand((a) => a.executeAI(action), 'ExecuteAI returned null WebGameState');
   }
 
   return {

@@ -18,6 +18,8 @@ import PlayingFieldView from '../views/PlayingFieldView.vue';
 import AttackerHandView from '../views/AttackerHandView.vue';
 import AttackerDefendersView from '../views/AttackerDefendersView.vue';
 
+import { authState } from '@/auth/authState';
+
 const routes: RouteRecordRaw[] = [
   { path: '/login',        name: 'Login',        component: LoginView },
   { path: '/main-menu',    name: 'MainMenu',     component: MainMenuView },
@@ -44,10 +46,40 @@ const routes: RouteRecordRaw[] = [
 
   { path: '/', redirect: { name: 'Login' } },
 
-  { path: '/:pathMatch(.*)*', redirect: { name: 'MainMenu' } },
+  { path: '/:pathMatch(.*)*', redirect: { name: 'Login' } },
 ];
 
 export const router = createRouter({
   history: createWebHashHistory(),
   routes,
 });
+
+async function checkAuthOnce(): Promise<void> {
+  if (authState.checked) return;
+
+  try {
+    const res = await fetch('/api/auth/me', { credentials: 'include' });
+    if (!res.ok) throw new Error(String(res.status));
+    const me = (await res.json()) as { loggedIn: boolean; username?: string };
+
+    if (me.loggedIn) authState.setLoggedIn(me.username);
+    else authState.setLoggedOut();
+  } catch {
+    authState.setLoggedOut();
+  }
+}
+
+router.beforeEach(async (to) => {
+  await checkAuthOnce();
+
+  if (to.name === 'Login') {
+    if (authState.loggedIn) return { name: 'MainMenu' };
+    return true;
+  }
+
+  if (!authState.loggedIn) return { name: 'Login' };
+  return true;
+});
+
+
+

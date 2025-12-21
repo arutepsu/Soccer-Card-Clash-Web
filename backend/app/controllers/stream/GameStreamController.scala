@@ -13,7 +13,7 @@ import akka.util.ByteString
 import play.api.libs.json._
 import play.api.mvc._
 import app.mapping.IViewStateMapper
-import controllers.support.ControllerSupport
+import app.controllers.support.ControllerSupport
 import app.controllers.stream.IGameStreamController
 import app.api.eventHub.{GameEvent, GameEventHub}
 import app.auth.AuthPrincipal

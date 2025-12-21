@@ -5,6 +5,7 @@ import app.session.PlayerToken
 import app.models.AppError
 import app.models.state.WebGameState
 import app.auth.AuthPrincipal
+import app.api.command.CommandMode
 
 trait IGameCommandFacade {
   /** Executes a command and returns the WebGameState.
@@ -15,9 +16,10 @@ trait IGameCommandFacade {
     * - None        => local/offline path (no sessionRepo required)
     */
   def execute(
+    mode: CommandMode,
     sid: GameSessionId,
     principal: Option[AuthPrincipal],
     cmd: GameCommand,
-    requestId: Option[String] = None
+    token: Option[PlayerToken]
   ): Either[AppError, WebGameState]
 }

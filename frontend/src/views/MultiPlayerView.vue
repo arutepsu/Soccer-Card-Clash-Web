@@ -10,9 +10,11 @@ import GameButton from '../components/button/GameButton.vue';
 import GlitchInput from '../components/input-field/GlitchInput.vue';
 import GameLogo from '../components/logo/GameLogo.vue';
 import multiBg from '@/assets/images/frames/background2.jpg';
+import { useAppServices } from '@/app/appServices';
 
 const router = useRouter();
-const { startLocalMultiplayer } = useGameCommands();
+const { game } = useAppServices();
+const { startLocalMultiplayer } = useGameCommands(game.local);
 const { show, hide } = useOverlay();
 
 const player1 = ref('');

@@ -1,6 +1,8 @@
-GET   /login                   app.controllers.auth.AuthController.loginPage()
-POST  /login                   app.controllers.auth.AuthController.doLogin()
-POST  /logout                  app.controllers.auth.AuthController.logout()
+GET   /api/auth/me             app.controllers.auth.AuthApiController.me()
+POST  /api/auth/login          app.controllers.auth.AuthApiController.login()
+POST  /api/auth/logout         app.controllers.auth.AuthApiController.logout()
+
+GET   /api/bootstrap            app.controllers.auth.BootstrapController.bootstrap()
 
 POST  /api/command             app.controllers.command.GameCommandController.command
 GET   /api/stream/sse          app.controllers.stream.GameStreamController.sse
@@ -13,9 +15,6 @@ GET    /api/files/list         controllers.fileIO.FileIOController.listSavedGame
 POST   /api/files/load         controllers.fileIO.FileIOController.loadGameFromFile()
 POST   /api/files/save         controllers.fileIO.FileIOController.saveGameToFile()
 DELETE /api/files/delete       controllers.fileIO.FileIOController.deleteGameFile()
-
-GET   /                        app.controllers.ui.SpaController.index()
-GET   /assets/*file            controllers.Assets.versioned(path="/public", file: Asset)
 
 GET   /api/sessions                 app.controllers.session.SessionController.list
 POST  /api/sessions                 app.controllers.session.SessionController.create

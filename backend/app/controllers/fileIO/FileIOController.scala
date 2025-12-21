@@ -12,7 +12,7 @@ import app.mapping.ViewStateMapper
 import de.htwg.se.soccercardclash.model.gameComponent.context.GameContext
 import app.session.GameSessionId
 import play.api.Configuration
-import controllers.support.ControllerSupport
+import app.controllers.support.ControllerSupport
 import app.auth.AuthPrincipal
 
 @Singleton
