@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
 
 import { usePlayingField } from '../composables/usePlayingField';
 import { usePlayingFieldMode } from '@/composables/usePlayingFieldMode';
@@ -40,15 +39,7 @@ const displaySceneView = ref(sceneView.value);
 
 const avatarRegistry = createPlayerAvatarRegistry({
   avatarsPath: '/assets/images/players/',
-  fileNames: [
-    'player1.jpg',
-    'player2.jpg',
-    'ai.jpg',
-    'taka.jpg',
-    'defendra.jpg',
-    'bitstrom.jpg',
-    'meta.jpg',
-  ],
+  fileNames: ['player1.jpg', 'player2.jpg', 'ai.jpg', 'taka.jpg', 'defendra.jpg', 'bitstrom.jpg', 'meta.jpg'],
 });
 
 const selectedTarget = ref<SelectedTarget>(null);
@@ -58,69 +49,68 @@ function showInfoAlert(message: string) {
   show({ title: 'Info', message, content: null });
 }
 
-// 🎯 Local / Online handling + turn gating
 const mode = usePlayingFieldMode(webState, showInfoAlert);
 const cinemaActive = mode.cinemaActive;
 const opponentName = mode.opponentName;
 
 const services = useAppServices();
-const route = useRoute();
-const api = services.game.forRouteName(route.name);
+const api = computed(() => {
+  const m = services.gameContext.mode.value ?? 'local';
+  return services.game.forMode(m);
+});
 
 const soundManager = createSoundManager({ basePath: '/assets/sounds/' });
 soundManager.preload('attack', 'attack.wav');
 soundManager.preload('hover', 'hover.wav');
 
-const lastRoles = {
-  attacker: '',
-  defender: '',
-};
-
+const lastRoles = { attacker: '', defender: '' };
 const scheduler = new UIActionScheduler();
-let orchestrator: ReturnType<typeof createComparisonOrchestrator> | null = null;
+
+const orchestrator = ref<ReturnType<typeof createComparisonOrchestrator> | null>(null);
 
 const comparisonHandler = createComparisonDialogHandler({
   contextHolder: {
-    get: () => ({
-      roles: {
-        attacker: lastRoles.attacker,
-        defender: lastRoles.defender,
-      },
-    }),
+    get: () => ({ roles: { attacker: lastRoles.attacker, defender: lastRoles.defender } }),
   },
   onAutoClose: () => {
-    orchestrator?.applyBufferedStateAfterOverlay();
+    orchestrator.value?.applyBufferedStateAfterOverlay();
   },
   avatarRegistry,
 });
 
-orchestrator = createComparisonOrchestrator({
-  api,
-  scheduler,
-  comparisonHandler,
-  ActionNames: {
-    RegularAttack: 'RegularAttack',
-    DoubleAttack: 'DoubleAttack',
-    Undo: 'Undo',
-    Redo: 'Redo',
-    BoostDefender: 'BoostDefender',
-    BoostGoalkeeper: 'BoostGoalkeeper',
-    RegularSwap: 'RegularSwap',
-    ReverseSwap: 'ReverseSwap',
-  },
-  getRoles: () => lastRoles,
-  applyUiFromWeb: (web) => {
-    if (web?.roles) {
-      lastRoles.attacker = web.roles.attacker || '';
-      lastRoles.defender = web.roles.defender || '';
-    }
-    displaySceneView.value = sceneView.value;
-  },
-  updateFromServerContext: (_web) => {},
-  soundManager,
-});
+function buildOrchestrator() {
+  orchestrator.value = createComparisonOrchestrator({
+    api: api.value,
+    scheduler,
+    comparisonHandler,
+    ActionNames: {
+      RegularAttack: 'RegularAttack',
+      DoubleAttack: 'DoubleAttack',
+      Undo: 'Undo',
+      Redo: 'Redo',
+      BoostDefender: 'BoostDefender',
+      BoostGoalkeeper: 'BoostGoalkeeper',
+      RegularSwap: 'RegularSwap',
+      ReverseSwap: 'ReverseSwap',
+    },
+    getRoles: () => lastRoles,
+    applyUiFromWeb: (web) => {
+      if (web?.roles) {
+        lastRoles.attacker = web.roles.attacker || '';
+        lastRoles.defender = web.roles.defender || '';
+      }
+      displaySceneView.value = sceneView.value;
+    },
+    updateFromServerContext: (_web) => {},
+    soundManager,
+  });
+}
 
-// ───────────────────────── Handlers ─────────────────────────
+watch(
+  () => api.value,
+  () => buildOrchestrator(),
+  { immediate: true },
+);
 
 function handleDefenderSelected(index: number | null) {
   selectedTarget.value = index == null ? null : { kind: 'defender', index };
@@ -134,26 +124,17 @@ async function handleAttackDefender() {
   if (!mode.requireMyTurn()) return;
 
   const sel = selectedTarget.value;
-  if (!sel) {
-    showInfoAlert('Pick a defender or the goalkeeper to attack.');
-    return;
-  }
+  if (!sel) return showInfoAlert('Pick a defender or the goalkeeper to attack.');
 
-  if (sel.kind === 'goalkeeper') {
-    await handleAttackGoalkeeper();
-    return;
-  }
+  if (sel.kind === 'goalkeeper') return handleAttackGoalkeeper();
 
   try {
-    orchestrator?.setPendingAction('RegularAttack');
+    orchestrator.value?.setPendingAction('RegularAttack');
     await attackDefender(sel.index);
 
     const web = webState.value;
-    if (web && orchestrator) {
-      orchestrator.afterServerApply(web, {
-        action: 'RegularAttack',
-        defenderIndex: sel.index,
-      });
+    if (web && orchestrator.value) {
+      orchestrator.value.afterServerApply(web, { action: 'RegularAttack', defenderIndex: sel.index });
     }
   } catch (err) {
     console.error('[PlayingFieldView] attackDefender error:', err);
@@ -167,15 +148,12 @@ async function handleAttackGoalkeeper() {
   if (!mode.requireMyTurn()) return;
 
   try {
-    orchestrator?.setPendingAction('RegularAttack');
+    orchestrator.value?.setPendingAction('RegularAttack');
     await attackGoalkeeper();
 
     const web = webState.value;
-    if (web && orchestrator) {
-      orchestrator.afterServerApply(web, {
-        action: 'RegularAttack',
-        defenderIndex: -1,
-      });
+    if (web && orchestrator.value) {
+      orchestrator.value.afterServerApply(web, { action: 'RegularAttack', defenderIndex: -1 });
     }
   } catch (err) {
     console.error('[PlayingFieldView] attackGoalkeeper error:', err);
@@ -189,21 +167,15 @@ async function handleDoubleAttack() {
   if (!mode.requireMyTurn()) return;
 
   const sel = selectedTarget.value;
-  if (!sel || sel.kind !== 'defender') {
-    showInfoAlert('Pick a defender card for double attack.');
-    return;
-  }
+  if (!sel || sel.kind !== 'defender') return showInfoAlert('Pick a defender card for double attack.');
 
   try {
-    orchestrator?.setPendingAction('DoubleAttack');
+    orchestrator.value?.setPendingAction('DoubleAttack');
     await doubleAttack(sel.index);
 
     const web = webState.value;
-    if (web && orchestrator) {
-      orchestrator.afterServerApply(web, {
-        action: 'DoubleAttack',
-        defenderIndex: sel.index,
-      });
+    if (web && orchestrator.value) {
+      orchestrator.value.afterServerApply(web, { action: 'DoubleAttack', defenderIndex: sel.index });
     }
   } catch (err) {
     console.error('[PlayingFieldView] doubleAttack error:', err);
@@ -217,8 +189,6 @@ function handleInfo() {
   showInfoAlert('Select a defender or the goalkeeper, then choose an attack.');
 }
 
-// ───────────────────────── Lifecycle ─────────────────────────
-
 onMounted(async () => {
   await init();
 });
@@ -226,8 +196,8 @@ onMounted(async () => {
 watch(
   webState,
   (st) => {
-    if (!st || !orchestrator) return;
-    orchestrator.handleStreamWeb(st);
+    if (!st || !orchestrator.value) return;
+    orchestrator.value.handleStreamWeb(st);
   },
   { immediate: true },
 );
@@ -296,10 +266,12 @@ const playingSceneStyle = {
   </div>
 
   <CinemaMode
+    v-if="$route.name === 'PlayingField'"
     :active="cinemaActive"
     message="Opponent’s turn"
     :subMessage="`Waiting for ${opponentName}…`"
   />
+
 
 </template>
 

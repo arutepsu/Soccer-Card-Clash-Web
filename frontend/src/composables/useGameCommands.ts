@@ -1,6 +1,5 @@
 // frontend/src/composables/useGameCommands.ts
 import { computed, ref } from 'vue';
-import { useRoute } from 'vue-router';
 import { useAppServices } from '@/app/appServices';
 import { useGameContext } from './useGameContext';
 import type { GameApi } from '../api/gameApi';
@@ -11,9 +10,12 @@ export function useGameCommands(overrideApi?: GameApi) {
   const busy = ref(false);
 
   const services = useAppServices();
-  const route = useRoute();
 
-  const api = computed<GameApi>(() => overrideApi ?? services.game.forRouteName(route.name));
+  const api = computed<GameApi>(() => {
+    if (overrideApi) return overrideApi;
+    const m = services.gameContext.mode.value ?? 'local';
+    return services.game.forMode(m);
+  });
 
   async function runCommand(
     fn: (api: GameApi) => Promise<WebGameState | null>,
@@ -33,10 +35,9 @@ export function useGameCommands(overrideApi?: GameApi) {
   function getState() {
     return runCommand((a) => a.getState(), 'GetState returned null WebGameState');
   }
-
   function startLocalMultiplayer(attackerName: string, defenderName: string) {
     return runCommand(
-      (a) => a.createLocalMultiplayer(attackerName, defenderName),
+      () => services.game.local.createLocalMultiplayer(attackerName, defenderName),
       'CreateGame returned null WebGameState',
     );
   }

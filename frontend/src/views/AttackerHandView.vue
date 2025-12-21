@@ -21,10 +21,10 @@ const {
   init,
   doSwap,
   doReverseSwap,
+  busy,
 } = useAttackerHand();
 
 const webState = computed(() => gameContext.state.value as WebGameState | null);
-const busy = computed(() => gameContext.loading.value);
 
 const avatarRegistry = createPlayerAvatarRegistry({
   avatarsPath: '/assets/images/players/',
@@ -82,7 +82,13 @@ function onBack() {
 }
 
 onMounted(async () => {
-  await init();
+  try {
+    await init();
+  } catch (e) {
+    console.error('[View] init failed', e);
+    showAlert('Failed to load game state. Going back…', 2000);
+    setTimeout(() => router.push({ name: 'PlayingField' }), 2000);
+  }
 });
 const sceneStyle = computed(() => ({
   backgroundImage: `url(${attackerHandBg})`,

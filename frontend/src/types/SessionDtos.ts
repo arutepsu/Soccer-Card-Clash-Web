@@ -1,7 +1,8 @@
 export type SessionStatusDto =
   | 'Waiting'
   | 'Ready'
-  | 'Started';
+  | 'Started'
+  | 'Full';
 
 export interface SessionDto {
   id: string;
@@ -21,6 +22,7 @@ export interface JoinSessionRequestDto {
 }
 
 export interface SessionCreatedResponseDto {
+  id: string;
   sessionId: string;
   hostToken: string;
 }

@@ -13,13 +13,15 @@ import multiBg from '@/assets/images/frames/background2.jpg';
 import { useAppServices } from '@/app/appServices';
 
 const router = useRouter();
-const { game } = useAppServices();
-const { startLocalMultiplayer } = useGameCommands(game.local);
+const services = useAppServices(); // ✅ single services instance
 const { show, hide } = useOverlay();
 
 const player1 = ref('');
 const player2 = ref('');
 const busy = ref(false);
+
+// ✅ force local for CreateGame from this screen
+const { startLocalMultiplayer } = useGameCommands(services.game.local);
 
 const soundManager: SoundManager = createSoundManager({
   basePath: '/assets/sounds/',
@@ -76,10 +78,14 @@ async function onSubmit() {
   onButtonClick();
 
   try {
-  await startLocalMultiplayer(player1.value, player2.value);
+    // ✅ claim local mode BEFORE creating the game
+    await services.gameContext.start('local');
+
+    await startLocalMultiplayer(player1.value, player2.value);
+
     await router.push({ name: 'PlayingField' });
   } catch (err) {
-    console.error('[MultiplayerView] restart failed:', err);
+    console.error('[MultiplayerView] create game failed:', err);
     showAlert('Could not create game, please try again.');
   } finally {
     busy.value = false;
@@ -116,7 +122,6 @@ const multiSceneStyle = {
   backgroundPosition: 'center',
   backgroundRepeat: 'no-repeat',
 };
-
 </script>
 
 <template>
