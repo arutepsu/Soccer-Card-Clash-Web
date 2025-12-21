@@ -80,8 +80,10 @@ const props = defineProps<{
 
 const services = useAppServices();
 const overlay = useOverlayStore();
-const game = useGameContext();
-const gameCmds = useGameCommands();
+
+const gameContext = useGameContext();
+
+const gameCmds = useGameCommands(services.game.online);
 
 const loading = ref(true);
 const session = ref<SessionDto | null>(null);
@@ -94,6 +96,10 @@ let timer: number | null = null;
 function hover() {
   props.onHover?.();
 }
+function bindSessionTransport() {
+  services.push.setGameId?.(props.sessionId);
+  services.push.reconnect();
+}
 
 async function enterGameIfStarted(next: SessionDto | null) {
   if (!next) return;
@@ -103,18 +109,22 @@ async function enterGameIfStarted(next: SessionDto | null) {
     window.clearInterval(timer);
     timer = null;
   }
+  bindSessionTransport();
 
   const web = await gameCmds.getState();
-  game.setState(web);
+  gameContext.setState(web);
 
   overlay.hide();
 }
 
 async function startGame() {
   hover();
-  const web = await services.sessions.startSession(props.sessionId);
+  await services.sessions.startSession(props.sessionId);
+  bindSessionTransport();
 
-  game.setState(web);
+  const web = await gameCmds.getState();
+  gameContext.setState(web);
+
   overlay.hide();
 }
 
@@ -138,9 +148,11 @@ async function leave() {
     await services.sessions.leaveSession(props.sessionId);
   } finally {
     setCurrentPlayerId('frontend');
+    services.push.setGameId?.(null);
+    services.push.reconnect();
+
     props.onLeftLobby?.();
     overlay.hide();
-    services.push.reconnect();
   }
 }
 
@@ -152,6 +164,8 @@ async function copyInvite() {
 }
 
 onMounted(async () => {
+  bindSessionTransport();
+
   await refresh();
   timer = window.setInterval(refresh, 2000);
 });

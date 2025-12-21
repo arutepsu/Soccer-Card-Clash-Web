@@ -1,11 +1,23 @@
 // app/appServices.ts
-import { ref, type Ref, inject, provide, type InjectionKey } from 'vue';
+import { ref, type Ref, inject, type InjectionKey } from 'vue';
 import { createGameApi, type GameApi } from '../api/gameApi';
-import { createServerPushClient, PushClient } from '../api/serverPushClient';
+import { createServerPushClient, type PushClient } from '../api/serverPushClient';
 import { createGameEventStream } from '../api/gameEventStream';
 import { createSoundManager, type SoundManager } from '../utils/soundManager';
 import type { WebGameState } from '../types/WebGameState';
 import { createSessionApi, type SessionApi } from '../api/sessionApi';
+import { createAuthApi, type AuthApi } from '../api/authApi';
+
+type GameMode = 'local' | 'online';
+
+export interface GameApiRouter {
+  local: GameApi;
+  online: GameApi;
+
+  forMode(mode: GameMode): GameApi;
+
+  forRouteName(name: unknown): GameApi;
+}
 
 export interface GameContextService {
   state: Ref<WebGameState | null>;
@@ -14,9 +26,12 @@ export interface GameContextService {
 }
 
 export interface AppServices {
-  api: GameApi;
-  sessions: SessionApi;
+  game: GameApiRouter;
   push: PushClient;
+
+  auth: AuthApi;
+  sessions: SessionApi;
+
   soundManager: SoundManager | null;
   gameContext: GameContextService;
 }
@@ -26,8 +41,11 @@ export function setCurrentPlayerId(id: string) {
   currentPlayerId = id;
 }
 
-export const AppServicesKey: InjectionKey<AppServices> =
-  Symbol('AppServices');
+export function getCurrentPlayerId(): string {
+  return currentPlayerId;
+}
+
+export const AppServicesKey: InjectionKey<AppServices> = Symbol('AppServices');
 
 function createGameContextService(): GameContextService {
   const state = ref<WebGameState | null>(null);
@@ -43,6 +61,12 @@ function createGameContextService(): GameContextService {
   return { state, setState, clear };
 }
 
+const ONLINE_ROUTE_NAMES = new Set<string>(['SessionView']);
+
+function modeForRouteName(name: unknown): GameMode {
+  const key = typeof name === 'string' ? name : '';
+  return ONLINE_ROUTE_NAMES.has(key) ? 'online' : 'local';
+}
 
 export function createAppServices(): AppServices {
   const pushClient = createServerPushClient({
@@ -50,16 +74,47 @@ export function createAppServices(): AppServices {
     getPlayerId: () => currentPlayerId,
   });
   const streamClient = createGameEventStream();
-  const api = createGameApi({ streamClient, pushClient });
-  const soundManager = createSoundManager();
-  const gameContext = createGameContextService();
-  const sessions = createSessionApi({
-    getJSON: api.getJSON,
-    postJSON: api.postJSON,
+
+  const localApi = createGameApi({
+    mode: 'local',
+    streamClient,
+    getPlayerId: () => getCurrentPlayerId(),
   });
 
+  const onlineApi = createGameApi({
+    mode: 'online',
+    streamClient,
+    pushClient,
+    getPlayerId: () => getCurrentPlayerId(),
+  });
 
-  return { api, sessions,  push: pushClient, soundManager, gameContext };
+  const game: GameApiRouter = {
+    local: localApi,
+    online: onlineApi,
+    forMode: (mode) => (mode === 'online' ? onlineApi : localApi),
+    forRouteName: (name) => {
+      const mode = modeForRouteName(name);
+      return mode === 'online' ? onlineApi : localApi;
+    },
+  };
+
+  const soundManager = createSoundManager();
+  const gameContext = createGameContextService();
+  const auth = createAuthApi();
+
+  const sessions = createSessionApi({
+    getJSON: onlineApi.getJSON,
+    postJSON: onlineApi.postJSON,
+  });
+
+  return {
+    game,
+    push: pushClient,
+    auth,
+    sessions,
+    soundManager,
+    gameContext,
+  };
 }
 
 export function useAppServices(): AppServices {
@@ -67,4 +122,3 @@ export function useAppServices(): AppServices {
   if (!services) throw new Error('[AppServices] AppServices not provided');
   return services;
 }
-

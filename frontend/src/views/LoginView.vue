@@ -7,9 +7,11 @@ import GlitchInput from '@/components/input-field/GlitchInput.vue';
 import loginBg from '@/assets/images/frames/background9.jpg';
 import overlayFrame from '@/assets/images/frames/overlay.png';
 import InputContainer from '@/components/input-field/InputContainer.vue';
+import { useAppServices } from '@/app/appServices';
+import { authState } from '@/auth/authState';
 
 const router = useRouter();
-
+const { auth } = useAppServices();
 const username = ref('');
 const password = ref('');
 const busy = ref(false);
@@ -31,19 +33,21 @@ async function onSubmit(e?: Event) {
 
   busy.value = true;
 
-  console.log('[LoginView] Fake login success for', u);
-
-  await router.push({ name: 'MainMenu' });
-
-  busy.value = false;
+  try {
+    const res = await auth.login(u, p);
+    authState.setLoggedIn(res.username ?? u);
+    await router.push({ name: 'MainMenu' });
+  } catch (err: any) {
+    showError(err?.message ?? 'Login failed');
+  } finally {
+    busy.value = false;
+  }
 }
 
 type LoginAction = 'login';
 
 function onCommand(payload: { action: LoginAction }) {
-  if (payload.action === 'login') {
-    onSubmit();
-  }
+  if (payload.action === 'login') onSubmit();
 }
 
 const loginBgStyle = {

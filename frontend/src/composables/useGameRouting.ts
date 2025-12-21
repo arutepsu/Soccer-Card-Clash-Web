@@ -13,10 +13,10 @@ export function useGameRouting() {
     () => gameContext.state.value,
     async (state) => {
       if (!state) return;
-
       if (!state.you) return;
 
       const currentName = router.currentRoute.value.name;
+      if (currentName === 'Login') return;
 
       if (currentName === 'PlayingField') {
         overlay.hide();
@@ -25,7 +25,6 @@ export function useGameRouting() {
 
       try {
         await router.push({ name: 'PlayingField' });
-      } catch {
       } finally {
         overlay.hide();
       }

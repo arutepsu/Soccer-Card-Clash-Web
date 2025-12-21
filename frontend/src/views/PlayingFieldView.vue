@@ -1,25 +1,29 @@
-<!-- frontend/src/views/PlayingFieldView.vue -->
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
+
 import { usePlayingField } from '../composables/usePlayingField';
+import { usePlayingFieldMode } from '@/composables/usePlayingFieldMode';
 import { useAppServices } from '../app/appServices';
+import { useOverlay } from '../composables/useOverlay';
+
 import PlayersBar from '../components/player/PlayersBar.vue';
 import NavButtonBarContainer from '../components/button/NavButtonBarContainer.vue';
 import PlayersField from '../components/field/PlayersField.vue';
 import PlayersHand from '../components/hand/PlayersHand.vue';
 import ActionButtonBar from '../components/button/ActionButtonBar.vue';
+import CinemaMode from '@/components/cinemaMode/CinemaMode.vue';
+
+import type { WebGameState } from '../types/WebGameState';
+import { SelectedTarget } from '@/types/AttackerDefenders';
+
 import { createPlayerAvatarRegistry } from '../utils/playerAvatarRegistry';
 import { UIActionScheduler } from '../ui/uiActionScheduler';
 import { createComparisonDialogHandler } from '../utils/playingField/comparisonDialogHandler';
 import { createComparisonOrchestrator } from '../utils/playingField/comparisonOrchestrator';
 import { createSoundManager } from '../utils/soundManager';
 
-import { useOverlay } from '../composables/useOverlay';
-import type { WebGameState } from '../types/WebGameState';
-import type { GameApi } from '../api/gameApi';
 import playingBg from '@/assets/images/frames/background5.jpg';
-import { SelectedTarget } from '@/types/AttackerDefenders';
-import CinemaMode from '@/components/cinemaMode/CinemaMode.vue';
 
 const {
   gameContext,
@@ -31,10 +35,7 @@ const {
   doubleAttack,
 } = usePlayingField();
 
-const webState = computed(
-  () => gameContext.state.value as WebGameState | null,
-);
-
+const webState = computed(() => gameContext.state.value as WebGameState | null);
 const displaySceneView = ref(sceneView.value);
 
 const avatarRegistry = createPlayerAvatarRegistry({
@@ -52,18 +53,19 @@ const avatarRegistry = createPlayerAvatarRegistry({
 
 const selectedTarget = ref<SelectedTarget>(null);
 
-const { show, hide } = useOverlay();
-
+const { show } = useOverlay();
 function showInfoAlert(message: string) {
-  show({
-    title: 'Info',
-    message,
-    content: null,
-  });
+  show({ title: 'Info', message, content: null });
 }
 
-const { api: appApi } = useAppServices();
-const api = appApi as GameApi;
+// 🎯 Local / Online handling + turn gating
+const mode = usePlayingFieldMode(webState, showInfoAlert);
+const cinemaActive = mode.cinemaActive;
+const opponentName = mode.opponentName;
+
+const services = useAppServices();
+const route = useRoute();
+const api = services.game.forRouteName(route.name);
 
 const soundManager = createSoundManager({ basePath: '/assets/sounds/' });
 soundManager.preload('attack', 'attack.wav');
@@ -75,7 +77,6 @@ const lastRoles = {
 };
 
 const scheduler = new UIActionScheduler();
-
 let orchestrator: ReturnType<typeof createComparisonOrchestrator> | null = null;
 
 const comparisonHandler = createComparisonDialogHandler({
@@ -115,56 +116,24 @@ orchestrator = createComparisonOrchestrator({
     }
     displaySceneView.value = sceneView.value;
   },
-  updateFromServerContext: (_web) => {
-  },
+  updateFromServerContext: (_web) => {},
   soundManager,
 });
 
-const you = computed(() => webState.value?.you ?? null);
-
-const isOnline = computed(() => !!you.value);
-
-const isMyTurn = computed(() => {
-  const st = webState.value;
-  const me = you.value?.username;
-  if (!st?.roles?.attacker || !me) return false;
-  return st.roles.attacker === me;
-});
-
-const cinemaActive = computed(() => isOnline.value && !isMyTurn.value);
-
-const opponentName = computed(() => {
-  const st = webState.value;
-  const me = you.value?.username;
-  if (!st?.roles || !me) return 'Opponent';
-  return st.roles.attacker === me ? st.roles.defender : st.roles.attacker;
-});
-
-function requireMyTurn(): boolean {
-  if (!isMyTurn.value) {
-    showInfoAlert("It's not your turn.");
-    return false;
-  }
-  return true;
-}
+// ───────────────────────── Handlers ─────────────────────────
 
 function handleDefenderSelected(index: number | null) {
-  if (index == null) {
-    selectedTarget.value = null;
-  } else {
-    selectedTarget.value = { kind: 'defender', index };
-  }
+  selectedTarget.value = index == null ? null : { kind: 'defender', index };
 }
 
 function handleGoalkeeperSelected(selected: boolean) {
   selectedTarget.value = selected ? { kind: 'goalkeeper' } : null;
 }
 
-
 async function handleAttackDefender() {
-  if (!requireMyTurn()) return;
-  const sel = selectedTarget.value;
+  if (!mode.requireMyTurn()) return;
 
+  const sel = selectedTarget.value;
   if (!sel) {
     showInfoAlert('Pick a defender or the goalkeeper to attack.');
     return;
@@ -172,11 +141,6 @@ async function handleAttackDefender() {
 
   if (sel.kind === 'goalkeeper') {
     await handleAttackGoalkeeper();
-    return;
-  }
-
-  if (sel.kind !== 'defender') {
-    showInfoAlert('Pick a defender card to attack.');
     return;
   }
 
@@ -191,7 +155,7 @@ async function handleAttackDefender() {
         defenderIndex: sel.index,
       });
     }
-  } catch (err: any) {
+  } catch (err) {
     console.error('[PlayingFieldView] attackDefender error:', err);
     showInfoAlert('Attack failed. Please try again.');
   } finally {
@@ -199,10 +163,9 @@ async function handleAttackDefender() {
   }
 }
 
-
-
 async function handleAttackGoalkeeper() {
-  if (!requireMyTurn()) return;
+  if (!mode.requireMyTurn()) return;
+
   try {
     orchestrator?.setPendingAction('RegularAttack');
     await attackGoalkeeper();
@@ -223,9 +186,9 @@ async function handleAttackGoalkeeper() {
 }
 
 async function handleDoubleAttack() {
-  if (!requireMyTurn()) return;
-  const sel = selectedTarget.value;
+  if (!mode.requireMyTurn()) return;
 
+  const sel = selectedTarget.value;
   if (!sel || sel.kind !== 'defender') {
     showInfoAlert('Pick a defender card for double attack.');
     return;
@@ -254,6 +217,8 @@ function handleInfo() {
   showInfoAlert('Select a defender or the goalkeeper, then choose an attack.');
 }
 
+// ───────────────────────── Lifecycle ─────────────────────────
+
 onMounted(async () => {
   await init();
 });
@@ -267,15 +232,14 @@ watch(
   { immediate: true },
 );
 
-
 const playingSceneStyle = {
   backgroundImage: `url(${playingBg})`,
   backgroundSize: 'cover',
   backgroundPosition: 'center',
   backgroundRepeat: 'no-repeat',
 };
-
 </script>
+
 
 <template>
   <div

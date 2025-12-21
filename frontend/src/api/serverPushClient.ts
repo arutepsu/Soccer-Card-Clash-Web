@@ -25,7 +25,6 @@ export interface GameEnvelope {
   playerId: string | null;
   requestId: string | null;
 
-  // IMPORTANT: backend decoder reads fields from env.payload
   payload: unknown;
 }
 
@@ -38,7 +37,7 @@ export interface PushClient {
   close(): void;
 
   sendCommand(type: GameCommandType, payload?: unknown): Promise<WebGameState | null>;
-
+  setGameId?(id: string | null): void;
   reconnect(): void;
   getState(): void;
   regularAttack(target: 'defender' | 'goalkeeper', index?: number | null): void;
@@ -73,13 +72,13 @@ export interface CreateServerPushClientOptions {
 export function createServerPushClient(
   opts: CreateServerPushClientOptions = {},
 ): PushClient {
-  // FIX 1: correct backend route
   const { path = '/api/ws', reconnectDelayMs = 1000 } = opts;
 
   let ws: WebSocket | null = null;
   let connected = false;
   let reconnectTimer: number | null = null;
   let intentionallyClosed = false;
+  let currentGameId: string | null = null;
 
   const handlers = new Set<PushMessageHandler>();
 
@@ -230,6 +229,13 @@ export function createServerPushClient(
     connect();
   }
 
+  function setGameId(id: string | null): void {
+    const next = id?.trim() || null;
+    currentGameId = next;
+    wsSessionUnavailable = false;
+    console.log('[WS] setGameId:', currentGameId);
+  }
+
   function sendCommand(type: GameCommandType, payload: unknown = {}): Promise<WebGameState | null> {
     if (wsSessionUnavailable) return Promise.resolve(null);
 
@@ -238,12 +244,17 @@ export function createServerPushClient(
       return Promise.resolve(null);
     }
 
+    const gid = currentGameId ?? 'ignored';
+    if (gid === 'ignored') {
+      console.warn('[WS] sendCommand without gameId (will likely fail):', type);
+    }
+
     const requestId = `req-${Date.now()}-${++reqCounter}`;
 
     const env: GameEnvelope = {
       kind: 'command',
       type,
-      gameId: 'ignored',
+      gameId: gid,
       playerId: opts.getPlayerId?.() ?? null,
       requestId,
       payload,
@@ -353,6 +364,7 @@ export function createServerPushClient(
     offMessage,
     close,
     sendCommand,
+    setGameId,   
     reconnect,
     getState,
     regularAttack,

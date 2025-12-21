@@ -34,16 +34,21 @@ export interface GameApi {
   executeAI(action: any): Promise<WebGameState | null>;
 }
 
+type GameMode = 'local' | 'online';
+
 interface CreateGameApiOptions {
   streamClient?: StreamClient | null;
   pushClient?: PushClient | null;
+  mode?: GameMode;
+  getPlayerId?: () => string | null;
 }
 
-type FlatCommandBody = Record<string, unknown> & { type: string };
+type FlatCommandBody = Record<string, unknown> & { type: string; playerId?: string | null };
 
 export function createGameApi(options: CreateGameApiOptions = {}): GameApi {
   const { streamClient, pushClient } = options;
-
+  const mode: GameMode = options.mode ?? 'online';
+  const getPlayerId = options.getPlayerId ?? (() => null);
   const csrf =
     document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ||
     (document.querySelector<HTMLInputElement>('input[name="csrfToken"]')?.value ??
@@ -61,7 +66,7 @@ export function createGameApi(options: CreateGameApiOptions = {}): GameApi {
   ): Promise<T | null> {
     const res = await fetch(url, {
       method: 'POST',
-      credentials: 'same-origin',
+      credentials: 'include',
       headers: commonHeaders,
       body: JSON.stringify(payload),
     });
@@ -84,7 +89,7 @@ export function createGameApi(options: CreateGameApiOptions = {}): GameApi {
   async function getJSON<T = unknown>(url: string): Promise<T> {
     const res = await fetch(url, {
       method: 'GET',
-      credentials: 'same-origin',
+      credentials: 'include',
       headers: commonHeaders,
     });
 
@@ -97,16 +102,24 @@ export function createGameApi(options: CreateGameApiOptions = {}): GameApi {
   }
 
   function canUseWs(): boolean {
-    return !!(pushClient && pushClient.isConnected());
+    return mode === 'online' && !!(pushClient && pushClient.isConnected());
   }
 
   async function commandWithWsFallback(
-    type: GameCommandType,
-    fields: Record<string, unknown> = {},
+  type: GameCommandType,
+  fields: Record<string, unknown> = {},
   ): Promise<WebGameState | null> {
-    const body: FlatCommandBody = { type, ...fields };
+    const body: FlatCommandBody = { type, mode, ...fields };
 
-    console.log('[GameApi] command type:', type, 'body:', body);
+    console.log('[GameApi] mode:', mode, 'command type:', type, 'body:', body);
+
+    if (mode === 'local') {
+      body.playerId = getPlayerId();
+      const restResult = await postJSON<WebGameState>('/api/command', body);
+      console.log('[GameApi] REST result for', type, ':', restResult);
+      console.log('[GameApi] LOCAL POST /api/command body=', body);
+      return restResult;
+    }
 
     if (pushClient && canUseWs()) {
       console.log('[GameApi] using WebSocket for command:', type);
@@ -140,7 +153,7 @@ export function createGameApi(options: CreateGameApiOptions = {}): GameApi {
       close() {},
     };
   }
-
+  
   function fetchGameState(): Promise<WebGameState> {
     return getJSON<WebGameState>('/api/state');
   }

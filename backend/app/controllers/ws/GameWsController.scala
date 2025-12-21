@@ -7,16 +7,16 @@ import scala.util.control.NonFatal
 import akka.stream.scaladsl.Flow
 import play.api.libs.json._
 import play.api.mvc._
-import app.auth.AuthPrincipal
-import controllers.support.ControllerSupport
-import app.api.command.{GameCommandDecoder, IGameCommandFacade}
-import app.api.protocol.{Envelope, MessageTypes}
-import app.models.{AppError}
-import app.models.state.WebGameState
-import app.session.GameSessionId
 import play.api.Configuration
 
-//fix after real auth
+import app.auth.AuthPrincipal
+import app.controllers.support.ControllerSupport
+import app.api.command.{GameCommandDecoder, IGameCommandFacade, CommandMode}
+import app.api.protocol.{Envelope, MessageTypes}
+import app.models.AppError
+import app.models.state.WebGameState
+import app.session.GameSessionId
+
 @Singleton
 final class GameWsController @Inject()(
   cc: ControllerComponents,
@@ -48,7 +48,6 @@ final class GameWsController @Inject()(
       }
     }
 
-
   private def handle(
     env: Envelope,
     sid: GameSessionId,
@@ -61,7 +60,7 @@ final class GameWsController @Inject()(
 
       case Right(cmd) =>
         try {
-          facade.execute(sid, principalOpt, cmd, env.requestId) match {
+          facade.execute(CommandMode.online, sid, principalOpt, cmd, None) match {
             case Left(appErr) =>
               Future.successful(Json.toJson(errorEnvelope(env, sid, appErr)))
 

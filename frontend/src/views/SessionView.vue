@@ -139,6 +139,7 @@ async function submitCreate(): Promise<void> {
     newSessionName.value = '';
 
     await refreshSessions();
+    services.push.setGameId?.(res.sessionId);
     services.push.reconnect();
     openLobby(res.sessionId, 'host'); // real name later
 
@@ -169,6 +170,7 @@ async function joinSession(): Promise<void> {
   currentSessionId.value = res.sessionId;
 
   await refreshSessions();
+  services.push.setGameId?.(res.sessionId);
   services.push.reconnect();
   openLobby(res.sessionId, 'guest'); // real name later
 
@@ -187,6 +189,7 @@ async function leaveSession(): Promise<void> {
   setCurrentPlayerId('frontend');
 
   await refreshSessions();
+  services.push.setGameId?.(null);
   services.push.reconnect();
 }
 
