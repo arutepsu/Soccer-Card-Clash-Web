@@ -127,12 +127,6 @@ final class GameUseCases @Inject()(
     else Right(())
   }
 
-  private def requireDefenderTurn(ctx: GameContext, principal: AuthPrincipal): Either[AppError, Unit] = {
-    val defenderName = ctx.state.getRoles.defender.name
-    if (principal.username != defenderName) Left(AppError("Not your turn (only defender may act)"))
-    else Right(())
-  }
-
   override def swap(index: Int, sid: GameSessionId, principal: AuthPrincipal): Either[AppError, WebGameState] =
     withCtx(sid) { ctx =>
       for {
@@ -153,18 +147,31 @@ final class GameUseCases @Inject()(
       } yield res
     }
 
-  override def boost(defenderIndex: Int, sid: GameSessionId, goalkeeper: Boolean, principal: AuthPrincipal): Either[AppError, WebGameState] =
+  override def boost(
+    defenderIndex: Int,
+    sid: GameSessionId,
+    goalkeeper: Boolean,
+    principal: AuthPrincipal
+  ): Either[AppError, WebGameState] =
     withCtx(sid) { ctx =>
       for {
-        _ <- requireDefenderTurn(ctx, principal)
-        defn = ctx.state.getRoles.defender
-        _ <- if (!actionMgr.canPerform(defn, PlayerActionPolicies.Boost)) Left(AppError("No boosts remaining")) else Right(())
+        _ <- requireAttackerTurn(ctx, principal)
+
+        att = ctx.state.getRoles.attacker
+
+        _ <- if (!actionMgr.canPerform(att, PlayerActionPolicies.Boost))
+              Left(AppError("No boosts remaining"))
+            else Right(())
+
         (next, ok) =
           if (goalkeeper) controller.boostGoalkeeper(ctx)
           else            controller.boostDefender(defenderIndex, ctx)
-        res <- if (!ok) Left(AppError("Boost not allowed")) else saveAndRender(sid, next, Some(principal))
+
+        res <- if (!ok) Left(AppError("Boost not allowed"))
+              else saveAndRender(sid, next, Some(principal))
       } yield res
     }
+
 
   override def doubleAttack(defenderIndex: Int, sid: GameSessionId, principal: AuthPrincipal): Either[AppError, WebGameState] =
     withCtx(sid) { ctx =>

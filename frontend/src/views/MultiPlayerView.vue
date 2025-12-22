@@ -78,10 +78,13 @@ async function onSubmit() {
   onButtonClick();
 
   try {
-    // ✅ claim local mode BEFORE creating the game
-    await services.gameContext.start('local');
+    services.gameContext.setMode('local');
 
-    await startLocalMultiplayer(player1.value, player2.value);
+    const web = await startLocalMultiplayer(player1.value, player2.value);
+
+    services.gameContext.setState(web ?? null);
+
+    await services.gameContext.start('local');
 
     await router.push({ name: 'PlayingField' });
   } catch (err) {

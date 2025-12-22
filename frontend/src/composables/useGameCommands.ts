@@ -1,4 +1,3 @@
-// frontend/src/composables/useGameCommands.ts
 import { computed, ref } from 'vue';
 import { useAppServices } from '@/app/appServices';
 import { useGameContext } from './useGameContext';
@@ -8,12 +7,12 @@ import type { WebGameState } from '../types/WebGameState';
 export function useGameCommands(overrideApi?: GameApi) {
   const gameContext = useGameContext();
   const busy = ref(false);
-
   const services = useAppServices();
 
   const api = computed<GameApi>(() => {
     if (overrideApi) return overrideApi;
-    const m = services.gameContext.mode.value ?? 'local';
+    const m = services.gameContext.mode.value;
+    if (!m) throw new Error('[useGameCommands] gameContext.mode is null (pin mode first)');
     return services.game.forMode(m);
   });
 
@@ -35,9 +34,10 @@ export function useGameCommands(overrideApi?: GameApi) {
   function getState() {
     return runCommand((a) => a.getState(), 'GetState returned null WebGameState');
   }
+
   function startLocalMultiplayer(attackerName: string, defenderName: string) {
     return runCommand(
-      () => services.game.local.createLocalMultiplayer(attackerName, defenderName),
+      (a) => a.createLocalMultiplayer(attackerName, defenderName),
       'CreateGame returned null WebGameState',
     );
   }

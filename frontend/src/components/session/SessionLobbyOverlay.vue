@@ -113,9 +113,9 @@ async function enterGameIfStarted(next: SessionDto | null) {
 
   const web = await gameCmds.getState();
   gameContext.setState(web);
-
-  overlay.hide();
-}
+  services.gameContext.startOnlineStreamOnly(); 
+    overlay.hide();
+  }
 
 async function startGame() {
   hover();
@@ -124,7 +124,7 @@ async function startGame() {
 
   const web = await gameCmds.getState();
   gameContext.setState(web);
-
+  services.gameContext.startOnlineStreamOnly(); 
   overlay.hide();
 }
 

@@ -1,32 +1,21 @@
-// app/appServices.ts
-import { ref, type Ref, inject, type InjectionKey } from 'vue';
+// frontend/src/app/appServices.ts
+import { inject, type InjectionKey } from 'vue';
+
 import { createGameApi, type GameApi } from '../api/gameApi';
 import { createServerPushClient, type PushClient } from '../api/serverPushClient';
 import { createGameEventStream } from '../api/gameEventStream';
 import { createSoundManager, type SoundManager } from '../utils/soundManager';
-import type { WebGameState } from '../types/WebGameState';
 import { createSessionApi, type SessionApi } from '../api/sessionApi';
 import { createAuthApi, type AuthApi } from '../api/authApi';
-import type { StreamHandle } from '../api/gameEventStream';
+
+import { createGameContextService } from './gameContextService';
+import type { GameContextService, GameMode } from './gameContextService';
 
 export interface GameApiRouter {
   local: GameApi;
   online: GameApi;
-
   forMode(mode: GameMode): GameApi;
 }
-
-type GameMode = 'local' | 'online';
-
-export interface GameContextService {
-  state: Ref<WebGameState | null>;
-  mode: Ref<GameMode | null>;
-  start(mode: GameMode): Promise<void>;
-  stop(): void;
-  setState(state: WebGameState | null): void;
-  clear(): void;
-}
-
 
 export interface AppServices {
   game: GameApiRouter;
@@ -43,94 +32,21 @@ let currentPlayerId = 'frontend';
 export function setCurrentPlayerId(id: string) {
   currentPlayerId = id;
 }
-
 export function getCurrentPlayerId(): string {
   return currentPlayerId;
 }
 
 export const AppServicesKey: InjectionKey<AppServices> = Symbol('AppServices');
 
-function createGameContextService(game: GameApiRouter): GameContextService {
-  const state = ref<WebGameState | null>(null);
-  const mode = ref<GameMode | null>(null);
-
-  let handle: StreamHandle | null = null;
-  let startedForMode: GameMode | null = null;
-  let startToken = 0;
-
-  function setState(newState: WebGameState | null) {
-    state.value = newState;
-  }
-
-  function stop() {
-    if (handle) {
-      try { handle.close(); } catch (e) {
-        console.warn('[GameContext] stop: handle.close failed', e);
-      }
-      handle = null;
-    }
-    startedForMode = null;
-    mode.value = null;
-  }
-
-  async function start(nextMode: GameMode): Promise<void> {
-    const myToken = ++startToken;
-    const api = game.forMode(nextMode);
-
-    mode.value = nextMode;
-
-    if (handle && startedForMode === nextMode) {
-      if (!state.value) {
-        try {
-          const snap = await api.fetchGameState();
-          if (myToken !== startToken) return;
-          state.value = snap;
-        } catch (e) {
-          console.warn('[GameContext] fetchGameState failed (already started)', e);
-        }
-      }
-      return;
-    }
-
-    stop();
-    mode.value = nextMode;
-    startedForMode = nextMode;
-
-    try {
-      const snap = await api.fetchGameState();
-      if (myToken !== startToken) return;
-      state.value = snap;
-    } catch (e) {
-      console.warn('[GameContext] fetchGameState failed:', e);
-      if (myToken !== startToken) return;
-      state.value = null;
-    }
-
-    handle = api.openStream((next) => {
-      if (myToken !== startToken) return;
-      state.value = next;
-    });
-  }
-
-
-  function clear() {
-    state.value = null;
-  }
-
-  return { state, mode, start, stop, setState, clear };
-}
-
-
 export function createAppServices(): AppServices {
   const pushClient = createServerPushClient({
     path: '/api/ws',
-    getPlayerId: () => currentPlayerId,
+    getPlayerId: () => null,
   });
   const streamClient = createGameEventStream();
 
   const localApi = createGameApi({
     mode: 'local',
-    streamClient,
     getPlayerId: () => getCurrentPlayerId(),
   });
 
@@ -138,13 +54,13 @@ export function createAppServices(): AppServices {
     mode: 'online',
     streamClient,
     pushClient,
-    getPlayerId: () => getCurrentPlayerId(),
+    getPlayerId: () => null,
   });
 
   const game: GameApiRouter = {
     local: localApi,
     online: onlineApi,
-    forMode: (mode) => (mode === 'online' ? onlineApi : localApi),
+    forMode: (mode: GameMode) => (mode === 'online' ? onlineApi : localApi),
   };
 
   const soundManager = createSoundManager();

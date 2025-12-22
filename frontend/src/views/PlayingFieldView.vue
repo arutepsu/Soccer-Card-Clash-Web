@@ -55,7 +55,8 @@ const opponentName = mode.opponentName;
 
 const services = useAppServices();
 const api = computed(() => {
-  const m = services.gameContext.mode.value ?? 'local';
+  const m = services.gameContext.mode.value;
+  if (!m) throw new Error('[PlayingFieldView] gameContext.mode is null (pin mode first)');
   return services.game.forMode(m);
 });
 
@@ -210,72 +211,74 @@ const playingSceneStyle = {
 };
 </script>
 
-
 <template>
-  <div
-    class="scene scene--playingfield is-active"
-    aria-live="polite"
-    :style="playingSceneStyle"
-  >
-    <PlayersBar
-      v-if="webState"
-      :web="webState"
-      :avatarRegistry="avatarRegistry"
-    />
+  <div class="scene-root">
+    <div
+      class="scene scene--playingfield is-active"
+      aria-live="polite"
+      :style="playingSceneStyle"
+    >
+      <PlayersBar
+        v-if="webState"
+        :web="webState"
+        :avatarRegistry="avatarRegistry"
+      />
 
-    <main class="board" role="main">
-      <nav
-        id="nav-bar"
-        aria-label="Navigation menu"
-        data-href-defenders="/attacker-defenders"
-        data-href-hand="/attacker-hand"
-      >
-        <NavButtonBarContainer :busy="busy" />
-      </nav>
+      <main class="board" role="main">
+        <nav
+          id="nav-bar"
+          aria-label="Navigation menu"
+          data-href-defenders="/attacker-defenders"
+          data-href-hand="/attacker-hand"
+        >
+          <NavButtonBarContainer :busy="busy" />
+        </nav>
 
-      <section id="field" aria-label="Defender Field">
-        <div class="card-bar-frame" id="field-frame">
-          <PlayersField
-            :scene="displaySceneView"
-            :busy="busy"
-            @defender-selected="handleDefenderSelected"
-            @goalkeeper-selected="handleGoalkeeperSelected"
+        <section id="field" aria-label="Defender Field">
+          <div class="card-bar-frame" id="field-frame">
+            <PlayersField
+              :scene="displaySceneView"
+              :busy="busy"
+              @defender-selected="handleDefenderSelected"
+              @goalkeeper-selected="handleGoalkeeperSelected"
+            />
+          </div>
+        </section>
+
+        <aside id="action-bar" aria-label="Action buttons">
+          <ActionButtonBar
+            :busy="busy || cinemaActive"
+            @attack-defender="handleAttackDefender"
+            @attack-goalkeeper="handleAttackGoalkeeper"
+            @double-attack="handleDoubleAttack"
+            @info="handleInfo"
           />
-        </div>
-      </section>
+        </aside>
+      </main>
 
-      <aside id="action-bar" aria-label="Action buttons">
-        <ActionButtonBar
-          :busy="busy || cinemaActive"
-          @attack-defender="handleAttackDefender"
-          @attack-goalkeeper="handleAttackGoalkeeper"
-          @double-attack="handleDoubleAttack"
-          @info="handleInfo"
-        />
-      </aside>
-    </main>
+      <footer id="hand-row" aria-label="Attacker Hand and Avatar">
+        <section id="hand" aria-label="Attacker Hand">
+          <PlayersHand :scene="displaySceneView" :busy="busy" />
+        </section>
 
-    <footer id="hand-row" aria-label="Attacker Hand and Avatar">
-      <section id="hand" aria-label="Attacker Hand">
-        <PlayersHand :scene="displaySceneView" :busy="busy" />
-      </section>
+        <section id="attacker-avatar-box" aria-label="Current Attacker"></section>
+      </footer>
+    </div>
 
-      <section id="attacker-avatar-box" aria-label="Current Attacker">
-      </section>
-    </footer>
+    <CinemaMode
+      v-if="$route.name === 'PlayingField'"
+      :active="cinemaActive"
+      message="Opponent’s turn"
+      :subMessage="`Waiting for ${opponentName}…`"
+    />
   </div>
-
-  <CinemaMode
-    v-if="$route.name === 'PlayingField'"
-    :active="cinemaActive"
-    message="Opponent’s turn"
-    :subMessage="`Waiting for ${opponentName}…`"
-  />
-
-
 </template>
 
 <style scoped>
+.scene-root {
+  position: fixed;
+  inset: 0;
+}
 
 .scene--playingfield {
   position: fixed;
