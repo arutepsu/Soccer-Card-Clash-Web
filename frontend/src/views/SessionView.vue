@@ -123,13 +123,12 @@ async function submitCreate(): Promise<void> {
   const name = newSessionName.value.trim();
   if (!name) return;
 
+  services.gameContext.setMode('online');
+
   soundManager.play('click', { volume: 0.6 });
 
   try {
-    const res = await services.sessions.createSession({
-      hostName: 'host',
-      name,
-    });
+    const res = await services.sessions.createSession({ hostName: 'host', name });
 
     setCurrentPlayerId(res.hostToken);
     currentSessionId.value = res.sessionId;
@@ -141,12 +140,12 @@ async function submitCreate(): Promise<void> {
     await refreshSessions();
     services.push.setGameId?.(res.sessionId);
     services.push.reconnect();
-    openLobby(res.sessionId, 'host'); // real name later
-
+    openLobby(res.sessionId, 'host');
   } catch (e) {
     console.error('[SessionScreen] createSession failed:', e);
   }
 }
+
 
 async function joinFromRow(sessionId: string): Promise<void> {
   selectSession(sessionId);
@@ -160,11 +159,12 @@ async function joinSession(): Promise<void> {
   const s = sessionDetails.value;
   if (!s || s.status !== 'Waiting') return;
 
+  // PIN ONLINE MODE
+  services.gameContext.setMode('online');
+
   soundManager.play('click', { volume: 0.6 });
 
-  const res = await services.sessions.joinSession(sid, {
-    playerName: 'guest',
-  });
+  const res = await services.sessions.joinSession(sid, { playerName: 'guest' });
 
   if (res.playerToken) setCurrentPlayerId(res.playerToken);
   currentSessionId.value = res.sessionId;
@@ -172,9 +172,9 @@ async function joinSession(): Promise<void> {
   await refreshSessions();
   services.push.setGameId?.(res.sessionId);
   services.push.reconnect();
-  openLobby(res.sessionId, 'guest'); // real name later
-
+  openLobby(res.sessionId, 'guest');
 }
+
 
 async function leaveSession(): Promise<void> {
   const sid = currentSessionId.value;

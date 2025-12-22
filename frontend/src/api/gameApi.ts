@@ -143,6 +143,13 @@ export function createGameApi(options: CreateGameApiOptions = {}): GameApi {
   }
 
   function openStream(onState: (state: WebGameState) => void): StreamHandle {
+    if (mode !== 'online') {
+      return {
+        type: 'none',
+        close() {},
+      };
+    }
+
     if (streamClient && typeof streamClient.open === 'function') {
       return streamClient.open(onState);
     }
@@ -153,9 +160,14 @@ export function createGameApi(options: CreateGameApiOptions = {}): GameApi {
       close() {},
     };
   }
-  
-  function fetchGameState(): Promise<WebGameState> {
-    return getJSON<WebGameState>('/api/state');
+
+  async function fetchGameState(): Promise<WebGameState> {
+    if (mode === 'online') {
+      return getJSON<WebGameState>('/api/state');
+    }
+    const snap = await getState();
+    if (!snap) throw new Error('fetchGameState(local): GetState returned null');
+    return snap;
   }
 
   function getState(): Promise<WebGameState | null> {
