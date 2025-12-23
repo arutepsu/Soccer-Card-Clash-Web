@@ -20,7 +20,7 @@
 
       <div class="lobby-row">
         <span class="lbl">Status:</span>
-        <span class="val" :class="{ full: session?.status === 'Full' }">
+        <span class="val" :class="{ full: isFull }">
           {{ session?.status ?? '—' }}
         </span>
       </div>
@@ -70,12 +70,13 @@ import { useOverlayStore } from '@/stores/overlayStore';
 import type { SessionDto } from '@/types/SessionDtos';
 import { useGameContext } from '@/composables/useGameContext';
 import { useGameCommands } from '@/composables/useGameCommands';
+import { authState } from '@/auth/authState';
 
 const props = defineProps<{
   sessionId: string;
-  username: string;
   onHover?: () => void;
   onLeftLobby?: () => void;
+  onGameStarted?: () => void;
 }>();
 
 const services = useAppServices();
@@ -88,10 +89,17 @@ const gameCmds = useGameCommands(services.game.online);
 const loading = ref(true);
 const session = ref<SessionDto | null>(null);
 
-const isHost = computed(() => (session.value?.hostName ?? '') === props.username);
-const isFull = computed(() => session.value?.playerCount === 2);
+const norm = (s: string | null | undefined) => (s ?? '').trim().toLowerCase();
+
+const isHost = computed(() => norm(session.value?.hostName) === norm(authState.username));
+const isFull = computed(() => Number(session.value?.playerCount ?? 0) >= 2);
 
 let timer: number | null = null;
+
+function goToGame() {
+  props.onGameStarted?.();
+  overlay.hide();
+}
 
 function hover() {
   props.onHover?.();
@@ -109,28 +117,34 @@ async function enterGameIfStarted(next: SessionDto | null) {
     window.clearInterval(timer);
     timer = null;
   }
+
   bindSessionTransport();
 
   const web = await gameCmds.getState();
   gameContext.setState(web);
-  services.gameContext.startOnlineStreamOnly(); 
-    overlay.hide();
-  }
+  services.gameContext.startOnlineStreamOnly(props.sessionId);
+
+
+  goToGame();
+}
 
 async function startGame() {
   hover();
   await services.sessions.startSession(props.sessionId);
+
   bindSessionTransport();
 
   const web = await gameCmds.getState();
   gameContext.setState(web);
-  services.gameContext.startOnlineStreamOnly(); 
-  overlay.hide();
+  services.gameContext.startOnlineStreamOnly(props.sessionId);
+
+  goToGame();
 }
 
 async function refresh() {
   try {
     const next = await services.sessions.getSession(props.sessionId);
+    console.log('[Lobby] session dto', next);
     session.value = next;
 
     await enterGameIfStarted(next);
@@ -164,8 +178,6 @@ async function copyInvite() {
 }
 
 onMounted(async () => {
-  bindSessionTransport();
-
   await refresh();
   timer = window.setInterval(refresh, 2000);
 });

@@ -7,7 +7,7 @@ export interface GameApi {
   postJSON<T = unknown>(url: string, payload?: unknown): Promise<T | null>;
   getJSON<T = unknown>(url: string): Promise<T>;
 
-  openStream(onState: (state: WebGameState) => void): StreamHandle;
+  openStream(onState: (state: WebGameState) => void, sid?: string | null): StreamHandle;
 
   fetchGameState(): Promise<WebGameState>;
 
@@ -142,24 +142,17 @@ export function createGameApi(options: CreateGameApiOptions = {}): GameApi {
     return restResult;
   }
 
-  function openStream(onState: (state: WebGameState) => void): StreamHandle {
-    if (mode !== 'online') {
-      return {
-        type: 'none',
-        close() {},
-      };
-    }
+  function openStream(onState: (state: WebGameState) => void, sid?: string | null): StreamHandle {
+    if (mode !== 'online') return { type: 'none', close() {} };
 
     if (streamClient && typeof streamClient.open === 'function') {
-      return streamClient.open(onState);
+      return streamClient.open(onState, sid);
     }
 
     console.warn('[GameApi] streamClient is not provided, streaming disabled');
-    return {
-      type: 'none',
-      close() {},
-    };
+    return { type: 'none', close() {} };
   }
+
 
   async function fetchGameState(): Promise<WebGameState> {
     if (mode === 'online') {

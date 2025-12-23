@@ -32,11 +32,20 @@ final class GameStreamController @Inject()(
   with ControllerSupport
   with IGameStreamController {
 
+  private def sidFromQueryOrSession(req: RequestHeader): Either[Result, GameSessionId] = {
+    req.getQueryString("sid").map(_.trim).filter(_.nonEmpty) match {
+      case Some(raw) =>
+        Right(GameSessionId(raw))
+      case None =>
+        requireSid(req)
+    }
+  }
+
   override def sse: Action[AnyContent] = Action.async { implicit req =>
     requirePrincipal(req) match {
       case Left(res) => Future.successful(res)
       case Right(principal) =>
-        requireSid(req) match {
+        sidFromQueryOrSession(req) match {
           case Left(res) => Future.successful(res)
           case Right(sid) =>
             val (queue, src) =
@@ -48,6 +57,7 @@ final class GameStreamController @Inject()(
             queue.watchCompletion().foreach(_ => unsubscribe())(ec)
 
             val infoOpt = sessionRepo.get(sid)
+
             val eventSource =
               src.map { ev =>
                 val web = viewStateMapper.toWebState(ev.ctx, Some(principal), infoOpt)
@@ -58,8 +68,10 @@ final class GameStreamController @Inject()(
             Future.successful(
               Ok.chunked(eventSource)
                 .as("text/event-stream")
+                .addingToSession("sid" -> sid.value)
             )
         }
+
     }
   }
 
@@ -69,7 +81,12 @@ final class GameStreamController @Inject()(
       case Left(res) => Future.successful(res)
 
       case Right(principal) =>
-        val sid = getOrCreateSid(req)
+        val sid =
+          req.getQueryString("sid").map(_.trim).filter(_.nonEmpty) match {
+            case Some(raw) => GameSessionId(raw)
+            case None      => getOrCreateSid(req)
+          }
+
 
         val infoOpt: Option[SessionInfo] = sessionRepo.get(sid)
 

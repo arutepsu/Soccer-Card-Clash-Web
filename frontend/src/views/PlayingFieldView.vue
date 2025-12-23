@@ -23,6 +23,7 @@ import { createComparisonOrchestrator } from '../utils/playingField/comparisonOr
 import { createSoundManager } from '../utils/soundManager';
 
 import playingBg from '@/assets/images/frames/background5.jpg';
+import { authState } from '@/auth/authState';
 
 const {
   gameContext,
@@ -35,6 +36,7 @@ const {
 } = usePlayingField();
 
 const webState = computed(() => gameContext.state.value as WebGameState | null);
+
 const displaySceneView = ref(sceneView.value);
 
 const avatarRegistry = createPlayerAvatarRegistry({
@@ -49,15 +51,18 @@ function showInfoAlert(message: string) {
   show({ title: 'Info', message, content: null });
 }
 
-const mode = usePlayingFieldMode(webState, showInfoAlert);
+const services = useAppServices();
+
+const mode = usePlayingFieldMode(webState, showInfoAlert, {
+  mode: computed(() => services.gameContext.mode.value),
+  myUsername: computed(() => authState.username ?? null),
+});
 const cinemaActive = mode.cinemaActive;
 const opponentName = mode.opponentName;
 
-const services = useAppServices();
 const api = computed(() => {
   const m = services.gameContext.mode.value;
-  if (!m) throw new Error('[PlayingFieldView] gameContext.mode is null (pin mode first)');
-  return services.game.forMode(m);
+  return m ? services.game.forMode(m) : null;
 });
 
 const soundManager = createSoundManager({ basePath: '/assets/sounds/' });
@@ -108,10 +113,43 @@ function buildOrchestrator() {
 }
 
 watch(
-  () => api.value,
-  () => buildOrchestrator(),
+  api,
+  (a) => {
+    if (!a) {
+      orchestrator.value = null;
+      return;
+    }
+
+    orchestrator.value = createComparisonOrchestrator({
+      api: a,
+      scheduler,
+      comparisonHandler,
+      ActionNames: {
+        RegularAttack: 'RegularAttack',
+        DoubleAttack: 'DoubleAttack',
+        Undo: 'Undo',
+        Redo: 'Redo',
+        BoostDefender: 'BoostDefender',
+        BoostGoalkeeper: 'BoostGoalkeeper',
+        RegularSwap: 'RegularSwap',
+        ReverseSwap: 'ReverseSwap',
+      },
+      getRoles: () => lastRoles,
+      applyUiFromWeb: (web) => {
+        if (web?.roles) {
+          lastRoles.attacker = web.roles.attacker || '';
+          lastRoles.defender = web.roles.defender || '';
+        }
+
+        displaySceneView.value = sceneView.value;
+      },
+      updateFromServerContext: (_web) => {},
+      soundManager,
+    });
+  },
   { immediate: true },
 );
+
 
 function handleDefenderSelected(index: number | null) {
   selectedTarget.value = index == null ? null : { kind: 'defender', index };
@@ -197,18 +235,22 @@ onMounted(async () => {
 watch(
   webState,
   (st) => {
-    if (!st || !orchestrator.value) return;
-    orchestrator.value.handleStreamWeb(st);
+    if (!st) return;
+    if (st.roles) {
+      lastRoles.attacker = st.roles.attacker || '';
+      lastRoles.defender = st.roles.defender || '';
+    }
+    orchestrator.value?.handleStreamWeb(st);
   },
   { immediate: true },
 );
-
 const playingSceneStyle = {
   backgroundImage: `url(${playingBg})`,
   backgroundSize: 'cover',
   backgroundPosition: 'center',
   backgroundRepeat: 'no-repeat',
 };
+
 </script>
 
 <template>
@@ -236,7 +278,7 @@ const playingSceneStyle = {
 
         <section id="field" aria-label="Defender Field">
           <div class="card-bar-frame" id="field-frame">
-            <PlayersField
+          <PlayersField 
               :scene="displaySceneView"
               :busy="busy"
               @defender-selected="handleDefenderSelected"
@@ -255,7 +297,7 @@ const playingSceneStyle = {
           />
         </aside>
       </main>
-
+      
       <footer id="hand-row" aria-label="Attacker Hand and Avatar">
         <section id="hand" aria-label="Attacker Hand">
           <PlayersHand :scene="displaySceneView" :busy="busy" />

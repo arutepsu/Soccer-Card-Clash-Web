@@ -4,10 +4,7 @@ import { useGameContext } from './useGameContext';
 import { useGameCommands } from './useGameCommands';
 import type { WebGameState } from '../types/WebGameState';
 import { createCardImageRegistry } from '../utils/cardImageRegistry';
-import {
-  buildSceneViewFromWeb,
-  type SceneView,
-} from '../utils/playingField/sceneMapping';
+import { buildSceneViewFromWeb, type SceneView } from '../utils/playingField/sceneMapping';
 
 export function usePlayingField() {
   const gameContext = useGameContext();
@@ -32,26 +29,27 @@ export function usePlayingField() {
     await cardRegistry.preloadAll().catch(() => {});
   }
 
-  async function attackDefender(index: number): Promise<void> {
+  async function attackDefender(index: number): Promise<WebGameState> {
     console.log('[usePlayingField] attackDefender called with index:', index);
-    await singleAttackDefender(index);
+    const st = await singleAttackDefender(index);
     console.log('[usePlayingField] attackDefender finished');
+    return st;
   }
 
-  async function attackGoalkeeper(): Promise<void> {
-    await singleAttackGoalkeeper();
+  async function attackGoalkeeper(): Promise<WebGameState> {
+    return singleAttackGoalkeeper();
   }
 
-  async function doDoubleAttack(index: number): Promise<void> {
-    await doubleAttack(index);
+  async function doDoubleAttack(index: number): Promise<WebGameState> {
+    return doubleAttack(index);
   }
 
-  async function doUndo(): Promise<void> {
-    await undo();
+  async function doUndo(): Promise<WebGameState> {
+    return undo();
   }
 
-  async function doRedo(): Promise<void> {
-    await redo();
+  async function doRedo(): Promise<WebGameState> {
+    return redo();
   }
 
   return {

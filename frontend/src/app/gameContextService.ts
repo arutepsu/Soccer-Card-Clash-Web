@@ -13,7 +13,7 @@ export interface GameContextService {
   stop(): void;
   setState(state: WebGameState | null): void;
   clear(): void;
-  startOnlineStreamOnly(): void;
+  startOnlineStreamOnly(sessionId: string): void;
   setMode(nextMode: GameMode): void;
 }
 
@@ -50,7 +50,7 @@ export function createGameContextService(game: GameApiRouter): GameContextServic
     return api.getState();
   }
 
-    function startOnlineStreamOnly(): void {
+  function startOnlineStreamOnly(sessionId: string): void {
     const myToken = ++startToken;
 
     stop();
@@ -61,8 +61,9 @@ export function createGameContextService(game: GameApiRouter): GameContextServic
     handle = api.openStream((next) => {
         if (myToken !== startToken) return;
         state.value = next;
-    });
-    }
+    }, sessionId);
+  }
+
 
   async function start(nextMode: GameMode): Promise<void> {
     const myToken = ++startToken;
