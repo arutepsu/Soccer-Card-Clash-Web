@@ -1,19 +1,35 @@
+// frontend/src/composables/useGameCommands.ts
 import { computed, ref } from 'vue';
 import { useAppServices } from '@/app/appServices';
 import { useGameContext } from './useGameContext';
 import type { GameApi } from '../api/gameApi';
 import type { WebGameState } from '../types/WebGameState';
 
+type GameMode = 'local' | 'online';
+
 export function useGameCommands(overrideApi?: GameApi) {
   const gameContext = useGameContext();
   const busy = ref(false);
   const services = useAppServices();
 
+  function inferModeFromState(): GameMode {
+    const st = gameContext.state.value as any;
+    // online state has "you"
+    return st?.you ? 'online' : 'local';
+  }
+
   const api = computed<GameApi>(() => {
     if (overrideApi) return overrideApi;
-    const m = services.gameContext.mode.value;
-    if (!m) throw new Error('[useGameCommands] gameContext.mode is null (pin mode first)');
-    return services.game.forMode(m);
+
+    const pinned = services.gameContext.mode.value as GameMode | null;
+
+    const mode: GameMode = pinned ?? inferModeFromState();
+
+    if (!pinned) {
+      console.warn('[useGameCommands] mode not pinned -> inferring mode =', mode);
+    }
+
+    return services.game.forMode(mode);
   });
 
   async function runCommand(
@@ -36,6 +52,8 @@ export function useGameCommands(overrideApi?: GameApi) {
   }
 
   function startLocalMultiplayer(attackerName: string, defenderName: string) {
+    services.gameContext.setMode('local');
+
     return runCommand(
       (a) => a.createLocalMultiplayer(attackerName, defenderName),
       'CreateGame returned null WebGameState',

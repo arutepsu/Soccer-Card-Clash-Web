@@ -1,4 +1,7 @@
-export const authState = {
+// auth/authState.ts
+import { reactive } from 'vue';
+
+export const authState = reactive({
   checked: false,
   loggedIn: false,
   username: null as string | null,
@@ -20,4 +23,4 @@ export const authState = {
     this.loggedIn = false;
     this.username = null;
   },
-};
+});

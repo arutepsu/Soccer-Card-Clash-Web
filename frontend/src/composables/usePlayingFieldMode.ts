@@ -13,24 +13,33 @@ export interface PlayingFieldModeHelper {
   requireMyTurn(): boolean;
 }
 
-/**
- * Centralizes local/online logic:
- * - online: enforce turn ownership (attacker only)
- * - local: allow actions always + keep playerId synced to current attacker
- */
+type Mode = 'local' | 'online' | null;
+
 export function usePlayingFieldMode(
   webState: ComputedRef<WebGameState | null>,
   showInfoAlert: (msg: string) => void,
+  opts?: { mode?: ComputedRef<Mode>; myUsername?: ComputedRef<string | null> },
 ): PlayingFieldModeHelper {
-  const you = computed(() => webState.value?.you ?? null);
+  const modeRef = opts?.mode ?? computed<Mode>(() => null);
+  const myUsername = opts?.myUsername ?? computed(() => null);
 
-  const isOnline = computed(() => !!you.value);
-  const isLocal = computed(() => !isOnline.value);
+  const isOnline = computed(() => modeRef.value === 'online');
+  const isLocal  = computed(() => modeRef.value === 'local');
+
+  watch(
+    [webState, isLocal],
+    ([st, local]) => {
+      if (!local) return;
+      const attacker = st?.roles?.attacker?.trim();
+      if (attacker) setCurrentPlayerId(attacker);
+    },
+    { immediate: true },
+  );
 
   const isMyTurn = computed(() => {
     if (isLocal.value) return true;
     const st = webState.value;
-    const me = you.value?.username;
+    const me = myUsername.value;
     if (!st?.roles?.attacker || !me) return false;
     return st.roles.attacker === me;
   });
@@ -39,17 +48,19 @@ export function usePlayingFieldMode(
 
   const opponentName = computed(() => {
     const st = webState.value;
+    if (!st?.roles) return 'Opponent';
 
-    if (isLocal.value) return st?.roles?.defender || 'Opponent';
+    if (isLocal.value) return st.roles.defender || 'Opponent';
 
-    const me = you.value?.username;
-    if (!st?.roles || !me) return 'Opponent';
-    return st.roles.attacker === me ? st.roles.defender : st.roles.attacker;
+    const me = myUsername.value;
+    if (!me) return 'Opponent';
+    return st.roles.attacker === me
+      ? (st.roles.defender || 'Opponent')
+      : (st.roles.attacker || 'Opponent');
   });
 
   function requireMyTurn(): boolean {
     if (isLocal.value) return true;
-
     if (!isMyTurn.value) {
       showInfoAlert("It's not your turn.");
       return false;
@@ -57,23 +68,5 @@ export function usePlayingFieldMode(
     return true;
   }
 
-  watch(
-    webState,
-    (st) => {
-      if (!st) return;
-      if (st.you) return;
-      const attacker = st.roles?.attacker;
-      if (attacker) setCurrentPlayerId(attacker);
-    },
-    { immediate: true },
-  );
-
-  return {
-    isOnline,
-    isLocal,
-    isMyTurn,
-    cinemaActive,
-    opponentName,
-    requireMyTurn,
-  };
+  return { isOnline, isLocal, isMyTurn, cinemaActive, opponentName, requireMyTurn };
 }

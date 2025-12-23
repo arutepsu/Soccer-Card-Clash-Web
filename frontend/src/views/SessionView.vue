@@ -46,30 +46,36 @@ import type { SessionDto } from '@/types/SessionDtos';
 
 import SessionsPanel from '@/components/session/SessionsPanel.vue';
 import SessionDetailsPanel from '@/components/session/SessionDetailsPanel.vue';
-
+import { authState } from '@/auth/authState';
 import { useOverlayStore } from '@/stores/overlayStore';
 import SessionLobbyOverlay from '@/components/session/SessionLobbyOverlay.vue';
+import { useRouter } from 'vue-router';
+const router = useRouter();
+
 const services = useAppServices();
 
 const overlay = useOverlayStore();
 
-function openLobby(sessionId: string, username: string) {
+function openLobby(sessionId: string) {
   overlay.show({
     title: 'LOBBY',
     message: 'Invite a friend and wait until they join.',
     content: SessionLobbyOverlay,
     componentProps: {
       sessionId,
-      username,
       onHover: handleMouseEnter,
       onLeftLobby: async () => {
         currentSessionId.value = null;
         selectedSessionId.value = null;
         await refreshSessions();
       },
+      onGameStarted: async () => {
+        await router.push({ name: 'PlayingField' });
+      },
     },
   });
 }
+
 
 const soundManager: SoundManager = createSoundManager({
   basePath: '/assets/sounds/',
@@ -120,15 +126,17 @@ function cancelCreate(): void {
 }
 
 async function submitCreate(): Promise<void> {
-  const name = newSessionName.value.trim();
-  if (!name) return;
+  const sessionName = newSessionName.value.trim();
+  if (!sessionName) return;
 
   services.gameContext.setMode('online');
-
   soundManager.play('click', { volume: 0.6 });
 
   try {
-    const res = await services.sessions.createSession({ hostName: 'host', name });
+    const hostName = authState.username?.trim();
+    if (!hostName) return;
+
+    const res = await services.sessions.createSession({ hostName, name: sessionName });
 
     setCurrentPlayerId(res.hostToken);
     currentSessionId.value = res.sessionId;
@@ -138,14 +146,15 @@ async function submitCreate(): Promise<void> {
     newSessionName.value = '';
 
     await refreshSessions();
+
     services.push.setGameId?.(res.sessionId);
     services.push.reconnect();
-    openLobby(res.sessionId, 'host');
+
+    openLobby(res.sessionId);
   } catch (e) {
     console.error('[SessionScreen] createSession failed:', e);
   }
 }
-
 
 async function joinFromRow(sessionId: string): Promise<void> {
   selectSession(sessionId);
@@ -159,12 +168,14 @@ async function joinSession(): Promise<void> {
   const s = sessionDetails.value;
   if (!s || s.status !== 'Waiting') return;
 
-  // PIN ONLINE MODE
   services.gameContext.setMode('online');
 
   soundManager.play('click', { volume: 0.6 });
 
-  const res = await services.sessions.joinSession(sid, { playerName: 'guest' });
+  const playerName = authState.username?.trim();
+  if (!playerName) return;
+
+  const res = await services.sessions.joinSession(sid, { playerName });
 
   if (res.playerToken) setCurrentPlayerId(res.playerToken);
   currentSessionId.value = res.sessionId;
@@ -172,7 +183,7 @@ async function joinSession(): Promise<void> {
   await refreshSessions();
   services.push.setGameId?.(res.sessionId);
   services.push.reconnect();
-  openLobby(res.sessionId, 'guest');
+  openLobby(res.sessionId);
 }
 
 

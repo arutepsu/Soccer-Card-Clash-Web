@@ -56,6 +56,7 @@ export interface PushClient {
 }
 
 export interface CreateServerPushClientOptions {
+  baseUrl?: string;
   path?: string;
   reconnectDelayMs?: number;
   getPlayerId?: () => string | null;
@@ -89,9 +90,17 @@ export function createServerPushClient(
   >();
 
   function buildWsUrl(): string {
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const proto = (opts.baseUrl?.startsWith('https') || location.protocol === 'https:') ? 'wss' : 'ws';
+
+    if (opts.baseUrl) {
+      const httpBase = opts.baseUrl.replace(/\/+$/, '');
+      const host = httpBase.replace(/^https?:\/\//, '');
+      return `${proto}://${host}${path}`;
+    }
+
     return `${proto}://${location.host}${path}`;
   }
+
 
   function scheduleReconnect(): void {
     if (intentionallyClosed) return;

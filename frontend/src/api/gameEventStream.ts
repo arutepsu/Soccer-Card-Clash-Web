@@ -6,7 +6,7 @@ export interface StreamHandle {
 }
 
 export interface StreamClient {
-  open(onState: (state: WebGameState) => void): StreamHandle;
+  open(onState: (state: WebGameState) => void, sid?: string | null): StreamHandle;
 }
 
 function unwrapToState(msg: any): WebGameState | null {
@@ -27,57 +27,8 @@ function getEventId(msg: any): number | null {
   return null;
 }
 
-// frontend/src/api/gameEventStream.ts (or wherever createGameEventStream is)
 export function createGameEventStream(): StreamClient {
-  function startSseStream(
-    onState: (state: WebGameState) => void,
-    onFatalError: () => void,
-  ): StreamHandle | null {
-    if (typeof window === 'undefined' || !window.EventSource) {
-      console.warn('[STREAM][SSE] EventSource not available');
-      return null;
-    }
-
-    // ✅ FIX: match backend route
-    const url = '/api/stream/sse';
-    console.log('[STREAM][SSE] connecting to', url);
-
-    // ✅ Keep this (needed for sid cookie)
-    const es = new EventSource(url, { withCredentials: true });
-
-    let closed = false;
-    let gotAnyMessage = false;
-
-    es.onmessage = (e: MessageEvent<string>) => {
-      gotAnyMessage = true;
-      try {
-        const msg = JSON.parse(e.data);
-        const state = unwrapToState(msg);
-        if (state) onState(state);
-      } catch (err) {
-        console.warn('[STREAM][SSE] invalid JSON:', err, e.data);
-      }
-    };
-
-    es.onerror = (e) => {
-      console.warn('[STREAM][SSE] error:', e);
-      if (es.readyState === EventSource.CLOSED && !closed) {
-        closed = true;
-        es.close();
-        if (!gotAnyMessage) onFatalError();
-      }
-    };
-
-    return {
-      type: 'sse',
-      close() {
-        closed = true;
-        es.close();
-      },
-    };
-  }
-
-  function startCometStream(onState: (state: WebGameState) => void): StreamHandle {
+  function startCometStream(onState: (state: WebGameState) => void, sid?: string | null): StreamHandle{
     let aborted = false;
     let lastEventId = 0;
     let consecutiveErrors = 0;
@@ -87,7 +38,11 @@ export function createGameEventStream(): StreamClient {
     async function pollOnce() {
       if (aborted) return;
 
-      const url = `/api/stream/comet?lastEventId=${encodeURIComponent(lastEventId)}`;
+    const q = new URLSearchParams();
+    if (sid) q.set('sid', sid);
+    q.set('lastEventId', String(lastEventId));
+    const url = `/api/stream/comet?${q.toString()}`;
+
 
       try {
         const res = await fetch(url, {
@@ -139,19 +94,97 @@ export function createGameEventStream(): StreamClient {
     return { type: 'comet', close() { aborted = true; } };
   }
 
-  function open(onState: (state: WebGameState) => void): StreamHandle {
-    const startComet = () => {
-      const h = startCometStream(onState);
-      console.log('[STREAM] using Comet /api/stream/comet');
-      return h;
+  function startSseStream(
+    onState: (state: WebGameState) => void,
+    onFallback: () => void,
+    sid?: string | null,
+  ): StreamHandle | null {
+    if (typeof window === 'undefined' || !window.EventSource) {
+      console.warn('[STREAM][SSE] EventSource not available');
+      return null;
+    }
+
+    const base = '/api/stream/sse';
+    const url = sid ? `${base}?sid=${encodeURIComponent(sid)}` : base;
+
+    console.log('[STREAM][SSE] connecting to', url);
+
+    const es = new EventSource(url, { withCredentials: true });
+
+    let closed = false;
+    let gotAnyMessage = false;
+    let opened = false;
+
+    // If we don't get ANY message soon, fallback (covers CORS/auth/reject cases)
+    const startupTimeout = window.setTimeout(() => {
+      if (closed) return;
+      if (gotAnyMessage) return;
+      console.warn('[STREAM][SSE] no messages after 3s -> fallback to Comet');
+      closed = true;
+      try { es.close(); } catch {}
+      onFallback();
+    }, 3000);
+
+    es.onopen = () => {
+      opened = true;
+      console.log('[STREAM][SSE] open');
     };
 
-    const sse = startSseStream(onState, () => { /* fallback */ });
+    es.onmessage = (e: MessageEvent<string>) => {
+      gotAnyMessage = true;
+      try {
+        const msg = JSON.parse(e.data);
+        const state = unwrapToState(msg);
+        if (state) onState(state);
+      } catch (err) {
+        console.warn('[STREAM][SSE] invalid JSON:', err, e.data);
+      }
+    };
+
+    es.onerror = (e) => {
+      // Many browsers report SSE failures as repeated "error" while still CONNECTING (readyState=0)
+      console.warn('[STREAM][SSE] error:', e, 'readyState=', es.readyState);
+
+      if (closed) return;
+
+      // If it errors before any message, fallback quickly
+      if (!gotAnyMessage && (!opened || es.readyState !== EventSource.OPEN)) {
+        window.clearTimeout(startupTimeout);
+        closed = true;
+        try { es.close(); } catch {}
+        onFallback();
+      }
+    };
+
+    return {
+      type: 'sse',
+      close() {
+        closed = true;
+        window.clearTimeout(startupTimeout);
+        es.close();
+      },
+    };
+  }
+
+  function open(onState: (state: WebGameState) => void, sid?: string | null): StreamHandle {
+    let active: StreamHandle | null = null;
+
+  const startComet = () => {
+    if (active) return;
+    active = startCometStream(onState, sid);
+    console.log('[STREAM] using Comet /api/stream/comet');
+  };
+
+  const sse = startSseStream(onState, startComet, sid);
+
     if (sse) {
+      active = sse;
       console.log('[STREAM] using SSE /api/stream/sse');
       return sse;
     }
-    return startComet();
+
+    startComet();
+    return active!;
   }
 
   return { open };
