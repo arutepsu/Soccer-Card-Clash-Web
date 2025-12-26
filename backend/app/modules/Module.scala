@@ -5,6 +5,7 @@ import de.htwg.se.soccercardclash.module.SoccerCardClashModule
 import app.api.usecases.IGameUseCases
 import app.api.usecases.GameUseCases
 import app.session.repositories._
+import app.api.context.{ IGameContextRepository, GameContextRepository }
 import app.session._
 import app.fileIO.IFileIO
 import app.fileIO.JsonFileIO
@@ -24,7 +25,9 @@ final class Module extends AbstractModule {
     install(new SoccerCardClashModule)
 
     bind(classOf[IGameUseCases]).to(classOf[GameUseCases]).asEagerSingleton()
-    bind(classOf[IGameContextRepository]).to(classOf[GameContextRepository]).asEagerSingleton()
+    bind(classOf[IGameContextRepository])
+      .to(classOf[GameContextRepository])
+      .asEagerSingleton()
     bind(classOf[IGameSessionRepository]).to(classOf[InMemoryGameSessionRepository]).asEagerSingleton()
     bind(classOf[IFileIO]).to(classOf[JsonFileIO]).asEagerSingleton()
 

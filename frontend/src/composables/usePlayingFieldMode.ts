@@ -1,72 +1,83 @@
-// frontend/src/composables/usePlayingFieldMode.ts
-import { computed, watch, type ComputedRef } from 'vue';
-import { setCurrentPlayerId } from '@/app/appServices';
+import { computed } from 'vue';
+import { authState } from '@/auth/authState';
 import type { WebGameState } from '@/types/WebGameState';
 
-export interface PlayingFieldModeHelper {
-  isOnline: ComputedRef<boolean>;
-  isLocal: ComputedRef<boolean>;
-  isMyTurn: ComputedRef<boolean>;
-  cinemaActive: ComputedRef<boolean>;
-  opponentName: ComputedRef<string>;
-
-  requireMyTurn(): boolean;
-}
-
-type Mode = 'local' | 'online' | null;
-
 export function usePlayingFieldMode(
-  webState: ComputedRef<WebGameState | null>,
-  showInfoAlert: (msg: string) => void,
-  opts?: { mode?: ComputedRef<Mode>; myUsername?: ComputedRef<string | null> },
-): PlayingFieldModeHelper {
-  const modeRef = opts?.mode ?? computed<Mode>(() => null);
-  const myUsername = opts?.myUsername ?? computed(() => null);
+  webState: any,
+  showInfoAlert: (m: string) => void,
+  opts: {
+    mode: any;
+    localIsVsAI?: any;
+    localHumanName?: any;
+  }
+) {
+  const isLocal = computed(() => opts.mode.value === 'local');
+  const isOnline = computed(() => opts.mode.value === 'online');
 
-  const isOnline = computed(() => modeRef.value === 'online');
-  const isLocal  = computed(() => modeRef.value === 'local');
+  const myTurn = computed(() => {
+    const st = webState.value as WebGameState | null;
+    if (!st) return false;
 
-  watch(
-    [webState, isLocal],
-    ([st, local]) => {
-      if (!local) return;
-      const attacker = st?.roles?.attacker?.trim();
-      if (attacker) setCurrentPlayerId(attacker);
-    },
-    { immediate: true },
-  );
+    if (isLocal.value) {
+      const vsAI = !!opts.localIsVsAI?.value;
 
-  const isMyTurn = computed(() => {
-    if (isLocal.value) return true;
-    const st = webState.value;
-    const me = myUsername.value;
-    if (!st?.roles?.attacker || !me) return false;
-    return st.roles.attacker === me;
-  });
+      if (!vsAI) return true;
 
-  const cinemaActive = computed(() => isOnline.value && !isMyTurn.value);
+      const human = ((opts.localHumanName?.value ?? '') as string).trim().toLowerCase();
+      const attacker = (st.roles?.attacker ?? '').trim().toLowerCase();
+      return !!human && attacker === human;
+    }
 
-  const opponentName = computed(() => {
-    const st = webState.value;
-    if (!st?.roles) return 'Opponent';
+    if (st.you) return st.you.isAttacker === true;
 
-    if (isLocal.value) return st.roles.defender || 'Opponent';
-
-    const me = myUsername.value;
-    if (!me) return 'Opponent';
-    return st.roles.attacker === me
-      ? (st.roles.defender || 'Opponent')
-      : (st.roles.attacker || 'Opponent');
+    const me = (authState.username ?? '').trim().toLowerCase();
+    const attacker = (st.roles?.attacker ?? '').trim().toLowerCase();
+    return !!me && me === attacker;
   });
 
   function requireMyTurn(): boolean {
-    if (isLocal.value) return true;
-    if (!isMyTurn.value) {
-      showInfoAlert("It's not your turn.");
-      return false;
-    }
-    return true;
+    if (myTurn.value) return true;
+    showInfoAlert('Not your turn (only attacker may act).');
+    return false;
   }
+  const cinemaActive = computed(() => {
+    const st = webState.value as WebGameState | null;
+    if (!st) return false;
 
-  return { isOnline, isLocal, isMyTurn, cinemaActive, opponentName, requireMyTurn };
+    if (isLocal.value) {
+      const vsAI = !!opts.localIsVsAI?.value;
+      if (!vsAI) return false;
+
+      return !myTurn.value;
+    }
+
+    if (st.you) return st.you.isAttacker === false;
+
+    const me = (authState.username ?? '').trim().toLowerCase();
+    const attacker = (st.roles?.attacker ?? '').trim().toLowerCase();
+    return !!me && me !== attacker;
+  });
+
+  const opponentName = computed(() => {
+    const st = webState.value as WebGameState | null;
+    if (!st) return '';
+
+    const a = (st.roles?.attacker ?? '').trim();
+    const d = (st.roles?.defender ?? '').trim();
+
+    if (isLocal.value) {
+      const vsAI = !!opts.localIsVsAI?.value;
+      if (!vsAI) return '';
+      return myTurn.value ? d : a;
+    }
+
+    const me = (authState.username ?? '').trim().toLowerCase();
+    return a.toLowerCase() === me ? d : a;
+  });
+
+  return {
+    requireMyTurn,
+    cinemaActive,
+    opponentName,
+  };
 }

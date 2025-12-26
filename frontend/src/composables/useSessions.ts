@@ -4,7 +4,8 @@ import { useAppServices } from '@/app/appServices';
 import { toSessionView, type SessionView } from '@/session/Session';
 
 export function useSessions() {
-  const { sessions: sessionApi } = useAppServices();
+  const services = useAppServices();
+  const { sessions: sessionApi } = services;
 
   const items = ref<SessionView[]>([]);
   const selectedId = ref<string | null>(null);
@@ -51,6 +52,10 @@ export function useSessions() {
     try {
       error.value = null;
       const created = await sessionApi.createSession({ hostName, name });
+
+      services.gameContext.setMode('online');
+      services.gameContext.setSessionId(created.id);
+
       await refresh();
       selectedId.value = created.id;
       return created;
@@ -64,10 +69,25 @@ export function useSessions() {
     try {
       error.value = null;
       const res = await sessionApi.joinSession(sessionId, { playerName });
+
+      services.gameContext.setMode('online');
+      services.gameContext.setSessionId(sessionId);
+
       await refresh();
       return res;
     } finally {
       busy.value = false;
+    }
+  }
+
+  async function leaveSession(sessionId: string) {
+    busy.value = true;
+    try {
+      error.value = null;
+      await sessionApi.leaveSession(sessionId);
+    } finally {
+      busy.value = false;
+      services.gameContext.setSessionId(null);
     }
   }
 
@@ -87,5 +107,6 @@ export function useSessions() {
     refresh,
     createSession,
     joinSession,
+    leaveSession,
   };
 }

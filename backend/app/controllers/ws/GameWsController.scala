@@ -3,7 +3,7 @@ package app.controllers.ws
 import javax.inject._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
-
+import play.api.libs.json.{JsObject, Json}
 import akka.stream.scaladsl.Flow
 import play.api.libs.json._
 import play.api.mvc._
@@ -17,12 +17,17 @@ import app.models.AppError
 import app.models.state.WebGameState
 import app.session.GameSessionId
 
+import app.api.eventHub.GameEventHub
+import app.api.context.IGameContextRepository
+
 @Singleton
 final class GameWsController @Inject()(
   cc: ControllerComponents,
   decoder: GameCommandDecoder,
   facade: IGameCommandFacade,
-  config: Configuration
+  config: Configuration,
+  eventHub: GameEventHub,
+  ctxRepo: IGameContextRepository
 )(implicit ec: ExecutionContext)
   extends AbstractController(cc)
     with ControllerSupport
@@ -30,10 +35,71 @@ final class GameWsController @Inject()(
 
   given Configuration = config
 
+  private def metaFromEnvelope(env: Envelope): JsObject = {
+    env.`type` match {
+      case MessageTypes.RegularAttack | "SingleAttack" =>
+        val target = (env.payload \ "target").asOpt[String].getOrElse("defender").toLowerCase
+        val idx    = (env.payload \ "index").asOpt[Int].getOrElse(-1)
+
+        val defenderIndex =
+          if (target == "goalkeeper") -1 else idx
+
+        Json.obj(
+          "action" -> MessageTypes.RegularAttack,
+          "defenderIndex" -> defenderIndex
+        )
+
+      case MessageTypes.DoubleAttack =>
+        val target = (env.payload \ "target").asOpt[String].getOrElse("defender").toLowerCase
+        val idx    = (env.payload \ "index").asOpt[Int].getOrElse(-1)
+
+        val defenderIndex =
+          if (target == "goalkeeper") -1 else idx
+
+        Json.obj(
+          "action" -> MessageTypes.DoubleAttack,
+          "defenderIndex" -> defenderIndex
+        )
+
+      case MessageTypes.Undo =>
+        Json.obj("action" -> MessageTypes.Undo)
+
+      case MessageTypes.Redo =>
+        Json.obj("action" -> MessageTypes.Redo)
+
+      case MessageTypes.Boost =>
+        val target = (env.payload \ "target").asOpt[String].getOrElse("defender").toLowerCase
+        val idx    = (env.payload \ "index").asOpt[Int].getOrElse(-1)
+        val defenderIndex =
+          if (target == "goalkeeper") -1 else idx
+
+        Json.obj("action" -> MessageTypes.Boost, "defenderIndex" -> defenderIndex)
+
+      case MessageTypes.RegularSwap | "Swap" =>
+        val idx = (env.payload \ "index").asOpt[Int].getOrElse(-1)
+        Json.obj("action" -> MessageTypes.RegularSwap, "handIndex" -> idx)
+
+      case MessageTypes.ReverseSwap =>
+        Json.obj("action" -> MessageTypes.ReverseSwap)
+
+      case MessageTypes.ExecuteAI =>
+        Json.obj("action" -> MessageTypes.ExecuteAI)
+
+      case _ =>
+        Json.obj()
+    }
+  }
+
+  private def sidFromQueryOrSession(req: RequestHeader): Either[Result, GameSessionId] =
+    req.getQueryString("sid").map(_.trim).filter(_.nonEmpty) match {
+      case Some(raw) => Right(GameSessionId(raw))
+      case None      => requireSid(req)
+    }
+
   override def ws: WebSocket =
     WebSocket.acceptOrResult[JsValue, JsValue] { req =>
       (for {
-        sid <- requireSid(req)
+        sid <- sidFromQueryOrSession(req)
         p   <- principalOrAnonymous(req)
       } yield (sid, p)) match {
         case Left(res) => Future.successful(Left(res))
@@ -65,6 +131,10 @@ final class GameWsController @Inject()(
               Future.successful(Json.toJson(errorEnvelope(env, sid, appErr)))
 
             case Right(web) =>
+              ctxRepo.get(sid).foreach { ctx =>
+                eventHub.publish(sid, ctx, metaFromEnvelope(env))
+              }
+
               Future.successful(Json.toJson(stateEnvelope(env, sid, web)))
           }
         } catch {
@@ -88,7 +158,8 @@ final class GameWsController @Inject()(
       `type`    = MessageTypes.StateUpdated,
       gameId    = sid.value,
       requestId = in.requestId,
-      payload   = Json.toJson(web)
+      payload   = Json.toJson(web),
+      meta      = Some(metaFromEnvelope(in))
     )
 
   private def errorEnvelope(in: Envelope, sid: GameSessionId, err: AppError): Envelope =
@@ -97,6 +168,7 @@ final class GameWsController @Inject()(
       `type`    = MessageTypes.GameError,
       gameId    = sid.value,
       requestId = in.requestId,
-      payload   = Json.toJson(err)
+      payload   = Json.toJson(err),
+      meta      = Some(metaFromEnvelope(in))
     )
 }

@@ -1,5 +1,5 @@
 // frontend/src/app/appServices.ts
-import { inject, type InjectionKey } from 'vue';
+import { inject, type InjectionKey, watch } from 'vue';
 
 import { createGameApi, type GameApi } from '../api/gameApi';
 import { createServerPushClient, type PushClient } from '../api/serverPushClient';
@@ -10,6 +10,8 @@ import { createAuthApi, type AuthApi } from '../api/authApi';
 
 import { createGameContextService } from './gameContextService';
 import type { GameContextService, GameMode } from './gameContextService';
+
+import type { WebGameState } from '@/types/WebGameState';
 
 export interface GameApiRouter {
   local: GameApi;
@@ -28,17 +30,20 @@ export interface AppServices {
   gameContext: GameContextService;
 }
 
-let currentPlayerId = 'frontend';
+let currentPlayerId = '';
 export function setCurrentPlayerId(id: string) {
-  currentPlayerId = id;
+  currentPlayerId = (id ?? '').trim();
 }
-export function getCurrentPlayerId(): string {
-  return currentPlayerId;
+export function getCurrentPlayerId(): string | null {
+  const s = (currentPlayerId ?? '').trim();
+  return s ? s : null;
 }
+
 
 export const AppServicesKey: InjectionKey<AppServices> = Symbol('AppServices');
 
 export function createAppServices(): AppServices {
+  
   const pushClient = createServerPushClient({
     path: '/api/ws',
     getPlayerId: () => null,
@@ -47,7 +52,7 @@ export function createAppServices(): AppServices {
 
   const localApi = createGameApi({
     mode: 'local',
-    getPlayerId: () => getCurrentPlayerId(),
+    getPlayerId: () => null,
   });
 
   const onlineApi = createGameApi({
@@ -71,6 +76,35 @@ export function createAppServices(): AppServices {
     getJSON: onlineApi.getJSON,
     postJSON: onlineApi.postJSON,
   });
+
+  let lastOnlineSid: string | null = null;
+
+  watch(
+    [gameContext.mode, gameContext.sessionId],
+    ([m, sid]) => {
+      if (m !== 'online') {
+        lastOnlineSid = null;
+        pushClient.setGameId?.(null);
+        return;
+      }
+
+    const nextSid = (sid ?? '').trim() || null;
+    pushClient.setGameId?.(nextSid);
+
+    if (!nextSid) {
+      lastOnlineSid = null;
+      return;
+    }
+
+    if (nextSid !== lastOnlineSid) {
+      lastOnlineSid = nextSid;
+      pushClient.reconnect();
+    }
+
+    },
+    { immediate: true },
+  );
+
 
   return {
     game,

@@ -5,10 +5,11 @@ import app.api.usecases.IGameUseCases
 import app.api.command.GameCommand
 import app.models.AppError
 import de.htwg.se.soccercardclash.model.gameComponent.context.GameContext
-import app.session.repositories._
-import app.api.context._
+import app.api.context.IGameContextRepository
+import app.session.repositories.IGameSessionRepository
 import GameSessionError._
 import app.auth.AuthPrincipal
+import app.session.SessionInfo.norm
 
 @Singleton
 final class GameSessionService @Inject()(
@@ -88,15 +89,33 @@ final class GameSessionService @Inject()(
               Left(CommandFailed(err.message))
 
             case Right(_) =>
-              ctxRepo.get(id) match {
+              gameUseCases.getCtx(id) match {
                 case None =>
                   Left(CommandFailed("Game context missing after startSession"))
 
                 case Some(ctx) =>
-                  val startedInfo = info.copy(state = SessionState.Started)
+                  val hostKey  = norm(info.hostName)
+                  val guestKey = norm(info.guestName.get)
+                  val guestUid = info.guestUserId.getOrElse {
+                    return Left(CommandFailed("Cannot start: guestUserId missing"))
+                  }
+
+
+                  val mapping =
+                    info.nameToUserId ++ Map(
+                      hostKey  -> info.hostUserId,
+                      guestKey -> guestUid
+                    )
+
+                  val startedInfo = info.copy(
+                    state        = SessionState.Started,
+                    nameToUserId = mapping
+                  )
+
                   updateSession(id, startedInfo)
                   Right(ctx)
               }
+
           }
         }
     }
@@ -117,10 +136,14 @@ final class GameSessionService @Inject()(
             sessionRepo.clear(id)
             Left(CommandFailed("Session closed"))
           } else {
+            val guestKey = info.guestName.map(norm).getOrElse("")
+
             val updated = info.copy(
-              guestName = None,
-              guestToken = None,
-              guestUserId = None
+              guestName    = None,
+              guestToken   = None,
+              guestUserId  = None,
+              state        = SessionState.Waiting,
+              nameToUserId = if (guestKey.nonEmpty) info.nameToUserId - guestKey else info.nameToUserId
             )
             updateSession(id, updated)
             Right(updated)
@@ -148,13 +171,29 @@ final class GameSessionService @Inject()(
         val gn = guestName.trim
         if (gn.isEmpty) return Left(CommandFailed("guestName must be non-empty"))
 
+        val hostKey  = norm(info.hostName)
+        val guestKey = norm(gn)
+
+        if (guestKey == hostKey)
+          return Left(CommandFailed("guestName must be different from hostName"))
+
+        if (info.nameToUserId.contains(guestKey))
+          return Left(CommandFailed("guestName already taken"))
+
         val guestToken = newToken()
 
+        val mapping =
+          info.nameToUserId ++ Map(
+            norm(info.hostName) -> info.hostUserId,
+            norm(gn)            -> principal.userId
+          )
+
         val updated = info.copy(
-          guestName   = Some(gn),
-          guestToken  = Some(guestToken),
-          guestUserId = Some(principal.userId),
-          state       = SessionState.Ready
+          guestName    = Some(gn),
+          guestToken   = Some(guestToken),
+          guestUserId  = Some(principal.userId),
+          state        = SessionState.Ready,
+          nameToUserId = mapping
         )
 
         updateSession(id, updated)
@@ -235,7 +274,7 @@ final class GameSessionService @Inject()(
         Left(CommandFailed(message))
 
       case Right(_) =>
-        ctxRepo.get(id) match {
+        gameUseCases.getCtx(id) match {
           case None =>
             Left(CommandFailed("Game context missing after command execution"))
           case Some(ctx) =>

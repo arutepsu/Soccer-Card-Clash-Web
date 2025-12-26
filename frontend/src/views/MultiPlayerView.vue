@@ -13,14 +13,13 @@ import multiBg from '@/assets/images/frames/background2.jpg';
 import { useAppServices } from '@/app/appServices';
 
 const router = useRouter();
-const services = useAppServices(); // ✅ single services instance
+const services = useAppServices();
 const { show, hide } = useOverlay();
 
 const player1 = ref('');
 const player2 = ref('');
 const busy = ref(false);
 
-// ✅ force local for CreateGame from this screen
 const { startLocalMultiplayer } = useGameCommands(services.game.local);
 
 const soundManager: SoundManager = createSoundManager({
@@ -79,14 +78,10 @@ async function onSubmit() {
 
   try {
     services.gameContext.setMode('local');
-
     const web = await startLocalMultiplayer(player1.value, player2.value);
-
     services.gameContext.setState(web ?? null);
+    await router.push({ name: 'PlayingField', query: { mode: 'local' } });
 
-    await services.gameContext.start('local');
-
-    await router.push({ name: 'PlayingField' });
   } catch (err) {
     console.error('[MultiplayerView] create game failed:', err);
     showAlert('Could not create game, please try again.');

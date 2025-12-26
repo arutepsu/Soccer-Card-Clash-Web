@@ -9,8 +9,10 @@ final case class Envelope(
   playerId: Option[String] = None,
   requestId: Option[String] = None,
   version: Int = 1,
-  payload: JsValue = JsObject.empty
+  payload: JsValue = JsObject.empty,
+  meta: Option[JsValue] = None
 )
+
 // {
 //   "kind": "command",
 //   "type": "RegularAttack",

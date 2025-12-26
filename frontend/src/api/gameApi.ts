@@ -7,31 +7,23 @@ export interface GameApi {
   postJSON<T = unknown>(url: string, payload?: unknown): Promise<T | null>;
   getJSON<T = unknown>(url: string): Promise<T>;
 
-  openStream(onState: (state: WebGameState) => void, sid?: string | null): StreamHandle;
+  openStream(onState: (state: WebGameState, meta?: any | null) => void, sid?: string | null): StreamHandle;
+  fetchGameState(sid?: string | null): Promise<WebGameState>;
+  getState(sid?: string | null): Promise<WebGameState | null>;
 
-  fetchGameState(): Promise<WebGameState>;
+  createLocalMultiplayer(attackerName: string, defenderName: string): Promise<WebGameState | null>;
 
-  getState(): Promise<WebGameState | null>;
+  restart(attackerName?: string | null, defenderName?: string | null): Promise<WebGameState | null>;
 
-  createLocalMultiplayer(
-    attackerName: string,
-    defenderName: string,
-  ): Promise<WebGameState | null>;
-
-  restart(
-    attackerName?: string | null,
-    defenderName?: string | null,
-  ): Promise<WebGameState | null>;
-
-  singleAttackDefender(index: number | string): Promise<WebGameState | null>;
-  singleAttackGoalkeeper(): Promise<WebGameState | null>;
-  doubleAttack(index: number | string): Promise<WebGameState | null>;
-  boost(payload: any): Promise<WebGameState | null>;
-  swap(index: number | string): Promise<WebGameState | null>;
-  reverseSwap(): Promise<WebGameState | null>;
-  undo(): Promise<WebGameState | null>;
-  redo(): Promise<WebGameState | null>;
-  executeAI(action: any): Promise<WebGameState | null>;
+  singleAttackDefender(index: number | string, sid?: string | null): Promise<WebGameState | null>;
+  singleAttackGoalkeeper(sid?: string | null): Promise<WebGameState | null>;
+  doubleAttack(index: number | string, sid?: string | null): Promise<WebGameState | null>;
+  boost(payload: any, sid?: string | null): Promise<WebGameState | null>;
+  swap(index: number | string, sid?: string | null): Promise<WebGameState | null>;
+  reverseSwap(sid?: string | null): Promise<WebGameState | null>;
+  undo(sid?: string | null): Promise<WebGameState | null>;
+  redo(sid?: string | null): Promise<WebGameState | null>;
+  executeAI(action: any, sid?: string | null): Promise<WebGameState | null>;
 }
 
 type GameMode = 'local' | 'online';
@@ -45,10 +37,21 @@ interface CreateGameApiOptions {
 
 type FlatCommandBody = Record<string, unknown> & { type: string; playerId?: string | null };
 
+function withSid(url: string, sid?: string | null): string {
+  const s = (sid ?? '').trim();
+  if (!s) return url;
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}sid=${encodeURIComponent(s)}`;
+}
+
 export function createGameApi(options: CreateGameApiOptions = {}): GameApi {
   const { streamClient, pushClient } = options;
   const mode: GameMode = options.mode ?? 'online';
   const getPlayerId = options.getPlayerId ?? (() => null);
+  
+  function commandUrl(sid?: string | null): string {
+    return mode === 'online' ? withSid('/api/command', sid) : '/api/command';
+  }
   const csrf =
     document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ||
     (document.querySelector<HTMLInputElement>('input[name="csrfToken"]')?.value ??
@@ -106,67 +109,86 @@ export function createGameApi(options: CreateGameApiOptions = {}): GameApi {
   }
 
   async function commandWithWsFallback(
-  type: GameCommandType,
-  fields: Record<string, unknown> = {},
+    type: GameCommandType,
+    fields: Record<string, unknown> = {},
+    sid?: string | null,
   ): Promise<WebGameState | null> {
     const body: FlatCommandBody = { type, mode, ...fields };
 
-    console.log('[GameApi] mode:', mode, 'command type:', type, 'body:', body);
+    console.log('[GameApi] mode:', mode, 'command type:', type, 'sid:', sid, 'body:', body);
 
     if (mode === 'local') {
-      body.playerId = getPlayerId();
-      const restResult = await postJSON<WebGameState>('/api/command', body);
-      console.log('[GameApi] REST result for', type, ':', restResult);
-      console.log('[GameApi] LOCAL POST /api/command body=', body);
-      return restResult;
+      const pid = getPlayerId();
+      if (pid) body.playerId = pid;
+      return postJSON<WebGameState>('/api/command', body);
     }
 
     if (pushClient && canUseWs()) {
-      console.log('[GameApi] using WebSocket for command:', type);
       try {
-        const result = await pushClient.sendCommand(type, body);
-        console.log('[GameApi] WS result:', result);
-
-        if (result) return result;
-
-        console.warn('[GameApi] WS returned null, falling back to REST:', type);
+      await pushClient.sendCommand(type, fields);
+      return null;
       } catch (err) {
-        console.warn('[GameApi] WS sendCommand threw, falling back to REST:', err);
+        console.warn('[GameApi] WS failed, fallback to REST:', err);
       }
-    } else {
-      console.log('[GameApi] WS not connected, using REST for', type);
     }
 
-    const restResult = await postJSON<WebGameState>('/api/command', body);
-    console.log('[GameApi] REST result for', type, ':', restResult);
-    return restResult;
+    await postJSON<WebGameState>(commandUrl(sid), body);
+    return null;
   }
 
-  function openStream(onState: (state: WebGameState) => void, sid?: string | null): StreamHandle {
+  function openStream(
+    onState: (state: WebGameState, meta?: any | null) => void,
+    sid?: string | null
+  ): StreamHandle {
     if (mode !== 'online') return { type: 'none', close() {} };
 
+    const closers: Array<() => void> = [];
+    let type: any = 'none';
+
     if (streamClient && typeof streamClient.open === 'function') {
-      return streamClient.open(onState, sid);
+      const h = streamClient.open(onState, sid);
+      type = h.type;
+      closers.push(() => {
+        try { h.close(); } catch {}
+      });
     }
 
-    console.warn('[GameApi] streamClient is not provided, streaming disabled');
-    return { type: 'none', close() {} };
+    if (pushClient && canUseWs()) {
+      const handler = (msg: any) => {
+        if (msg?.kind === 'event' && msg?.type === 'StateUpdated' && msg?.payload) {
+          onState(msg.payload as WebGameState, msg.meta ?? null);
+        }
+      };
+      pushClient.onMessage(handler);
+      type = type !== 'none' ? `${type}+ws` : 'ws';
+      closers.push(() => pushClient.offMessage(handler));
+    }
+
+    return {
+      type,
+      close() {
+        closers.forEach((c) => {
+          try { c(); } catch {}
+        });
+      },
+    };
   }
 
-
-  async function fetchGameState(): Promise<WebGameState> {
+  async function fetchGameState(sid?: string | null): Promise<WebGameState> {
     if (mode === 'online') {
-      return getJSON<WebGameState>('/api/state');
+      return getJSON<WebGameState>(withSid('/api/state', sid));
     }
     const snap = await getState();
     if (!snap) throw new Error('fetchGameState(local): GetState returned null');
     return snap;
   }
 
-  function getState(): Promise<WebGameState | null> {
+  function getState(sid?: string | null): Promise<WebGameState | null> {
+    if (mode === 'online') {
+      return getJSON<WebGameState>(withSid('/api/state', sid)).catch(() => null);
+    }
     return commandWithWsFallback('GetState', {});
   }
-
 
   function createLocalMultiplayer(
     attackerName: string,
@@ -192,74 +214,66 @@ export function createGameApi(options: CreateGameApiOptions = {}): GameApi {
     return commandWithWsFallback('CreateGame', { p1, p2 });
   }
 
-  function singleAttackDefender(index: number | string): Promise<WebGameState | null> {
+  function normalizeSid(sid?: string | null): string | null {
+    const s = (sid ?? '').trim();
+    return s ? s : null;
+  }
+
+  function singleAttackDefender(index: number | string, sid?: string | null) {
     const idx = Number(index);
     if (!Number.isInteger(idx)) {
       return Promise.reject(new Error(`singleAttackDefender: invalid index ${index}`));
     }
-
-    return commandWithWsFallback('RegularAttack', {
-      target: 'defender',
-      index: idx,
-    });
+    return commandWithWsFallback('RegularAttack', { target: 'defender', index: idx }, normalizeSid(sid));
   }
 
-  function singleAttackGoalkeeper(): Promise<WebGameState | null> {
-    return commandWithWsFallback('RegularAttack', {
-      target: 'goalkeeper',
-    });
+  function singleAttackGoalkeeper(sid?: string | null) {
+    return commandWithWsFallback('RegularAttack', { target: 'goalkeeper' }, normalizeSid(sid));
   }
 
-  function doubleAttack(index: number | string): Promise<WebGameState | null> {
+  function doubleAttack(index: number | string, sid?: string | null) {
     const idx = Number(index);
     if (!Number.isInteger(idx)) {
       return Promise.reject(new Error(`doubleAttack: invalid index ${index}`));
     }
-
-    return commandWithWsFallback('DoubleAttack', {
-      target: 'defender',
-      index: idx,
-    });
+    return commandWithWsFallback('DoubleAttack', { target: 'defender', index: idx }, normalizeSid(sid));
   }
 
-  function boost(payload: any): Promise<WebGameState | null> {
+  function boost(payload: any, sid?: string | null) {
     if (!payload || typeof payload !== 'object') {
       return Promise.reject(new Error('boost: missing payload'));
     }
-
     if (payload.target === 'defender') {
       const idx = Number(payload.index);
       if (!Number.isInteger(idx)) {
         return Promise.reject(new Error(`boost: invalid defender index ${payload.index}`));
       }
     }
-
-    return commandWithWsFallback('Boost', payload);
+    return commandWithWsFallback('Boost', payload, normalizeSid(sid));
   }
 
-  function swap(index: number | string): Promise<WebGameState | null> {
+  function swap(index: number | string, sid?: string | null) {
     const idx = Number(index);
     if (!Number.isInteger(idx)) {
       return Promise.reject(new Error(`swap: invalid index ${index}`));
     }
-
-    return commandWithWsFallback('RegularSwap', { index: idx });
+    return commandWithWsFallback('RegularSwap', { index: idx }, normalizeSid(sid));
   }
 
-  function reverseSwap(): Promise<WebGameState | null> {
-    return commandWithWsFallback('ReverseSwap', {});
+  function reverseSwap(sid?: string | null) {
+    return commandWithWsFallback('ReverseSwap', {}, normalizeSid(sid));
   }
 
-  function undo(): Promise<WebGameState | null> {
-    return commandWithWsFallback('Undo', {});
+  function undo(sid?: string | null) {
+    return commandWithWsFallback('Undo', {}, normalizeSid(sid));
   }
 
-  function redo(): Promise<WebGameState | null> {
-    return commandWithWsFallback('Redo', {});
+  function redo(sid?: string | null) {
+    return commandWithWsFallback('Redo', {}, normalizeSid(sid));
   }
 
-  function executeAI(action: any): Promise<WebGameState | null> {
-    return commandWithWsFallback('ExecuteAI', action);
+  function executeAI(action: any, sid?: string | null) {
+    return commandWithWsFallback('ExecuteAI', action, normalizeSid(sid));
   }
 
   return {

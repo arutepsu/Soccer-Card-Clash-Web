@@ -28,55 +28,55 @@ final class GameCommandController @Inject()(
   private def readPlayerId(body: JsValue): Option[String] =
     (body \ "playerId").asOpt[String].map(_.trim).filter(_.nonEmpty)
 
+  private def sidFromQueryOrSession(req: RequestHeader): Either[Result, GameSessionId] =
+    req.getQueryString("sid").map(_.trim).filter(_.nonEmpty) match {
+      case Some(raw) => Right(GameSessionId(raw))
+      case None      => requireSid(req)
+    }
+
   override def command: Action[JsValue] =
     Action(parse.json).async { implicit req =>
-      val modeStr = readMode(req.body)
-      val mode = CommandMode.from(modeStr)
+      val mode = CommandMode.from(readMode(req.body))
 
-      val sid: GameSessionId =
-        if (mode == CommandMode.online) getOrCreateSid(req)
-        else getOrCreateLocalSid(req)
+      val sidEither: Either[Result, GameSessionId] =
+        if (mode == CommandMode.online) sidFromQueryOrSession(req)
+        else Right(getOrCreateLocalSid(req))
 
-      def persistSid(res: Result): Result =
-        if (mode == CommandMode.online) res.addingToSession("sid" -> sid.value)
-        else res.addingToSession("localSid" -> sid.value)
+      sidEither match {
+        case Left(res) => Future.successful(res.as(JSON))
 
-      val principal =
-        mode match {
-          case CommandMode.local =>
-            val pid = readPlayerId(req.body).getOrElse("local")
-            Some(app.auth.AuthPrincipal(userId = "local", username = pid))
-          case CommandMode.online =>
-            principalOpt(req)
-        }
+        case Right(sid) =>
+          def persistSid(res: Result): Result =
+            if (mode == CommandMode.online) res.addingToSession("sid" -> sid.value)
+            else res.addingToSession("localSid" -> sid.value)
 
+          val principal =
+            mode match {
+              case CommandMode.local =>
+                val pid = readPlayerId(req.body).getOrElse("local")
+                Some(app.auth.AuthPrincipal(userId = "local", username = pid))
+              case CommandMode.online =>
+                principalOpt(req)
+            }
 
-      decoder.fromRestJson(req.body) match {
-        case Left(err) =>
-          Future.successful(
-            persistSid(
-              BadRequest(Json.obj("error" -> err.message))
-                .as(JSON)
-            )
-          )
-
-        case Right(cmd) =>
-          facade.execute(mode, sid, principal, cmd, None) match {
-            case Left(appErr) =>
+          decoder.fromRestJson(req.body) match {
+            case Left(err) =>
               Future.successful(
-                persistSid(
-                  BadRequest(Json.obj("error" -> appErr.message))
-                    .as(JSON)
-                )
+                persistSid(BadRequest(Json.obj("error" -> err.message)).as(JSON))
               )
 
-            case Right(web) =>
-              Future.successful(
-                persistSid(
-                  Ok(Json.toJson(web))
-                    .as(JSON)
-                )
-              )
+            case Right(cmd) =>
+              facade.execute(mode, sid, principal, cmd, None) match {
+                case Left(appErr) =>
+                  Future.successful(
+                    persistSid(BadRequest(Json.obj("error" -> appErr.message)).as(JSON))
+                  )
+
+                case Right(web) =>
+                  Future.successful(
+                    persistSid(Ok(Json.toJson(web)).as(JSON))
+                  )
+              }
           }
       }
     }

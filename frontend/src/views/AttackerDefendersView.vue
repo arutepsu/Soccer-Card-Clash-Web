@@ -29,7 +29,6 @@ const webState = computed<WebGameState | null>(() => {
   return gameContext.state.value as WebGameState | null;
 });
 
-
 const avatarRegistry = createPlayerAvatarRegistry({
   avatarsPath: '/assets/images/players/',
   fileNames: [

@@ -22,9 +22,9 @@ export interface GameEnvelope {
   kind: 'command';
   type: GameCommandType;
   gameId: string;
-  playerId: string | null;
-  requestId: string | null;
-
+  playerId?: string;
+  requestId?: string;
+  version?: number;
   payload: unknown;
 }
 
@@ -89,18 +89,16 @@ export function createServerPushClient(
     { resolve: (state: WebGameState | null) => void; reject: (err: unknown) => void }
   >();
 
-  function buildWsUrl(): string {
+  function buildWsUrl(sid?: string | null): string {
     const proto = (opts.baseUrl?.startsWith('https') || location.protocol === 'https:') ? 'wss' : 'ws';
+    const base =
+      opts.baseUrl
+        ? `${proto}://${opts.baseUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '')}${path}`
+        : `${proto}://${location.host}${path}`;
 
-    if (opts.baseUrl) {
-      const httpBase = opts.baseUrl.replace(/\/+$/, '');
-      const host = httpBase.replace(/^https?:\/\//, '');
-      return `${proto}://${host}${path}`;
-    }
-
-    return `${proto}://${location.host}${path}`;
+    const s = (sid ?? '').trim();
+    return s ? `${base}?sid=${encodeURIComponent(s)}` : base;
   }
-
 
   function scheduleReconnect(): void {
     if (intentionallyClosed) return;
@@ -112,7 +110,7 @@ export function createServerPushClient(
   }
 
   function connect(): void {
-    const url = buildWsUrl();
+    const url = buildWsUrl(currentGameId);
     console.log('[WS] connecting to', url);
 
     try {
@@ -151,6 +149,8 @@ export function createServerPushClient(
         return;
       }
 
+      console.log('[WS][RAW]', msg); // ✅ ALWAYS see what server sent
+
       try {
         const requestId = msg?.requestId as string | undefined;
         if (requestId && pending.has(requestId)) {
@@ -167,7 +167,7 @@ export function createServerPushClient(
               wsSessionUnavailable = true;
             }
 
-            console.warn('[WS] command error payload:', msg.payload);
+            console.warn('[WS] command error:', msg);
             entry.resolve(null);
           } else {
             entry.resolve(null);
@@ -178,13 +178,10 @@ export function createServerPushClient(
       }
 
       handlers.forEach((h) => {
-        try {
-          h(msg);
-        } catch (err) {
-          console.error('[WS] handler threw:', err);
-        }
+        try { h(msg); } catch (err) { console.error('[WS] handler threw:', err); }
       });
     };
+
   }
 
   function isConnected(): boolean {
@@ -260,14 +257,20 @@ export function createServerPushClient(
 
     const requestId = `req-${Date.now()}-${++reqCounter}`;
 
+    // ✅ build env without nulls
     const env: GameEnvelope = {
       kind: 'command',
       type,
       gameId: gid,
-      playerId: opts.getPlayerId?.() ?? null,
-      requestId,
+      requestId,          // always a string
+      version: 1,
       payload,
     };
+
+    const pid = opts.getPlayerId?.();
+    if (pid && pid.trim()) {
+      env.playerId = pid.trim();   // only include if non-empty
+    }
 
     return new Promise<WebGameState | null>((resolve, reject) => {
       const timeout = window.setTimeout(() => {
@@ -279,14 +282,8 @@ export function createServerPushClient(
       }, 10000);
 
       pending.set(requestId, {
-        resolve: (state) => {
-          clearTimeout(timeout);
-          resolve(state);
-        },
-        reject: (err) => {
-          clearTimeout(timeout);
-          reject(err);
-        },
+        resolve: (state) => { clearTimeout(timeout); resolve(state); },
+        reject: (err) => { clearTimeout(timeout); reject(err); },
       });
 
       try {
@@ -299,6 +296,7 @@ export function createServerPushClient(
       }
     });
   }
+
 
   function getState(): void {
     void sendCommand('GetState', {});

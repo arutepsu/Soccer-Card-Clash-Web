@@ -61,7 +61,7 @@ final class GameCommandFacade @Inject()(
           case CommandMode.local  => None
         }
 
-      val web = viewStateMapper.toWebState(ctx, principal, infoOpt)
+      val web = viewStateMapper.toWebState(ctx, eff, infoOpt)
       eventHub.publish(sid, ctx)
       web
     }
