@@ -20,120 +20,183 @@ import app.auth.AuthPrincipal
 import app.session.{GameSessionId, SessionInfo}
 import app.session.repositories.IGameSessionRepository
 import app.models.state.WebGameState
+import app.api.context.IGameContextRepository
 
 @Singleton
 final class GameStreamController @Inject()(
   cc: ControllerComponents,
   eventHub: GameEventHub,
   viewStateMapper: IViewStateMapper,
-  sessionRepo: IGameSessionRepository
+  sessionRepo: IGameSessionRepository,
+  ctxRepo: IGameContextRepository     
 )(implicit ec: ExecutionContext, system: ActorSystem, mat: Materializer)
   extends AbstractController(cc)
   with ControllerSupport
   with IGameStreamController {
 
-  private def sidFromQueryOrSession(req: RequestHeader): Either[Result, GameSessionId] = {
+  private def sidFromQuery(req: RequestHeader): Either[Result, GameSessionId] =
     req.getQueryString("sid").map(_.trim).filter(_.nonEmpty) match {
-      case Some(raw) =>
-        Right(GameSessionId(raw))
-      case None =>
-        requireSid(req)
+      case Some(raw) => Right(GameSessionId(raw))
+      case None      => Left(BadRequest("Missing sid query param"))
     }
-  }
+
 
   override def sse: Action[AnyContent] = Action.async { implicit req =>
     requirePrincipal(req) match {
       case Left(res) => Future.successful(res)
       case Right(principal) =>
-        sidFromQueryOrSession(req) match {
+        sidFromQuery(req) match {
           case Left(res) => Future.successful(res)
           case Right(sid) =>
             val (queue, src) =
               Source.queue[GameEvent](32, OverflowStrategy.dropHead).preMaterialize()
-
+              
+            println(s"[SSE] open sid=${sid.value} principal=${principal.userId}/${principal.username}")
             val unsubscribe = eventHub.subscribe(sid) { ev =>
-              queue.offer(ev); ()
+              queue.offer(ev).failed.foreach { t =>
+                println(s"[SSE] offer failed sid=${sid.value} ev=${ev.eventId}: ${t.getMessage}")
+              }(ec)
+              ()
             }
+
             queue.watchCompletion().foreach(_ => unsubscribe())(ec)
 
-            val infoOpt = sessionRepo.get(sid)
+            def infoOpt: Option[SessionInfo] = sessionRepo.get(sid)
 
-            val eventSource =
-              src.map { ev =>
-                val web = viewStateMapper.toWebState(ev.ctx, Some(principal), infoOpt)
-                val json = Json.obj("eventId" -> ev.eventId, "state" -> Json.toJson(web))
-                ByteString(s"data: ${Json.stringify(json)}\n\n")
+            val snapshotSource: Source[ByteString, _] =
+              ctxRepo.get(sid) match {
+                case Some(ctx) =>
+                  val web  = viewStateMapper.toWebState(ctx, Some(principal), infoOpt)
+                  val json = Json.obj("eventId" -> 0L, "state" -> Json.toJson(web))
+
+                  Source.single(
+                    ByteString(
+                      s"id: 0\n" +
+                      s"data: ${Json.stringify(json)}\n\n"
+                    )
+                  )
+
+                case None =>
+                  Source.empty
               }
 
+
+            val liveSource: Source[ByteString, _] =
+              src.map { ev =>
+                val web  = viewStateMapper.toWebState(ev.ctx, Some(principal), infoOpt)
+                val json = Json.obj(
+                  "eventId" -> ev.eventId,
+                  "state"   -> Json.toJson(web),
+                  "meta"    -> ev.meta
+                )
+
+                ByteString(
+                  s"id: ${ev.eventId}\n" +
+                  s"data: ${Json.stringify(json)}\n\n"
+                )
+              }
+
+
+            val keepAlive: Source[ByteString, _] =
+              Source.tick(10.seconds, 10.seconds, ByteString(": keep-alive\n\n"))
+
+            val out = snapshotSource.concat(liveSource).merge(keepAlive)
+
             Future.successful(
-              Ok.chunked(eventSource)
+              Ok.chunked(out)
                 .as("text/event-stream")
+                .withHeaders(
+                  "Cache-Control" -> "no-cache",
+                  "Connection" -> "keep-alive",
+                  "X-Accel-Buffering" -> "no"
+                )
                 .addingToSession("sid" -> sid.value)
             )
         }
-
     }
   }
-
 
   override def comet(lastEventId: Long): Action[AnyContent] = Action.async { implicit req =>
     requirePrincipal(req) match {
       case Left(res) => Future.successful(res)
 
       case Right(principal) =>
-        val sid =
-          req.getQueryString("sid").map(_.trim).filter(_.nonEmpty) match {
-            case Some(raw) => GameSessionId(raw)
-            case None      => getOrCreateSid(req)
-          }
+        sidFromQuery(req) match {
+          case Left(res) => Future.successful(res)
 
+          case Right(sid) =>
+            val infoOpt: Option[SessionInfo] = sessionRepo.get(sid)
 
-        val infoOpt: Option[SessionInfo] = sessionRepo.get(sid)
+            def snapshotJson: Option[String] =
+              ctxRepo.get(sid).map { ctx =>
+                val web = viewStateMapper.toWebState(ctx, Some(principal), infoOpt)
+                Json.stringify(Json.obj("eventId" -> 0L, "state" -> Json.toJson(web)))
+              }
 
-        val pending = eventHub.getSince(sid, lastEventId)
+            def encode(events: Seq[GameEvent]): String =
+              events.map { ev =>
+                val web: WebGameState =
+                  viewStateMapper.toWebState(ev.ctx, Some(principal), infoOpt)
 
-        def encode(events: Seq[GameEvent]): String =
-          events.map { ev =>
-            val web: WebGameState =
-              viewStateMapper.toWebState(ev.ctx, Some(principal), infoOpt)
+                Json.stringify(
+                  Json.obj(
+                    "eventId" -> ev.eventId,
+                    "state"   -> Json.toJson(web),
+                    "meta"    -> ev.meta
+                  )
+                )
+              }.mkString("\n")
 
-            Json.stringify(Json.obj(
-              "eventId" -> ev.eventId,
-              "state"   -> Json.toJson(web)
-            ))
-          }.mkString("\n")
+            val pending = eventHub.getSince(sid, lastEventId)
 
-        if (pending.nonEmpty) {
-          Future.successful(
-            Ok(encode(pending))
-              .as("application/json")
-              .addingToSession("sid" -> sid.value)
-          )
-        } else {
-          val p = Promise[Result]()
-          var unsubscribe: () => Unit = () => ()
-
-          unsubscribe =
-            eventHub.subscribe(sid) { ev =>
-              if (ev.eventId > lastEventId && !p.isCompleted) {
-                val all = eventHub.getSince(sid, lastEventId)
-                p.trySuccess(
-                  Ok(encode(all))
+            if (pending.nonEmpty) {
+              Future.successful(
+                Ok(encode(pending))
+                  .as("application/json")
+                  .addingToSession("sid" -> sid.value)
+              )
+            }
+            else snapshotJson match {
+              case Some(snap) =>
+                Future.successful(
+                  Ok(snap)
                     .as("application/json")
                     .addingToSession("sid" -> sid.value)
                 )
-                unsubscribe()
-              }
+
+              case None =>
+                val p = Promise[Result]()
+                var unsubscribe: () => Unit = () => ()
+
+                unsubscribe =
+                  eventHub.subscribe(sid) { ev =>
+                    if (ev.eventId > lastEventId && !p.isCompleted) {
+                      val all = eventHub.getSince(sid, lastEventId)
+                      p.trySuccess(
+                        Ok(encode(all))
+                          .as("application/json")
+                          .addingToSession("sid" -> sid.value)
+                      )
+                      unsubscribe()
+                    }
+                  }
+
+                system.scheduler.scheduleOnce(25.seconds) {
+                  if (!p.isCompleted) {
+                    val res =
+                      snapshotJson
+                        .map(snap => Ok(snap).as("application/json"))
+                        .getOrElse(Ok("").as("application/json"))
+
+                    p.trySuccess(res.addingToSession("sid" -> sid.value))
+                  }
+                  unsubscribe()
+                }(ec)
+
+                p.future
             }
-
-          system.scheduler.scheduleOnce(25.seconds) {
-            if (!p.isCompleted)
-              p.trySuccess(Ok("").as("application/json").addingToSession("sid" -> sid.value))
-            unsubscribe()
-          }(ec)
-
-          p.future
         }
     }
   }
+
 }

@@ -60,51 +60,51 @@ class ViewStateMapper @Inject()() extends IViewStateMapper {
 
     val allowed = ActionLimitsMapper.toAllowed(att, de)
 
+    def norm(s: String): String = s.trim.toLowerCase
+
     val youView: Option[YouView] =
-          for {
-            p    <- principal
-            info <- infoOpt
+      principal.map { p =>
+        val attackerName = norm(ctx.state.getRoles.attacker.name)
 
-            youIsHost <- {
-              if (info.hostUserId == p.userId) Some(true)
-              else if (info.guestUserId.contains(p.userId)) Some(false)
-              else None
-            }
-          } yield {
-            val hostIsAttackerNow = ctx.state.getRoles.attacker.name == info.hostName
+        val youIsAttackerNow: Boolean =
+          infoOpt match {
+            case Some(info) =>
+              val attackerIsHost  = attackerName == norm(info.hostName)
+              val attackerIsGuest = info.guestName.exists(gn => attackerName == norm(gn))
 
-            val youIsAttackerNow =
-              (youIsHost && hostIsAttackerNow) ||
-              (!youIsHost && !hostIsAttackerNow)
+              (attackerIsHost  && info.hostUserId == p.userId) ||
+              (attackerIsGuest && info.guestUserId.contains(p.userId))
 
-            val sideEnum =
-              if (youIsAttackerNow) PlayerSide.attacker else PlayerSide.defender
-
-            YouView(
-              userId     = p.userId,
-              username   = p.username,
-              side       = sideEnum,
-              isAttacker = youIsAttackerNow
-            )
+            case None =>
+              norm(p.username) == attackerName
           }
 
-        WebGameState(
-          roles = RolesView(attacker = att.name, defender = de.name),
-          scores = ScoresView(
-            attacker = scores.getScore(att),
-            defender = scores.getScore(de)
-          ),
-          cards = CardsView(
-            attackerHand       = handFor(att),
-            defenderHand       = handFor(de),
-            attackerField      = fieldSlotsFor(att, "att"),
-            defenderField      = fieldSlotsFor(de, "def"),
-            attackerGoalkeeper = attackerGK,
-            defenderGoalkeeper = defenderGK
-          ),
-          allowed = allowed,
-          you = youView
-        )
+
+        val sideEnum =
+          if (youIsAttackerNow) PlayerSide.attacker else PlayerSide.defender
+
+        YouView(p.userId, p.username, sideEnum, youIsAttackerNow)
+      }
+
+
+    WebGameState(
+      roles = RolesView(attacker = att.name, defender = de.name),
+      scores = ScoresView(
+        attacker = scores.getScore(att),
+        defender = scores.getScore(de)
+      ),
+      cards = CardsView(
+        attackerHand       = handFor(att),
+        defenderHand       = handFor(de),
+        attackerField      = fieldSlotsFor(att, "att"),
+        defenderField      = fieldSlotsFor(de, "def"),
+        attackerGoalkeeper = attackerGK,
+        defenderGoalkeeper = defenderGK
+      ),
+      allowed = allowed,
+      you = youView
+    )
+
     }
 
 

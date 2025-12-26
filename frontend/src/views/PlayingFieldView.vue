@@ -23,11 +23,11 @@ import { createComparisonOrchestrator } from '../utils/playingField/comparisonOr
 import { createSoundManager } from '../utils/soundManager';
 
 import playingBg from '@/assets/images/frames/background5.jpg';
-import { authState } from '@/auth/authState';
+import { SceneView } from '@/utils/playingField/sceneMapping';
 
 const {
   gameContext,
-  sceneView,
+  toSceneView,
   busy,
   init,
   attackDefender,
@@ -37,7 +37,28 @@ const {
 
 const webState = computed(() => gameContext.state.value as WebGameState | null);
 
-const displaySceneView = ref(sceneView.value);
+type PendingMeta =
+  | { action: 'RegularAttack'; defenderIndex: number }
+  | { action: 'DoubleAttack'; defenderIndex: number }
+  | null;
+
+const pendingMeta = ref<PendingMeta>(null);
+
+const displayWebState = ref<WebGameState | null>(null);
+const displaySceneView = ref<SceneView | null>(null);
+
+function applyDisplayFromWeb(web: WebGameState | null) {
+  displayWebState.value = web;
+  displaySceneView.value = toSceneView(web);
+}
+
+watch(
+  webState,
+  (st) => {
+    if (displayWebState.value == null && st) applyDisplayFromWeb(st);
+  },
+  { immediate: true },
+);
 
 const avatarRegistry = createPlayerAvatarRegistry({
   avatarsPath: '/assets/images/players/',
@@ -53,10 +74,13 @@ function showInfoAlert(message: string) {
 
 const services = useAppServices();
 
-const mode = usePlayingFieldMode(webState, showInfoAlert, {
+const mode = usePlayingFieldMode(computed(() => displayWebState.value), showInfoAlert, {
   mode: computed(() => services.gameContext.mode.value),
-  myUsername: computed(() => authState.username ?? null),
+  localIsVsAI: computed(() => services.gameContext.localIsVsAI.value),
+  localHumanName: computed(() => services.gameContext.localHumanName.value),
 });
+
+
 const cinemaActive = mode.cinemaActive;
 const opponentName = mode.opponentName;
 
@@ -69,14 +93,18 @@ const soundManager = createSoundManager({ basePath: '/assets/sounds/' });
 soundManager.preload('attack', 'attack.wav');
 soundManager.preload('hover', 'hover.wav');
 
-const lastRoles = { attacker: '', defender: '' };
 const scheduler = new UIActionScheduler();
 
 const orchestrator = ref<ReturnType<typeof createComparisonOrchestrator> | null>(null);
 
+const rolesNow = computed(() => ({
+  attacker: displayWebState.value?.roles?.attacker ?? '',
+  defender: displayWebState.value?.roles?.defender ?? '',
+}));
+
 const comparisonHandler = createComparisonDialogHandler({
   contextHolder: {
-    get: () => ({ roles: { attacker: lastRoles.attacker, defender: lastRoles.defender } }),
+    get: () => ({ roles: rolesNow.value }),
   },
   onAutoClose: () => {
     orchestrator.value?.applyBufferedStateAfterOverlay();
@@ -84,9 +112,9 @@ const comparisonHandler = createComparisonDialogHandler({
   avatarRegistry,
 });
 
-function buildOrchestrator() {
-  orchestrator.value = createComparisonOrchestrator({
-    api: api.value,
+function makeOrchestrator(a: any) {
+  return createComparisonOrchestrator({
+    api: a,
     scheduler,
     comparisonHandler,
     ActionNames: {
@@ -99,57 +127,55 @@ function buildOrchestrator() {
       RegularSwap: 'RegularSwap',
       ReverseSwap: 'ReverseSwap',
     },
-    getRoles: () => lastRoles,
+    getRoles: () => rolesNow.value,
     applyUiFromWeb: (web) => {
-      if (web?.roles) {
-        lastRoles.attacker = web.roles.attacker || '';
-        lastRoles.defender = web.roles.defender || '';
-      }
-      displaySceneView.value = sceneView.value;
+      applyDisplayFromWeb((web ?? null) as WebGameState | null);
     },
     updateFromServerContext: (_web) => {},
     soundManager,
   });
 }
-
 watch(
   api,
   (a) => {
-    if (!a) {
-      orchestrator.value = null;
-      return;
-    }
-
-    orchestrator.value = createComparisonOrchestrator({
-      api: a,
-      scheduler,
-      comparisonHandler,
-      ActionNames: {
-        RegularAttack: 'RegularAttack',
-        DoubleAttack: 'DoubleAttack',
-        Undo: 'Undo',
-        Redo: 'Redo',
-        BoostDefender: 'BoostDefender',
-        BoostGoalkeeper: 'BoostGoalkeeper',
-        RegularSwap: 'RegularSwap',
-        ReverseSwap: 'ReverseSwap',
-      },
-      getRoles: () => lastRoles,
-      applyUiFromWeb: (web) => {
-        if (web?.roles) {
-          lastRoles.attacker = web.roles.attacker || '';
-          lastRoles.defender = web.roles.defender || '';
-        }
-
-        displaySceneView.value = sceneView.value;
-      },
-      updateFromServerContext: (_web) => {},
-      soundManager,
-    });
+    orchestrator.value = a ? makeOrchestrator(a) : null;
   },
   { immediate: true },
 );
 
+watch(
+  webState,
+  (st) => {
+    if (!st) return;
+
+    if (!displayWebState.value) {
+      applyDisplayFromWeb(st);
+    }
+
+    const orch = orchestrator.value;
+    if (!orch) {
+      applyDisplayFromWeb(st);
+      return;
+    }
+
+    const meta = services.gameContext.lastMeta.value;
+
+    if (meta?.action === 'RegularAttack' || meta?.action === 'DoubleAttack') {
+      orch.setPendingAction(meta.action, meta);
+      orch.afterServerApply(st, meta);
+
+      services.gameContext.lastMeta.value = null;
+      pendingMeta.value = null;
+
+      orch.handleStreamWeb(st);
+      return;
+    }
+
+    orch.setPendingAction(null, undefined);
+    orch.handleStreamWeb(st);
+  },
+  { immediate: true },
+);
 
 function handleDefenderSelected(index: number | null) {
   selectedTarget.value = index == null ? null : { kind: 'defender', index };
@@ -164,39 +190,45 @@ async function handleAttackDefender() {
 
   const sel = selectedTarget.value;
   if (!sel) return showInfoAlert('Pick a defender or the goalkeeper to attack.');
-
   if (sel.kind === 'goalkeeper') return handleAttackGoalkeeper();
 
   try {
-    orchestrator.value?.setPendingAction('RegularAttack');
+    const meta = { action: 'RegularAttack' as const, defenderIndex: sel.index };
+
+    services.gameContext.lastMeta.value = meta;
+
+    pendingMeta.value = meta;
+
     await attackDefender(sel.index);
 
-    const web = webState.value;
-    if (web && orchestrator.value) {
-      orchestrator.value.afterServerApply(web, { action: 'RegularAttack', defenderIndex: sel.index });
-    }
   } catch (err) {
     console.error('[PlayingFieldView] attackDefender error:', err);
     showInfoAlert('Attack failed. Please try again.');
+
+    services.gameContext.lastMeta.value = null;
+    pendingMeta.value = null;
   } finally {
     selectedTarget.value = null;
   }
 }
 
+
 async function handleAttackGoalkeeper() {
   if (!mode.requireMyTurn()) return;
 
   try {
-    orchestrator.value?.setPendingAction('RegularAttack');
-    await attackGoalkeeper();
+    const meta = { action: 'RegularAttack' as const, defenderIndex: -1 };
 
-    const web = webState.value;
-    if (web && orchestrator.value) {
-      orchestrator.value.afterServerApply(web, { action: 'RegularAttack', defenderIndex: -1 });
-    }
+    services.gameContext.lastMeta.value = meta;
+    pendingMeta.value = meta;
+
+    await attackGoalkeeper();
   } catch (err) {
     console.error('[PlayingFieldView] attackGoalkeeper error:', err);
     showInfoAlert('Goalkeeper attack failed. Please try again.');
+
+    services.gameContext.lastMeta.value = null;
+    pendingMeta.value = null;
   } finally {
     selectedTarget.value = null;
   }
@@ -209,16 +241,18 @@ async function handleDoubleAttack() {
   if (!sel || sel.kind !== 'defender') return showInfoAlert('Pick a defender card for double attack.');
 
   try {
-    orchestrator.value?.setPendingAction('DoubleAttack');
-    await doubleAttack(sel.index);
+    const meta = { action: 'DoubleAttack' as const, defenderIndex: sel.index };
 
-    const web = webState.value;
-    if (web && orchestrator.value) {
-      orchestrator.value.afterServerApply(web, { action: 'DoubleAttack', defenderIndex: sel.index });
-    }
+    services.gameContext.lastMeta.value = meta;
+    pendingMeta.value = meta;
+
+    await doubleAttack(sel.index);
   } catch (err) {
     console.error('[PlayingFieldView] doubleAttack error:', err);
     showInfoAlert('Double attack failed. Please try again.');
+
+    services.gameContext.lastMeta.value = null;
+    pendingMeta.value = null;
   } finally {
     selectedTarget.value = null;
   }
@@ -232,25 +266,12 @@ onMounted(async () => {
   await init();
 });
 
-watch(
-  webState,
-  (st) => {
-    if (!st) return;
-    if (st.roles) {
-      lastRoles.attacker = st.roles.attacker || '';
-      lastRoles.defender = st.roles.defender || '';
-    }
-    orchestrator.value?.handleStreamWeb(st);
-  },
-  { immediate: true },
-);
 const playingSceneStyle = {
   backgroundImage: `url(${playingBg})`,
   backgroundSize: 'cover',
   backgroundPosition: 'center',
   backgroundRepeat: 'no-repeat',
 };
-
 </script>
 
 <template>
@@ -261,8 +282,8 @@ const playingSceneStyle = {
       :style="playingSceneStyle"
     >
       <PlayersBar
-        v-if="webState"
-        :web="webState"
+        v-if="displayWebState"
+        :web="displayWebState"
         :avatarRegistry="avatarRegistry"
       />
 

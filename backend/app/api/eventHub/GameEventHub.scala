@@ -5,10 +5,16 @@ import scala.collection.concurrent.TrieMap
 import scala.collection.immutable.Vector
 import scala.concurrent.ExecutionContext
 
+import play.api.libs.json.{JsObject, Json}
+
 import app.session.GameSessionId
 import de.htwg.se.soccercardclash.model.gameComponent.context.GameContext
 
-final case class GameEvent(eventId: Long, ctx: GameContext)
+final case class GameEvent(
+  eventId: Long,
+  ctx: GameContext,
+  meta: JsObject = Json.obj()
+)
 
 @javax.inject.Singleton
 class GameEventHub @javax.inject.Inject()()(implicit ec: ExecutionContext) {
@@ -21,10 +27,11 @@ class GameEventHub @javax.inject.Inject()()(implicit ec: ExecutionContext) {
   private val listenersBySid =
     TrieMap.empty[String, List[GameEvent => Unit]]
 
-  def publish(sid: GameSessionId, ctx: GameContext): GameEvent = {
+  def publish(sid: GameSessionId, ctx: GameContext, meta: JsObject = Json.obj()): GameEvent = {
     val id  = nextId.getAndIncrement()
-    val ev  = GameEvent(id, ctx)
+    val ev  = GameEvent(id, ctx, meta)
     val key = sid.value
+    val listenerCount = listenersBySid.get(key).map(_.size).getOrElse(0)
 
     historyBySid.updateWith(key) {
       case Some(vec) => Some((vec :+ ev).takeRight(500))

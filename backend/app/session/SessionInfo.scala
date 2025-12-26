@@ -10,5 +10,11 @@ final case class SessionInfo(
   guestToken: Option[PlayerToken],
   guestUserId: Option[String],
 
-  state: SessionState
+  state: SessionState,
+
+  nameToUserId: Map[String, String] = Map.empty
 )
+
+object SessionInfo {
+  def norm(s: String): String = s.trim.toLowerCase
+}

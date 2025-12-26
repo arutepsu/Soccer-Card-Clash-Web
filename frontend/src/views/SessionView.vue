@@ -56,6 +56,13 @@ const services = useAppServices();
 
 const overlay = useOverlayStore();
 
+function goToOnlineGame(sessionId: string) {
+  return router.push({
+    name: 'PlayingField',
+    query: { mode: 'online', sid: sessionId },
+  });
+}
+
 function openLobby(sessionId: string) {
   overlay.show({
     title: 'LOBBY',
@@ -70,12 +77,11 @@ function openLobby(sessionId: string) {
         await refreshSessions();
       },
       onGameStarted: async () => {
-        await router.push({ name: 'PlayingField' });
+        await goToOnlineGame(sessionId);
       },
     },
   });
 }
-
 
 const soundManager: SoundManager = createSoundManager({
   basePath: '/assets/sounds/',

@@ -11,14 +11,19 @@ function keyOf(name: unknown): string {
   return typeof name === 'string' ? name : '';
 }
 
+function qstr(v: unknown): string | null {
+  const s = typeof v === 'string' ? v.trim() : '';
+  return s ? s : null;
+}
+
 export function useGameRouting() {
   const route = useRoute();
   const router = useRouter();
   const services = useAppServices();
 
   watch(
-    () => route.name,
-    async (name) => {
+    () => [route.name, route.query.mode, route.query.sid] as const,
+    async ([name, qMode, qSid]) => {
       const key = keyOf(name);
 
       if (STOP_ROUTES.has(key)) {
@@ -28,25 +33,28 @@ export function useGameRouting() {
       }
 
       if (ONLINE_ONLY_ROUTES.has(key)) {
-        if (services.gameContext.mode.value !== 'online') {
-          services.gameContext.setMode('online');
-        }
         services.gameContext.stop();
         return;
       }
 
-      if (GAMEPLAY_ROUTES.has(key)) {
-        const current = services.gameContext.mode.value;
+      if (!GAMEPLAY_ROUTES.has(key)) return;
 
-        if (!current) {
+      const modeFromUrl = qstr(qMode) as 'local' | 'online' | null;
+      const sidFromUrl = qstr(qSid);
+
+      if (modeFromUrl === 'online') {
+        if (!sidFromUrl) {
           await router.replace({ name: 'MainMenu' });
           return;
         }
-
-        await services.gameContext.start(current);
+        services.gameContext.setMode('online');
+        services.gameContext.setSessionId(sidFromUrl);
+        await services.gameContext.start('online', sidFromUrl);
         return;
       }
 
+      services.gameContext.setMode('local');
+      await services.gameContext.start('local');
     },
     { immediate: true },
   );

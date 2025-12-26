@@ -82,7 +82,6 @@ export interface OrchestratorDeps {
   soundManager: SoundManagerLike;
 }
 
-
 interface ActionMeta {
   action?: string;
   defenderIndex?: number;
@@ -116,6 +115,9 @@ export function createComparisonOrchestrator({
   updateFromServerContext,
   soundManager,
 }: OrchestratorDeps) {
+  
+  let pendingMeta: ActionMeta | null = null;
+  let overlayTriggeredForPending = false;
 
   let pendingActionType: string | null = null;
   let isOverlayActive = false;
@@ -126,34 +128,52 @@ export function createComparisonOrchestrator({
 
   let currentComparison: CurrentComparison | null = null;
 
-  function setPendingAction(type: string) {
+  function setPendingAction(type: string | null, meta?: ActionMeta) {
     pendingActionType = type;
+
+    if (!type) {
+      pendingMeta = null;
+      overlayTriggeredForPending = false;
+      preActionWeb = lastStableWeb;
+      currentComparison = null;
+      return;
+    }
+
+    pendingMeta = meta ?? null;
+    overlayTriggeredForPending = false;
     preActionWeb = lastStableWeb;
     currentComparison = null;
     comparisonHandler.resetLastCards();
   }
 
-  async function applyBufferedStateAfterOverlay() {
-    try {
-      soundManager.play('attack', { volume: 0.7 });
+async function applyBufferedStateAfterOverlay() {
+  try {
+    soundManager.play('attack', { volume: 0.7 });
 
-      const fresh =
-        latestStreamWeb || (await api.fetchGameState()) || null;
+    const fresh =
+      latestStreamWeb ||
+      (await api.fetchGameState()) ||
+      lastStableWeb ||
+      null;
 
-      latestStreamWeb = null;
-      lastStableWeb = fresh;
+    latestStreamWeb = null;
+    lastStableWeb = fresh;
 
-      applyUiFromWeb(fresh);
-      updateFromServerContext(fresh);
-    } catch (e) {
-      console.warn('[CMP] applyBufferedStateAfterOverlay failed', e);
-    } finally {
-      comparisonHandler.resetLastCards();
-      currentComparison = null;
-      pendingActionType = null;
-      isOverlayActive = false;
-    }
+    applyUiFromWeb(fresh);
+    updateFromServerContext(fresh);
+  } catch (e) {
+    console.warn('[CMP] applyBufferedStateAfterOverlay failed', e);
+  } finally {
+    comparisonHandler.resetLastCards();
+    currentComparison = null;
+
+    pendingActionType = null;
+    pendingMeta = null;
+    overlayTriggeredForPending = false;
+    isOverlayActive = false;
   }
+}
+
 
   function toCard(raw: any): CardView | null {
     if (!raw) return null;
@@ -255,7 +275,6 @@ function getAttackAndDefendCardsFromState(
   };
 }
 
-
   async function runOverlayForPendingAction() {
     if (!pendingActionType) return;
 
@@ -286,8 +305,6 @@ function getAttackAndDefendCardsFromState(
       await applyBufferedStateAfterOverlay();
     }
   }
-
-
 
   function afterServerApply(
     serverWeb: WebGameState | null | undefined,
@@ -465,9 +482,7 @@ function getAttackAndDefendCardsFromState(
     const events = extractComparisonEvents(web as any);
 
     if (pendingActionType) {
-      for (const ev of events) {
-        comparisonHandler.handleComparisonEvent(ev);
-      }
+      for (const ev of events) comparisonHandler.handleComparisonEvent(ev);
     }
 
     if (pendingActionType || isOverlayActive) {

@@ -4,7 +4,6 @@ import { useAppServices } from '@/app/appServices';
 import { useGameContext } from './useGameContext';
 import type { GameApi } from '../api/gameApi';
 import type { WebGameState } from '../types/WebGameState';
-
 type GameMode = 'local' | 'online';
 
 export function useGameCommands(overrideApi?: GameApi) {
@@ -12,48 +11,57 @@ export function useGameCommands(overrideApi?: GameApi) {
   const busy = ref(false);
   const services = useAppServices();
 
-  function inferModeFromState(): GameMode {
-    const st = gameContext.state.value as any;
-    // online state has "you"
-    return st?.you ? 'online' : 'local';
+  const sid = computed(() => services.gameContext.sessionId.value);
+
+  function requireMode(): GameMode {
+    const m = services.gameContext.mode.value as GameMode | null;
+    if (!m) throw new Error('[useGameCommands] game mode not set (pin mode before issuing commands)');
+    return m;
+  }
+
+  function requireSid(): string {
+    const s = (sid.value ?? '').trim();
+    if (!s) throw new Error('[useGameCommands] online command without sid (pin sessionId before issuing commands)');
+    return s;
   }
 
   const api = computed<GameApi>(() => {
     if (overrideApi) return overrideApi;
-
-    const pinned = services.gameContext.mode.value as GameMode | null;
-
-    const mode: GameMode = pinned ?? inferModeFromState();
-
-    if (!pinned) {
-      console.warn('[useGameCommands] mode not pinned -> inferring mode =', mode);
-    }
-
+    const mode = requireMode();
     return services.game.forMode(mode);
   });
 
   async function runCommand(
     fn: (api: GameApi) => Promise<WebGameState | null>,
     errMsg: string,
-  ): Promise<WebGameState> {
+  ): Promise<WebGameState | null> {
     busy.value = true;
     try {
+      const mode = requireMode();
       const next = await fn(api.value);
-      if (!next) throw new Error(errMsg);
-      gameContext.setState(next);
+
+      if (mode === 'local') {
+        if (!next) throw new Error(errMsg);
+        gameContext.setState(next);
+        return next;
+      }
+
+      // online: may be null (stream authoritative), but if we got state apply it
+      if (next) gameContext.setState(next);
       return next;
     } finally {
       busy.value = false;
     }
   }
 
-  function getState() {
-    return runCommand((a) => a.getState(), 'GetState returned null WebGameState');
+  function getState(sessionId?: string | null) {
+    const mode = requireMode();
+    const s = mode === 'online' ? (sessionId ?? requireSid()) : (sessionId ?? null);
+    return runCommand((a) => a.getState(s), 'GetState returned null WebGameState');
   }
 
   function startLocalMultiplayer(attackerName: string, defenderName: string) {
     services.gameContext.setMode('local');
-
     return runCommand(
       (a) => a.createLocalMultiplayer(attackerName, defenderName),
       'CreateGame returned null WebGameState',
@@ -61,45 +69,57 @@ export function useGameCommands(overrideApi?: GameApi) {
   }
 
   function singleAttackDefender(index: number) {
-    return runCommand(
-      (a) => a.singleAttackDefender(index),
-      'RegularAttack(defender) returned null WebGameState',
-    );
+    const mode = requireMode();
+    const s = mode === 'online' ? requireSid() : null;
+    return runCommand((a) => a.singleAttackDefender(index, s), 'RegularAttack(defender) returned null WebGameState');
   }
 
   function singleAttackGoalkeeper() {
-    return runCommand(
-      (a) => a.singleAttackGoalkeeper(),
-      'RegularAttack(goalkeeper) returned null WebGameState',
-    );
+    const mode = requireMode();
+    const s = mode === 'online' ? requireSid() : null;
+    return runCommand((a) => a.singleAttackGoalkeeper(s), 'RegularAttack(goalkeeper) returned null WebGameState');
   }
 
   function doubleAttack(index: number) {
-    return runCommand((a) => a.doubleAttack(index), 'DoubleAttack returned null WebGameState');
+    const mode = requireMode();
+    const s = mode === 'online' ? requireSid() : null;
+    return runCommand((a) => a.doubleAttack(index, s), 'DoubleAttack returned null WebGameState');
   }
 
   function boost(payload: any) {
-    return runCommand((a) => a.boost(payload), 'Boost returned null WebGameState');
+    const mode = requireMode();
+    const s = mode === 'online' ? requireSid() : null;
+    return runCommand((a) => a.boost(payload, s), 'Boost returned null WebGameState');
   }
 
   function swap(index: number) {
-    return runCommand((a) => a.swap(index), 'Swap returned null WebGameState');
+    const mode = requireMode();
+    const s = mode === 'online' ? requireSid() : null;
+    return runCommand((a) => a.swap(index, s), 'Swap returned null WebGameState');
   }
 
   function reverseSwap() {
-    return runCommand((a) => a.reverseSwap(), 'ReverseSwap returned null WebGameState');
+    const mode = requireMode();
+    const s = mode === 'online' ? requireSid() : null;
+    return runCommand((a) => a.reverseSwap(s), 'ReverseSwap returned null WebGameState');
   }
 
   function undo() {
-    return runCommand((a) => a.undo(), 'Undo returned null WebGameState');
+    const mode = requireMode();
+    const s = mode === 'online' ? requireSid() : null;
+    return runCommand((a) => a.undo(s), 'Undo returned null WebGameState');
   }
 
   function redo() {
-    return runCommand((a) => a.redo(), 'Redo returned null WebGameState');
+    const mode = requireMode();
+    const s = mode === 'online' ? requireSid() : null;
+    return runCommand((a) => a.redo(s), 'Redo returned null WebGameState');
   }
 
   function executeAI(action: any) {
-    return runCommand((a) => a.executeAI(action), 'ExecuteAI returned null WebGameState');
+    const mode = requireMode();
+    const s = mode === 'online' ? requireSid() : null;
+    return runCommand((a) => a.executeAI(action, s), 'ExecuteAI returned null WebGameState');
   }
 
   return {

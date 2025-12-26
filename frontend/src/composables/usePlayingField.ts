@@ -1,5 +1,4 @@
 // frontend/src/composables/usePlayingField.ts
-import { computed } from 'vue';
 import { useGameContext } from './useGameContext';
 import { useGameCommands } from './useGameCommands';
 import type { WebGameState } from '../types/WebGameState';
@@ -8,6 +7,7 @@ import { buildSceneViewFromWeb, type SceneView } from '../utils/playingField/sce
 
 export function usePlayingField() {
   const gameContext = useGameContext();
+
   const {
     singleAttackDefender,
     singleAttackGoalkeeper,
@@ -19,45 +19,42 @@ export function usePlayingField() {
 
   const cardRegistry = createCardImageRegistry();
 
-  const sceneView = computed<SceneView | null>(() => {
-    const web = gameContext.state.value as WebGameState | null;
-    if (!web) return null;
-    return buildSceneViewFromWeb(web, cardRegistry);
-  });
-
   async function init(): Promise<void> {
     await cardRegistry.preloadAll().catch(() => {});
   }
 
-  async function attackDefender(index: number): Promise<WebGameState> {
-    console.log('[usePlayingField] attackDefender called with index:', index);
-    const st = await singleAttackDefender(index);
-    console.log('[usePlayingField] attackDefender finished');
-    return st;
+  function toSceneView(web: WebGameState | null | undefined): SceneView | null {
+    if (!web) return null;
+    return buildSceneViewFromWeb(web, cardRegistry);
   }
 
-  async function attackGoalkeeper(): Promise<WebGameState> {
+  async function attackDefender(index: number): Promise<WebGameState | null> {
+    return singleAttackDefender(index);
+  }
+
+  async function attackGoalkeeper(): Promise<WebGameState | null> {
     return singleAttackGoalkeeper();
   }
 
-  async function doDoubleAttack(index: number): Promise<WebGameState> {
+  async function doDoubleAttack(index: number): Promise<WebGameState | null> {
     return doubleAttack(index);
   }
 
-  async function doUndo(): Promise<WebGameState> {
+  async function doUndo(): Promise<WebGameState | null> {
     return undo();
   }
 
-  async function doRedo(): Promise<WebGameState> {
+  async function doRedo(): Promise<WebGameState | null> {
     return redo();
   }
 
   return {
     gameContext,
-    sceneView,
     busy,
-
     init,
+
+    toSceneView,
+
     attackDefender,
     attackGoalkeeper,
     doubleAttack: doDoubleAttack,

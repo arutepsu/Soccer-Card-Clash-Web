@@ -121,16 +121,45 @@ final class GameUseCases @Inject()(
     repo.get(sid).map(ctx => render(sid, ctx, principal)).getOrElse(noGame(sid))
 
 
-  private def requireAttackerTurn(ctx: GameContext, principal: AuthPrincipal): Either[AppError, Unit] = {
+  private def norm(s: String): String = s.trim.toLowerCase
+
+  private def requireAttackerTurn(
+    sid: GameSessionId,
+    ctx: GameContext,
+    principal: AuthPrincipal
+  ): Either[AppError, Unit] = {
+
     val attackerName = ctx.state.getRoles.attacker.name
-    if (principal.username != attackerName) Left(AppError("Not your turn (only attacker may act)"))
-    else Right(())
+    val attackerKey  = norm(attackerName)
+
+    sessionRepo.get(sid) match {
+
+      case Some(info) =>
+        info.nameToUserId.get(attackerKey) match {
+          case Some(uid) if uid == principal.userId => Right(())
+          case Some(_)  => Left(AppError("Not your turn (only attacker may act)"))
+          case None     =>
+            Left(AppError(
+              s"Cannot resolve attacker user for '$attackerName' (mapping missing). " +
+              s"Known names: [${info.nameToUserId.keys.toSeq.sorted.mkString(", ")}]"
+            ))
+        }
+
+      case None =>
+        // ✅ simplest: local always allowed
+        Right(())
+        // If you insist on local identity check, use:
+        // if (norm(principal.username) == attackerKey) Right(())
+        // else Left(AppError("Not your turn (only attacker may act)"))
+    }
   }
+
+
 
   override def swap(index: Int, sid: GameSessionId, principal: AuthPrincipal): Either[AppError, WebGameState] =
     withCtx(sid) { ctx =>
       for {
-        _ <- requireAttackerTurn(ctx, principal)
+        _ <- requireAttackerTurn(sid, ctx, principal)
         att = ctx.state.getRoles.attacker
         _ <- if (!actionMgr.canPerform(att, PlayerActionPolicies.Swap)) Left(AppError("No swaps remaining")) else Right(())
         (next, ok) = controller.regularSwap(index, ctx)
@@ -141,7 +170,7 @@ final class GameUseCases @Inject()(
   override def reverseSwap(sid: GameSessionId, principal: AuthPrincipal): Either[AppError, WebGameState] =
     withCtx(sid) { ctx =>
       for {
-        _ <- requireAttackerTurn(ctx, principal)
+        _ <- requireAttackerTurn(sid, ctx, principal)
         (next, ok) = controller.reverseSwap(ctx)
         res <- if (!ok) Left(AppError("Reverse swap not allowed")) else saveAndRender(sid, next, Some(principal))
       } yield res
@@ -155,7 +184,7 @@ final class GameUseCases @Inject()(
   ): Either[AppError, WebGameState] =
     withCtx(sid) { ctx =>
       for {
-        _ <- requireAttackerTurn(ctx, principal)
+        _ <- requireAttackerTurn(sid, ctx, principal)
 
         att = ctx.state.getRoles.attacker
 
@@ -176,7 +205,7 @@ final class GameUseCases @Inject()(
   override def doubleAttack(defenderIndex: Int, sid: GameSessionId, principal: AuthPrincipal): Either[AppError, WebGameState] =
     withCtx(sid) { ctx =>
       for {
-        _ <- requireAttackerTurn(ctx, principal)
+        _ <- requireAttackerTurn(sid, ctx, principal)
         att = ctx.state.getRoles.attacker
         _ <- if (!actionMgr.canPerform(att, PlayerActionPolicies.DoubleAttack)) Left(AppError("No double-attacks remaining")) else Right(())
         (next, ok) = controller.doubleAttack(defenderIndex, ctx)
@@ -187,7 +216,7 @@ final class GameUseCases @Inject()(
   override def singleAttack(defenderIndex: Int, sid: GameSessionId, principal: AuthPrincipal): Either[AppError, WebGameState] =
     withCtx(sid) { ctx =>
       for {
-        _ <- requireAttackerTurn(ctx, principal)
+        _ <- requireAttackerTurn(sid, ctx, principal)
         (next, ok) = controller.singleAttack(defenderIndex, ctx)
         res <- if (!ok) Left(AppError("Attack not allowed")) else saveAndRender(sid, next, Some(principal))
       } yield res
@@ -196,7 +225,7 @@ final class GameUseCases @Inject()(
   override def undo(sid: GameSessionId, principal: AuthPrincipal): Either[AppError, WebGameState] =
     withCtx(sid) { ctx =>
       for {
-        _ <- requireAttackerTurn(ctx, principal)
+        _ <- requireAttackerTurn(sid, ctx, principal)
         next = controller.undo(ctx)
         res <- saveAndRender(sid, next, Some(principal))
       } yield res
@@ -205,7 +234,7 @@ final class GameUseCases @Inject()(
   override def redo(sid: GameSessionId, principal: AuthPrincipal): Either[AppError, WebGameState] =
     withCtx(sid) { ctx =>
       for {
-        _ <- requireAttackerTurn(ctx, principal)
+        _ <- requireAttackerTurn(sid, ctx, principal)
         next = controller.redo(ctx)
         res <- saveAndRender(sid, next, Some(principal))
       } yield res
@@ -214,7 +243,7 @@ final class GameUseCases @Inject()(
   override def executeAI(action: AIAction, sid: GameSessionId, principal: AuthPrincipal): Either[AppError, WebGameState] =
     withCtx(sid) { ctx =>
       for {
-        _ <- requireAttackerTurn(ctx, principal)
+        _ <- requireAttackerTurn(sid, ctx, principal)
         (next, ok) = controller.executeAIAction(action, ctx)
         res <- if (!ok) Left(AppError("AI action not allowed")) else saveAndRender(sid, next, Some(principal))
       } yield res

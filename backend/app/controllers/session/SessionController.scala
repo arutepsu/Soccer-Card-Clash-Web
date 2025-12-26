@@ -94,18 +94,16 @@ final class SessionController @Inject()(
                   toHttpError(err)
 
                 case Right(created) =>
-                  Ok(
-                    Json.toJson(
-                      SessionCreatedResponseDto(
-                        sessionId = created.id.value,
-                        hostToken = created.hostToken.value
-                      )
+                  Ok(Json.toJson(SessionCreatedResponseDto(
+                    sessionId = created.id.value,
+                    hostToken = created.hostToken.value
+                  )))
+                    .withSession(
+                      req.session +
+                        ("sid" -> created.id.value) +
+                        ("username" -> hostName) +
+                        ("playerToken" -> created.hostToken.value)
                     )
-                  ).withSession(
-                    req.session +
-                      ("sid" -> created.id.value) +
-                      ("username" -> hostName)
-                  )
               }
             }
         }
@@ -135,18 +133,16 @@ final class SessionController @Inject()(
                 toHttpError(err)
 
               case Right(joined) =>
-                Ok(
-                  Json.toJson(
-                    SessionJoinedResponseDto(
-                      sessionId = joined.id.value,
-                      playerToken = joined.guestToken.value
-                    )
+                Ok(Json.toJson(SessionJoinedResponseDto(
+                  sessionId    = id,
+                  playerToken  = joined.guestToken.value
+                )))
+                  .withSession(
+                    req.session +
+                      ("sid" -> id) +
+                      ("username" -> guestName) +
+                      ("playerToken" -> joined.guestToken.value)
                   )
-                ).withSession(
-                  req.session +
-                    ("sid" -> id) +
-                    ("username" -> guestName)
-                )
             }
         }
     }
