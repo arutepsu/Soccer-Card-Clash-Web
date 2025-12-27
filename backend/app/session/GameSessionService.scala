@@ -10,12 +10,15 @@ import app.session.repositories.IGameSessionRepository
 import GameSessionError._
 import app.auth.AuthPrincipal
 import app.session.SessionInfo.norm
+import app.api.eventHub.GameEventHub
+import play.api.libs.json.Json
 
 @Singleton
 final class GameSessionService @Inject()(
   gameUseCases: IGameUseCases,
   ctxRepo: IGameContextRepository,
-  sessionRepo: IGameSessionRepository
+  sessionRepo: IGameSessionRepository,
+  eventHub: GameEventHub,
 ) extends IGameSessionService {
 
   private def newSessionId(): GameSessionId =
@@ -32,6 +35,20 @@ final class GameSessionService @Inject()(
 
   override def listSessions(): Seq[(GameSessionId, SessionInfo)] =
     sessionRepo.all()
+    
+  private def publishSessionEnded(id: GameSessionId, leftName: String, reason: String): Unit = {
+    ctxRepo.get(id).foreach { ctx =>
+      eventHub.publish(
+        sid = id,
+        ctx = ctx,
+        meta = Json.obj(
+          "action" -> "SessionEnded",
+          "leftPlayerName" -> leftName,
+          "reason" -> reason
+        )
+      )
+    }
+  }
 
   override def createSession(
     principal: AuthPrincipal,
@@ -120,36 +137,8 @@ final class GameSessionService @Inject()(
         }
     }
 
-
   override def getSession(id: GameSessionId): Either[GameSessionError, SessionInfo] =
     getSessionOpt(id).toRight(GameSessionError.NotFound(id))
-
-  override def leaveSession(
-    principal: AuthPrincipal,
-    id: GameSessionId
-    ): Either[GameSessionError, SessionInfo] =
-      getSessionOpt(id) match {
-        case None => Left(NotFound(id))
-        case Some(info) =>
-          if (!isAuthorized(info, principal)) Left(Unauthorized(id, principal.userId))
-          else if (info.hostUserId == principal.userId) {
-            sessionRepo.clear(id)
-            Left(CommandFailed("Session closed"))
-          } else {
-            val guestKey = info.guestName.map(norm).getOrElse("")
-
-            val updated = info.copy(
-              guestName    = None,
-              guestToken   = None,
-              guestUserId  = None,
-              state        = SessionState.Waiting,
-              nameToUserId = if (guestKey.nonEmpty) info.nameToUserId - guestKey else info.nameToUserId
-            )
-            updateSession(id, updated)
-            Right(updated)
-          }
-      }
-
 
   override def joinSession(
     principal: AuthPrincipal,
@@ -282,4 +271,51 @@ final class GameSessionService @Inject()(
         }
     }
   }
+
+  override def leaveSession(
+    principal: AuthPrincipal,
+    id: GameSessionId
+  ): Either[GameSessionError, SessionInfo] =
+    leaveSessionWithReason(principal, id, reason = "mainmenu")
+
+  override def leaveSessionDisconnected(
+    principal: AuthPrincipal,
+    id: GameSessionId
+  ): Either[GameSessionError, SessionInfo] =
+    leaveSessionWithReason(principal, id, reason = "disconnect")
+
+  private def leaveSessionWithReason(
+    principal: AuthPrincipal,
+    id: GameSessionId,
+    reason: String
+  ): Either[GameSessionError, SessionInfo] =
+    getSessionOpt(id) match {
+      case None => Left(NotFound(id))
+
+      case Some(info) =>
+        if (!isAuthorized(info, principal)) Left(Unauthorized(id, principal.userId))
+        else {
+          val isHost = info.hostUserId == principal.userId
+          val leftName = if (isHost) info.hostName else info.guestName.getOrElse(principal.username)
+
+          publishSessionEnded(id, leftName, reason)
+
+          if (isHost || info.state == SessionState.Started) {
+            sessionRepo.clear(id)
+            Left(CommandFailed("Session closed"))
+          } else {
+            val guestKey = info.guestName.map(norm).getOrElse("")
+            val updated = info.copy(
+              guestName    = None,
+              guestToken   = None,
+              guestUserId  = None,
+              state        = SessionState.Waiting,
+              nameToUserId = if (guestKey.nonEmpty) info.nameToUserId - guestKey else info.nameToUserId
+            )
+            updateSession(id, updated)
+            Right(updated)
+          }
+        }
+    }
+
 }

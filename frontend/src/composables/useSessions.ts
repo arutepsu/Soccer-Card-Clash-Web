@@ -5,7 +5,7 @@ import { toSessionView, type SessionView } from '@/session/Session';
 
 export function useSessions() {
   const services = useAppServices();
-  const { sessions: sessionApi } = services;
+  const sessionApi = services.sessions;
 
   const items = ref<SessionView[]>([]);
   const selectedId = ref<string | null>(null);
@@ -87,7 +87,7 @@ export function useSessions() {
       await sessionApi.leaveSession(sessionId);
     } finally {
       busy.value = false;
-      services.gameContext.setSessionId(null);
+      services.gameContext.clear();
     }
   }
 

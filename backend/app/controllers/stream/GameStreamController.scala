@@ -21,14 +21,15 @@ import app.session.{GameSessionId, SessionInfo}
 import app.session.repositories.IGameSessionRepository
 import app.models.state.WebGameState
 import app.api.context.IGameContextRepository
-
+import app.session.IGameSessionService
 @Singleton
 final class GameStreamController @Inject()(
   cc: ControllerComponents,
   eventHub: GameEventHub,
   viewStateMapper: IViewStateMapper,
   sessionRepo: IGameSessionRepository,
-  ctxRepo: IGameContextRepository     
+  ctxRepo: IGameContextRepository,
+  sessionService: IGameSessionService
 )(implicit ec: ExecutionContext, system: ActorSystem, mat: Materializer)
   extends AbstractController(cc)
   with ControllerSupport
@@ -51,15 +52,18 @@ final class GameStreamController @Inject()(
             val (queue, src) =
               Source.queue[GameEvent](32, OverflowStrategy.dropHead).preMaterialize()
               
-            println(s"[SSE] open sid=${sid.value} principal=${principal.userId}/${principal.username}")
             val unsubscribe = eventHub.subscribe(sid) { ev =>
               queue.offer(ev).failed.foreach { t =>
-                println(s"[SSE] offer failed sid=${sid.value} ev=${ev.eventId}: ${t.getMessage}")
               }(ec)
               ()
             }
 
-            queue.watchCompletion().foreach(_ => unsubscribe())(ec)
+            queue.watchCompletion().foreach { _ =>
+              unsubscribe()
+              sessionService.leaveSessionDisconnected(principal, sid)
+            }(ec)
+
+
 
             def infoOpt: Option[SessionInfo] = sessionRepo.get(sid)
 

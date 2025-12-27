@@ -1,7 +1,6 @@
 <!-- frontend/src/views/AttackerHandView.vue -->
 <script setup lang="ts">
 import { onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
 import { useOverlay } from '../composables/useOverlay';
 import { useAttackerHand } from '../composables/useAttackerHand';
 import AttackerBar from '../components/player/AttackerBar.vue';
@@ -10,7 +9,11 @@ import HandControls from '../components/hand/HandControls.vue';
 import { createPlayerAvatarRegistry } from '../utils/playerAvatarRegistry';
 import type { WebGameState } from '../types/WebGameState';
 import attackerHandBg from '@/assets/images/frames/background7.jpg';
+import { useRouter, useRoute } from 'vue-router';
+
 const router = useRouter();
+const route = useRoute();
+
 const { show, hide } = useOverlay();
 
 const {
@@ -78,7 +81,7 @@ function onInfo() {
 }
 
 function onBack() {
-  router.push({ name: 'PlayingField' });
+  router.push({ name: 'PlayingField', query: route.query });
 }
 
 onMounted(async () => {

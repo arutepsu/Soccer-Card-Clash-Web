@@ -20,6 +20,7 @@ const soundManager: SoundManager = createSoundManager({
 let unlockAudioHandler: ((e: Event) => void) | null = null;
 
 type MainMenuAction =
+  | 'online-multiplayer'
   | 'singleplayer'
   | 'multiplayer'
   | 'load'
@@ -27,8 +28,13 @@ type MainMenuAction =
   | 'rules'
   | 'logout';
 
-/** cards for carousel */
 const menuItems = [
+  {
+    action: 'online-multiplayer' as MainMenuAction,
+    title: 'Online Multiplayer',
+    description: 'Create or join a session and play against a friend online.',
+    buttonLabel: 'Play Online',
+  },
   {
     action: 'singleplayer' as MainMenuAction,
     title: 'Singleplayer',
@@ -93,6 +99,10 @@ function goSinglePlayer() {
   onButtonClick();
   router.push({ name: 'SinglePlayer' });
 }
+function goSession() {
+  onButtonClick();
+  router.push({name: 'SessionView'})
+}
 
 function goMultiplayer() {
   onButtonClick();
@@ -116,6 +126,10 @@ function onLogoutClick() {
 
 function onCommand(payload: { action: MainMenuAction }) {
   switch (payload.action) {
+    case 'online-multiplayer':
+      onButtonClick();
+      goSession();
+      break;
     case 'singleplayer':
       goSinglePlayer();
       break;

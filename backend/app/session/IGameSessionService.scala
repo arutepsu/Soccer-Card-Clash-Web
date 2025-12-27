@@ -33,9 +33,13 @@ trait IGameSessionService {
     cmd: GameCommand
   ): Either[GameSessionError, GameContext]
 
-  def leaveSession( 
+   def leaveSessionDisconnected(
     principal: AuthPrincipal,
     id: GameSessionId
   ): Either[GameSessionError, SessionInfo]
-
+  
+  def leaveSession(
+      principal: AuthPrincipal,
+      id: GameSessionId
+    ): Either[GameSessionError, SessionInfo] 
 }

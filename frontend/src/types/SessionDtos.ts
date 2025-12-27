@@ -1,8 +1,4 @@
-export type SessionStatusDto =
-  | 'Waiting'
-  | 'Ready'
-  | 'Started'
-  | 'Full';
+export type SessionStatusDto = 'Waiting' | 'Ready' | 'Started' | 'Full';
 
 export interface SessionDto {
   id: string;
@@ -31,3 +27,15 @@ export interface SessionJoinedResponseDto {
   sessionId: string;
   playerToken: string;
 }
+
+export type SessionEndedMeta = {
+  action: 'SessionEnded';
+  leftPlayerName?: string;
+  reason?: string;
+};
+
+export type ActionMeta =
+  | { action: 'RegularAttack'; defenderIndex: number }
+  | { action: 'DoubleAttack'; defenderIndex: number }
+  | SessionEndedMeta
+  | null;

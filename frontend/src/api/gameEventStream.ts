@@ -12,6 +12,14 @@ export interface StreamClient {
 function unwrapToMeta(msg: any): any | null {
   if (!msg) return null;
 
+  if (msg.kind === 'event' && msg.type === 'SessionEnded') {
+    return {
+      action: 'SessionEnded',
+      leftPlayerName: msg.payload?.leftPlayerName ?? msg.leftPlayerName ?? null,
+      reason: msg.payload?.reason ?? msg.reason ?? null,
+    };
+  }
+
   if (msg.meta) return msg.meta;
 
   if (msg.kind === 'event' && msg.type === 'StateUpdated' && msg.meta) return msg.meta;
@@ -234,10 +242,10 @@ export function createGameEventStream(): StreamClient {
 
     let lastAppliedEventId = readLastEventId(s);
 
-    const applyMsg = (msg: any) => {
-      const state = unwrapToState(msg);
-      if (!state) return;
 
+    let lastState: WebGameState | null = null;
+
+    const applyMsg = (msg: any) => {
       const eid = getEventId(msg);
       if (typeof eid === 'number') {
         if (eid <= lastAppliedEventId) return;
@@ -246,8 +254,19 @@ export function createGameEventStream(): StreamClient {
       }
 
       const meta = unwrapToMeta(msg);
-      onState(state, meta);
+      const state = unwrapToState(msg);
+
+      if (state) {
+        lastState = state;
+        onState(state, meta);
+        return;
+      }
+
+      if (meta && lastState) {
+        onState(lastState, meta);
+      }
     };
+
 
     const startComet = () => {
       if (active?.type === 'comet') return;

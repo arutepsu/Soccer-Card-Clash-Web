@@ -29,8 +29,37 @@ function goMainMenu() {
   router.push({ name: 'MainMenu' });
 }
 
+async function leaveOnlineSessionIfNeeded() {
+  const sid = (route.query.sid as string | undefined) ?? null;
+  if (!sid) return;
+  if (services.gameContext.mode.value !== 'online') return;
+
+  try {
+    await services.sessions.leaveSession(sid);
+  } catch (e) {
+    console.warn('[NavButtonBarContainer] leaveSession failed', e);
+  }
+}
+
+async function ensureContextFromRoute() {
+  const mode = (route.query.mode as string | undefined) ?? null;
+  const sid = (route.query.sid as string | undefined) ?? null;
+
+  if (!mode) return;
+
+  if (services.gameContext.mode.value !== mode) {
+    await services.gameContext.start(mode as any, sid);
+    return;
+  }
+
+  if (mode === 'online' && sid && services.gameContext.sessionId.value !== sid) {
+    await services.gameContext.startOnline(sid);
+  }
+}
+
 async function doRestart() {
   try {
+    await ensureContextFromRoute();
     await getState();
     goName('PlayingField');
   } catch (e) {
@@ -38,6 +67,7 @@ async function doRestart() {
     alert('Restart failed. Please try again.');
   }
 }
+
 
 async function doSaveGame() {
   try {
@@ -64,7 +94,7 @@ async function doRedo() {
   try { await redo(); } finally { hide(); }
 }
 
-function handlePauseAction(action: string) {
+async function handlePauseAction(action: string) {
   if (action === 'resume') return hide();
   if (action === 'undo') return void doUndo();
   if (action === 'redo') return void doRedo();
@@ -78,9 +108,10 @@ function handlePauseAction(action: string) {
     hide();
     return void doRestart();
   }
-
+  
   if (action === 'mainmenu') {
     hide();
+    await leaveOnlineSessionIfNeeded();
     services.gameContext.clear();
     return goMainMenu();
   }
@@ -99,12 +130,24 @@ function handlePause() {
   openPauseDialog();
 }
 
-function handleGoDefenders() {
-  goName('AttackerDefenders');
+async function handleGoDefenders() {
+  try {
+    await ensureContextFromRoute();
+    goName('AttackerDefenders');
+  } catch (e) {
+    console.error('[NavButtonBarContainer] open defenders failed', e);
+    alert('Failed to open defenders view.');
+  }
 }
 
-function handleGoHand() {
-  goName('AttackerHand');
+async function handleGoHand() {
+  try {
+    await ensureContextFromRoute();
+    goName('AttackerHand');
+  } catch (e) {
+    console.error('[NavButtonBarContainer] open hand failed', e);
+    alert('Failed to open hand view.');
+  }
 }
 
 function handleHover(payload: { action: string }) {
