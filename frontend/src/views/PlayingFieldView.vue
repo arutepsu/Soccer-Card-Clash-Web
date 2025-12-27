@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 import { usePlayingField } from '../composables/usePlayingField';
 import { usePlayingFieldMode } from '@/composables/usePlayingFieldMode';
 import { useAppServices } from '../app/appServices';
 import { useOverlay } from '../composables/useOverlay';
-
+import SessionEndedDialog from '@/components/dialog/SessionEndedDialog.vue';
 import PlayersBar from '../components/player/PlayersBar.vue';
 import NavButtonBarContainer from '../components/button/NavButtonBarContainer.vue';
 import PlayersField from '../components/field/PlayersField.vue';
@@ -21,7 +22,7 @@ import { UIActionScheduler } from '../ui/uiActionScheduler';
 import { createComparisonDialogHandler } from '../utils/playingField/comparisonDialogHandler';
 import { createComparisonOrchestrator } from '../utils/playingField/comparisonOrchestrator';
 import { createSoundManager } from '../utils/soundManager';
-
+import type { ActionMeta } from '@/types/SessionDtos';
 import playingBg from '@/assets/images/frames/background5.jpg';
 import { SceneView } from '@/utils/playingField/sceneMapping';
 
@@ -41,6 +42,7 @@ type PendingMeta =
   | { action: 'RegularAttack'; defenderIndex: number }
   | { action: 'DoubleAttack'; defenderIndex: number }
   | null;
+
 
 const pendingMeta = ref<PendingMeta>(null);
 
@@ -67,12 +69,14 @@ const avatarRegistry = createPlayerAvatarRegistry({
 
 const selectedTarget = ref<SelectedTarget>(null);
 
-const { show } = useOverlay();
+const { show, hide } = useOverlay();
 function showInfoAlert(message: string) {
   show({ title: 'Info', message, content: null });
 }
 
 const services = useAppServices();
+const router = useRouter();
+const route = useRoute();
 
 const mode = usePlayingFieldMode(computed(() => displayWebState.value), showInfoAlert, {
   mode: computed(() => services.gameContext.mode.value),
@@ -80,8 +84,8 @@ const mode = usePlayingFieldMode(computed(() => displayWebState.value), showInfo
   localHumanName: computed(() => services.gameContext.localHumanName.value),
 });
 
-
-const cinemaActive = mode.cinemaActive;
+const sessionEnded = ref(false);
+const cinemaActive = computed(() => !sessionEnded.value && mode.cinemaActive.value);
 const opponentName = mode.opponentName;
 
 const api = computed(() => {
@@ -158,7 +162,7 @@ watch(
       return;
     }
 
-    const meta = services.gameContext.lastMeta.value;
+    const meta = services.gameContext.lastMeta.value as ActionMeta;
 
     if (meta?.action === 'RegularAttack' || meta?.action === 'DoubleAttack') {
       orch.setPendingAction(meta.action, meta);
@@ -168,6 +172,24 @@ watch(
       pendingMeta.value = null;
 
       orch.handleStreamWeb(st);
+      return;
+    }
+
+    if (meta?.action === 'SessionEnded') {
+      sessionEnded.value = true;  
+      hide();
+      show({
+        title: 'Session Ended',
+        message: null,
+        content: SessionEndedDialog,
+        componentProps: {
+          leftPlayerName: meta.leftPlayerName,
+          onAction: () => exitToMainMenu(),
+        },
+      });
+
+      services.gameContext.lastMeta.value = null;
+      pendingMeta.value = null;
       return;
     }
 
@@ -262,9 +284,33 @@ function handleInfo() {
   showInfoAlert('Select a defender or the goalkeeper, then choose an attack.');
 }
 
+function beaconLeaveIfOnline() {
+  const sid = (route.query.sid as string | undefined) ?? null;
+  if (!sid) return;
+  if (services.gameContext.mode.value !== 'online') return;
+
+  const url = `/api/sessions/${encodeURIComponent(sid)}/leave`;
+  try {
+    navigator.sendBeacon(url, new Blob([JSON.stringify({})], { type: 'application/json' }));
+  } catch {}
+}
+
+onBeforeUnmount(() => {
+  window.removeEventListener('pagehide', beaconLeaveIfOnline);
+});
+
+function exitToMainMenu() {
+  hide();
+  services.gameContext.clear();
+  router.push({ name: 'MainMenu' });
+}
+
+
 onMounted(async () => {
+  window.addEventListener('pagehide', beaconLeaveIfOnline);
   await init();
 });
+
 
 const playingSceneStyle = {
   backgroundImage: `url(${playingBg})`,

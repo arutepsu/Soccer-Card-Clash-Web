@@ -1,7 +1,6 @@
 <!-- frontend/src/views/AttackerDefendersView.vue -->
 <script setup lang="ts">
 import { onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
 import { useOverlay } from '../composables/useOverlay';
 import { useAttackerDefenders } from '../composables/useAttackerDefenders';
 import AttackerBar from '../components/player/AttackerBar.vue';
@@ -10,7 +9,9 @@ import FieldControls from '../components/field/FieldControls.vue';
 import { createPlayerAvatarRegistry } from '../utils/playerAvatarRegistry';
 import type { WebGameState } from '../types/WebGameState';
 import attackerBg from '@/assets/images/frames/background6.jpg';
+import { useRouter, useRoute } from 'vue-router';
 const router = useRouter();
+const route = useRoute();
 
 const { show, hide } = useOverlay();
 
@@ -79,7 +80,7 @@ function onInfo() {
 }
 
 function onBack() {
-  router.push({ name: 'PlayingField' });
+  router.push({ name: 'PlayingField', query: route.query });
 }
 
 onMounted(async () => {

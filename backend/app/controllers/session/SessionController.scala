@@ -148,20 +148,23 @@ final class SessionController @Inject()(
     }
   }
 
-  // POST /api/sessions/:id/leave
+  // POST /api/sessions/:id/leave 
   def leave(id: String): Action[AnyContent] = Action { req =>
     principalOrAnonymous(req) match {
       case Left(res) => res
       case Right(principal) =>
         service.leaveSession(principal, GameSessionId(id)) match {
+
           case Left(GSE.CommandFailed("Session closed")) =>
-            Ok(jsonErr("Session closed")).withSession(req.session - "sid" - "username")
+            Ok(jsonErr("Session closed"))
+              .withSession(req.session - "sid" - "username")
 
           case Left(err) =>
             toHttpError(err)
 
           case Right(_) =>
-            Ok(Json.obj("ok" -> true)).withSession(req.session - "sid" - "username")
+            Ok(Json.obj("ok" -> true))
+              .withSession(req.session - "sid" - "username")
         }
     }
   }
@@ -183,6 +186,4 @@ final class SessionController @Inject()(
         }
     }
   }
-
-
 }

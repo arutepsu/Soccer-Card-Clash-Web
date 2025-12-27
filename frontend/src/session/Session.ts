@@ -9,11 +9,13 @@ export interface SessionView {
 }
 
 export function toSessionView(dto: SessionDto): SessionView {
+  const full = dto.status === 'Full' || dto.playerCount >= 2;
+
   return {
     id: dto.id,
     name: dto.name,
     players: `${dto.playerCount}/2`,
-    status: dto.playerCount >= 2 ? 'Full' : 'Waiting',
+    status: full ? 'Full' : 'Waiting',
     host: dto.hostName,
   };
 }
