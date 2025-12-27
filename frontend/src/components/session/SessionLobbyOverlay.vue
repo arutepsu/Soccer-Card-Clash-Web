@@ -1,7 +1,7 @@
 <template>
   <div class="lobby">
     <div v-if="loading" class="lobby-loading">Loading lobby…</div>
-    
+
     <template v-else>
       <div class="lobby-row">
         <span class="lbl">Session:</span>
@@ -31,33 +31,35 @@
           <code class="code">{{ sessionId }}</code>
         </div>
 
-        <button class="btn-secondary" @click="copyInvite" @mouseenter="hover">
-          [ Copy ]
-        </button>
+        <GameButton
+          action="copy-invite"
+          label="Copy"
+          @command="copyInvite"
+          @hover="forwardHover"
+        />
       </div>
 
-      <div v-if="!isFull" class="hint">
-        Waiting for second player to join…
-      </div>
+      <div v-if="!isFull" class="hint">Waiting for second player to join…</div>
+      <div v-else-if="!isHost" class="hint">Waiting for host to start the game…</div>
 
+      <div class="actions">
+        <GameButton
+          v-if="showStart"
+          action="start-game"
+          label="Start Game"
+          :canExecute="canStart"
+          :disabled="!canStart"
+          tooltip="Waiting for second player…"
+          @command="startGame"
+          @hover="forwardHover"
+        />
 
-      <div v-else-if="!isHost" class="hint">
-        Waiting for host to start the game…
-      </div>
-
-    <div class="actions">
-        <button
-          v-if="isFull && isHost"
-          class="btn-start"
-          @click="startGame"
-          @mouseenter="hover"
-        >
-          [ Start Game ]
-        </button>
-
-        <button class="btn-leave" @click="leave" @mouseenter="hover">
-          [ Leave ]
-        </button>
+        <GameButton
+          action="leave-lobby"
+          label="Leave"
+          @command="leave"
+          @hover="forwardHover"
+        />
       </div>
     </template>
   </div>
@@ -65,6 +67,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import GameButton from '@/components/button/GameButton.vue';
 import { useAppServices, setCurrentPlayerId } from '@/app/appServices';
 import { useOverlayStore } from '@/stores/overlayStore';
 import type { SessionDto } from '@/types/SessionDtos';
@@ -82,7 +85,6 @@ const props = defineProps<{
 const services = useAppServices();
 const overlay = useOverlayStore();
 const gameContext = useGameContext();
-
 const gameCmds = useGameCommands();
 
 const loading = ref(true);
@@ -90,14 +92,20 @@ const session = ref<SessionDto | null>(null);
 
 const norm = (s: string | null | undefined) => (s ?? '').trim().toLowerCase();
 const isHost = computed(() => norm(session.value?.hostName) === norm(authState.username));
-const isFull = computed(() => Number(session.value?.playerCount ?? 0) >= 2);
+const isFull = computed(() => {
+  const pc = Number(session.value?.playerCount ?? 0);
+  const st = String(session.value?.status ?? '');
+  return pc >= 2 || st === 'Full';
+});
+
+const showStart = computed(() => isHost.value);
+const canStart = computed(() => isHost.value && isFull.value);
 
 let timer: number | null = null;
-
 let didLeaveLobby = false;
 
-function hover() {
-  props.onHover?.();
+function forwardHover(payload: { action: string; hovering: boolean }) {
+  if (payload.hovering) props.onHover?.();
 }
 
 function goToGame() {
@@ -108,9 +116,7 @@ function goToGame() {
 async function startOnlineGameAndGo() {
   services.gameContext.setMode('online');
   services.gameContext.setSessionId(props.sessionId);
-
   await services.gameContext.startOnline(props.sessionId);
-
   goToGame();
 }
 
@@ -127,16 +133,16 @@ async function enterGameIfStarted(next: SessionDto | null) {
 }
 
 async function startGame() {
-  hover();
+  props.onHover?.();
   await services.sessions.startSession(props.sessionId);
   await startOnlineGameAndGo();
 }
+
 async function refresh() {
   try {
     const next = await services.sessions.getSession(props.sessionId);
     console.log('[Lobby] session dto', next);
     session.value = next;
-
     await enterGameIfStarted(next);
   } catch {
     didLeaveLobby = true;
@@ -148,7 +154,7 @@ async function refresh() {
 }
 
 async function leave() {
-  hover();
+  props.onHover?.();
   didLeaveLobby = true;
 
   try {
@@ -162,14 +168,13 @@ async function leave() {
 }
 
 async function copyInvite() {
-  hover();
+  props.onHover?.();
   try {
     const url =
       `${window.location.origin}/#/playing-field?mode=online&sid=${encodeURIComponent(props.sessionId)}`;
     await navigator.clipboard.writeText(url);
   } catch {}
 }
-
 
 onMounted(async () => {
   await refresh();
@@ -178,15 +183,13 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   if (timer) window.clearInterval(timer);
-
   if (!didLeaveLobby) return;
-
   services.gameContext.clear();
 });
-
 </script>
 
 <style scoped>
+
 .lobby {
   display: flex;
   flex-direction: column;
@@ -212,10 +215,10 @@ onBeforeUnmount(() => {
 }
 
 .lbl {
-  color: #39FF14;
+  color: #39ff14;
   font-weight: bold;
   min-width: 110px;
-  text-shadow: 0 0 6px #39FF14;
+  text-shadow: 0 0 6px #39ff14;
 }
 
 .val {
@@ -256,8 +259,8 @@ onBeforeUnmount(() => {
 
 .hint {
   text-align: center;
-  color: #39FF14;
-  text-shadow: 0 0 6px #39FF14;
+  color: #39ff14;
+  text-shadow: 0 0 6px #39ff14;
   opacity: 0.9;
   margin-top: 0.25rem;
 }
@@ -265,68 +268,7 @@ onBeforeUnmount(() => {
 .actions {
   display: flex;
   justify-content: center;
+  gap: 1rem;
   margin-top: 0.75rem;
 }
-
-.btn-secondary {
-  background: transparent;
-  border: 2px solid #39FF14;
-  color: #39FF14;
-  font-family: "Rajdhani", Arial, sans-serif;
-  cursor: pointer;
-  font-size: 1rem;
-  padding: 0.45rem 1.2rem;
-  border-radius: 8px;
-  font-weight: bold;
-  text-shadow: 0 0 6px #39FF14;
-  transition: all 0.3s;
-}
-
-.btn-secondary:hover {
-  background: rgba(57, 255, 20, 0.2);
-  box-shadow: 0 0 15px rgba(57, 255, 20, 0.6);
-  transform: translateY(-2px);
-}
-
-.btn-leave {
-  background: transparent;
-  border: 3px solid #ff0055;
-  color: #ff0055;
-  font-family: "Rajdhani", Arial, sans-serif;
-  cursor: pointer;
-  font-size: 1.2rem;
-  padding: 0.8rem 2rem;
-  transition: all 0.3s;
-  border-radius: 8px;
-  font-weight: bold;
-  min-width: 140px;
-  text-shadow: 0 0 6px #ff0055;
-}
-
-.btn-leave:hover {
-  background: rgba(255, 0, 85, 0.2);
-  box-shadow: 0 0 20px rgba(255, 0, 85, 0.6);
-  transform: translateY(-2px);
-}
-.btn-start {
-  background: rgba(57, 255, 20, 0.1);
-  border: 3px solid #39FF14;
-  color: #39FF14;
-  font-family: "Rajdhani", Arial, sans-serif;
-  padding: 0.9rem 2rem;
-  cursor: pointer;
-  font-size: 1.2rem;
-  font-weight: bold;
-  transition: all 0.3s;
-  border-radius: 10px;
-  text-shadow: 0 0 10px #39FF14;
-  box-shadow: 0 0 20px rgba(57, 255, 20, 0.3);
-}
-
-.btn-start:hover {
-  background: rgba(57, 255, 20, 0.3);
-  box-shadow: 0 0 30px rgba(57, 255, 20, 0.6);
-  transform: translateY(-2px) scale(1.03);
-}
-
 </style>

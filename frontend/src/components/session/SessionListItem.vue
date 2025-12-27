@@ -10,33 +10,53 @@
     <span class="session-players">{{ session.playerCount }}/2</span>
     <span class="session-status">{{ session.status }}</span>
 
-    <button
-      v-if="session.status === 'Waiting'"
-      class="btn-join"
-      @click.stop="$emit('join')"
-      @mouseenter="$emit('hover')"
-    >
-      [ Join ]
-    </button>
-
-    <button v-else class="btn-full" disabled>[ Full ]</button>
+    <div class="session-action" @click.stop>
+      <GameButton
+        v-if="!isFull"
+        action="join-session"
+        label="Join"
+        @command="$emit('join')"
+        @hover="forwardHover"
+      />
+      <GameButton
+        v-else
+        action="full-session"
+        label="Full"
+        :disabled="true"
+        :canExecute="false"
+        @hover="forwardHover"
+      />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+import GameButton from '@/components/button/GameButton.vue';
 import type { SessionDto } from '@/types/SessionDtos';
 
-defineProps<{
+const props = defineProps<{
   session: SessionDto;
   selected: boolean;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'select'): void;
   (e: 'join'): void;
   (e: 'hover'): void;
 }>();
+
+const isFull = computed(() => {
+  const pc = Number(props.session.playerCount ?? 0);
+  const st = String(props.session.status ?? '');
+  return pc >= 2 || st === 'Full';
+});
+
+function forwardHover(payload: { action: string; hovering: boolean }) {
+  if (payload.hovering) emit('hover');
+}
 </script>
+
 <style scoped>
 .session-item {
   display: grid;
@@ -57,7 +77,7 @@ defineEmits<{
 
 .session-item.selected {
   background: rgba(119, 0, 255, 0.3);
-  border-left: 5px solid #39FF14;
+  border-left: 5px solid #39ff14;
   box-shadow: inset 0 0 20px rgba(57, 255, 20, 0.2);
 }
 
@@ -66,16 +86,16 @@ defineEmits<{
 }
 
 .session-indicator {
-  color: #39FF14;
+  color: #39ff14;
   font-size: 1.2rem;
-  text-shadow: 0 0 6px #39FF14;
+  text-shadow: 0 0 6px #39ff14;
 }
 
 .session-name {
-  color: #39FF14;
+  color: #39ff14;
   font-weight: bold;
   font-size: 1.1rem;
-  text-shadow: 0 0 6px #39FF14;
+  text-shadow: 0 0 6px #39ff14;
 }
 
 .session-item.full .session-name {
@@ -94,12 +114,11 @@ defineEmits<{
   text-shadow: 0 0 6px #ff0055;
 }
 
-/* Status */
 .session-status {
-  color: #39FF14;
+  color: #39ff14;
   min-width: 80px;
   font-weight: bold;
-  text-shadow: 0 0 6px #39FF14;
+  text-shadow: 0 0 6px #39ff14;
 }
 
 .session-item.full .session-status {
@@ -107,35 +126,8 @@ defineEmits<{
   text-shadow: 0 0 6px #ff0055;
 }
 
-/* Buttons */
-.btn-join,
-.btn-full {
-  background: transparent;
-  border: 2px solid #39FF14;
-  color: #39FF14;
-  font-family: "Rajdhani", Arial, sans-serif;
-  cursor: pointer;
-  font-size: 1rem;
-  padding: 0.4rem 1rem;
-  transition: all 0.3s;
-  min-width: 90px;
-  border-radius: 6px;
-  font-weight: bold;
-  text-shadow: 0 0 6px #39FF14;
-}
-
-.btn-join:hover {
-  background: rgba(57, 255, 20, 0.2);
-  box-shadow: 0 0 15px rgba(57, 255, 20, 0.6);
-  transform: scale(1.05);
-}
-
-.btn-full {
-  border-color: #ff0055;
-  color: #ff0055;
-  cursor: not-allowed;
-  opacity: 0.5;
-  text-shadow: none;
+.session-action {
+  justify-self: end;
 }
 
 @media (max-width: 768px) {
@@ -151,9 +143,9 @@ defineEmits<{
     font-size: 0.9rem;
   }
 
-  .btn-join,
-  .btn-full {
+  .session-action {
     grid-column: 2;
+    justify-self: start;
     margin-top: 0.5rem;
   }
 }
