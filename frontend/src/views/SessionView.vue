@@ -56,12 +56,15 @@ const services = useAppServices();
 
 const overlay = useOverlayStore();
 
-function goToOnlineGame(sessionId: string) {
+async function goToOnlineGame(sessionId: string) {
+  await services.gameContext.startOnline(sessionId);
+
   return router.push({
     name: 'PlayingField',
     query: { mode: 'online', sid: sessionId },
   });
 }
+
 
 function openLobby(sessionId: string) {
   overlay.show({

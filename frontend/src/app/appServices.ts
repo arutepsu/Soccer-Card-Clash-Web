@@ -1,22 +1,28 @@
 // frontend/src/app/appServices.ts
-import { inject, type InjectionKey, watch } from 'vue';
+import { inject, type InjectionKey, ref, watch } from 'vue';
 
-import { createGameApi, type GameApi } from '../api/gameApi';
-import { createServerPushClient, type PushClient } from '../api/serverPushClient';
-import { createGameEventStream } from '../api/gameEventStream';
-import { createSoundManager, type SoundManager } from '../utils/soundManager';
-import { createSessionApi, type SessionApi } from '../api/sessionApi';
-import { createAuthApi, type AuthApi } from '../api/authApi';
+import type { GameApi } from '@/api/GameApi';
+import { createOnlineGameApi } from '@/api/onlineGameApi';
+import { createLocalGameApiHttp } from '@/api/localGameApiHttp';
+import { createPracticeGameApi } from '@/api/practiceGameApi'; // ✅ add this
+
+import { createServerPushClient, type PushClient } from '@/api/serverPushClient';
+import { createGameEventStream } from '@/api/gameEventStream';
+import { createSoundManager, type SoundManager } from '@/utils/soundManager';
+import { createSessionApi, type SessionApi } from '@/api/sessionApi';
+import { createAuthApi, type AuthApi } from '@/api/authApi';
 
 import { createGameContextService } from './gameContextService';
-import type { GameContextService, GameMode } from './gameContextService';
+import type { GameContextService, GameMode, LocalKind } from './gameContextService';
 
-import type { WebGameState } from '@/types/WebGameState';
+import { practiceEngine } from '@/pwa/practiceEngine';
 
 export interface GameApiRouter {
-  local: GameApi;
+  localPvp: GameApi;
+  practice: GameApi;
   online: GameApi;
-  forMode(mode: GameMode): GameApi;
+
+  forMode(mode: GameMode, localKind?: LocalKind | null): GameApi;
 }
 
 export interface AppServices {
@@ -28,6 +34,10 @@ export interface AppServices {
 
   soundManager: SoundManager | null;
   gameContext: GameContextService;
+
+  net: {
+    isOnline: import('vue').Ref<boolean>;
+  };
 }
 
 let currentPlayerId = '';
@@ -39,33 +49,37 @@ export function getCurrentPlayerId(): string | null {
   return s ? s : null;
 }
 
-
 export const AppServicesKey: InjectionKey<AppServices> = Symbol('AppServices');
 
 export function createAppServices(): AppServices {
-  
   const pushClient = createServerPushClient({
     path: '/api/ws',
-    getPlayerId: () => null,
+    getPlayerId: () => getCurrentPlayerId(),
   });
+
   const streamClient = createGameEventStream();
 
-  const localApi = createGameApi({
-    mode: 'local',
-    getPlayerId: () => null,
-  });
-
-  const onlineApi = createGameApi({
-    mode: 'online',
+  const onlineApi = createOnlineGameApi({
     streamClient,
     pushClient,
-    getPlayerId: () => null,
+    getPlayerId: () => getCurrentPlayerId(),
   });
 
+  const localPvpApi = createLocalGameApiHttp({
+    getPlayerId: () => 'local',
+  });
+
+  const practiceApi = createPracticeGameApi(practiceEngine);
+
   const game: GameApiRouter = {
-    local: localApi,
+    localPvp: localPvpApi,
+    practice: practiceApi,
     online: onlineApi,
-    forMode: (mode: GameMode) => (mode === 'online' ? onlineApi : localApi),
+
+    forMode: (mode: GameMode, localKind?: LocalKind | null) => {
+      if (mode === 'online') return onlineApi;
+      return (localKind ?? 'pvp') === 'practice' ? practiceApi : localPvpApi;
+    },
   };
 
   const soundManager = createSoundManager();
@@ -76,6 +90,11 @@ export function createAppServices(): AppServices {
     getJSON: onlineApi.getJSON,
     postJSON: onlineApi.postJSON,
   });
+
+  const isOnline = ref<boolean>(navigator.onLine);
+
+  window.addEventListener('online', () => (isOnline.value = true));
+  window.addEventListener('offline', () => (isOnline.value = false));
 
   let lastOnlineSid: string | null = null;
 
@@ -88,23 +107,29 @@ export function createAppServices(): AppServices {
         return;
       }
 
-    const nextSid = (sid ?? '').trim() || null;
-    pushClient.setGameId?.(nextSid);
+      const nextSid = (sid ?? '').trim() || null;
+      pushClient.setGameId?.(nextSid);
 
-    if (!nextSid) {
-      lastOnlineSid = null;
-      return;
-    }
+      if (!nextSid) {
+        lastOnlineSid = null;
+        return;
+      }
 
-    if (nextSid !== lastOnlineSid) {
-      lastOnlineSid = nextSid;
-      pushClient.reconnect();
-    }
-
+      if (nextSid !== lastOnlineSid) {
+        lastOnlineSid = nextSid;
+        pushClient.reconnect();
+      }
     },
     { immediate: true },
   );
 
+  watch(isOnline, (on) => {
+    if (!on && gameContext.mode.value === 'online') {
+      try {
+        gameContext.stop();
+      } catch {}
+    }
+  });
 
   return {
     game,
@@ -113,6 +138,7 @@ export function createAppServices(): AppServices {
     sessions,
     soundManager,
     gameContext,
+    net: { isOnline },
   };
 }
 

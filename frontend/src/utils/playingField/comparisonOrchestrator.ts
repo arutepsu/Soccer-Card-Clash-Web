@@ -7,7 +7,7 @@ import type {
   ComparisonCard,
 } from './comparisonDialogHandler';
 import type { UIActionScheduler } from '../../ui/uiActionScheduler';
-import type { GameApi } from '../../api/gameApi';
+import type { GameApi } from '../../api/gameApi1';
 
 type CardLikeForTie =
   | Pick<CardView, 'fileName'>

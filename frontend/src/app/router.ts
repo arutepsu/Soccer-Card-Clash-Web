@@ -33,6 +33,7 @@ const routes: RouteRecordRaw[] = [
     name: 'PlayingField',
     component: PlayingFieldView,
   },
+  
   {
     path: '/attacker-hand',
     name: 'AttackerHand',
@@ -44,13 +45,15 @@ const routes: RouteRecordRaw[] = [
     component: AttackerDefendersView,
   },
 
+  { path: '/practice', name: 'Practice', component: PlayingFieldView },
+
   { path: '/', redirect: { name: 'Login' } },
 
   { path: '/:pathMatch(.*)*', redirect: { name: 'Login' } },
 ];
 
 export const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHashHistory('/web/'),
   routes,
 });
 
@@ -70,6 +73,17 @@ async function checkAuthOnce(): Promise<void> {
 }
 
 router.beforeEach(async (to) => {
+  if (!navigator.onLine) {
+    const isPracticePF =
+      to.name === 'PlayingField' &&
+      String(to.query.mode ?? '') === 'local' &&
+      String(to.query.kind ?? '') === 'practice';
+
+    if (isPracticePF) return true;
+
+    return { name: 'PlayingField', query: { mode: 'local', kind: 'practice' } };
+  }
+
   await checkAuthOnce();
 
   if (to.name === 'Login') {
@@ -80,6 +94,8 @@ router.beforeEach(async (to) => {
   if (!authState.loggedIn) return { name: 'Login' };
   return true;
 });
+
+
 
 
 

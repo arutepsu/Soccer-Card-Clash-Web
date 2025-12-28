@@ -1,10 +1,9 @@
-// frontend/src/composables/useGameCommands.ts
 import { computed, ref } from 'vue';
 import { useAppServices } from '@/app/appServices';
 import { useGameContext } from './useGameContext';
-import type { GameApi } from '../api/gameApi';
-import type { WebGameState } from '../types/WebGameState';
-type GameMode = 'local' | 'online';
+import type { GameApi } from '@/api/GameApi';
+import type { WebGameState } from '@/types/WebGameState';
+import type { GameMode, LocalKind } from '@/app/gameContextService';
 
 export function useGameCommands(overrideApi?: GameApi) {
   const gameContext = useGameContext();
@@ -12,6 +11,7 @@ export function useGameCommands(overrideApi?: GameApi) {
   const services = useAppServices();
 
   const sid = computed(() => services.gameContext.sessionId.value);
+  const localKind = computed<LocalKind | null>(() => services.gameContext.localKind.value);
 
   function requireMode(): GameMode {
     const m = services.gameContext.mode.value as GameMode | null;
@@ -28,7 +28,8 @@ export function useGameCommands(overrideApi?: GameApi) {
   const api = computed<GameApi>(() => {
     if (overrideApi) return overrideApi;
     const mode = requireMode();
-    return services.game.forMode(mode);
+
+    return services.game.forMode(mode, mode === 'local' ? localKind.value : null);
   });
 
   async function runCommand(
@@ -46,7 +47,6 @@ export function useGameCommands(overrideApi?: GameApi) {
         return next;
       }
 
-      // online: may be null (stream authoritative), but if we got state apply it
       if (next) gameContext.setState(next);
       return next;
     } finally {
@@ -56,16 +56,28 @@ export function useGameCommands(overrideApi?: GameApi) {
 
   function getState(sessionId?: string | null) {
     const mode = requireMode();
-    const s = mode === 'online' ? (sessionId ?? requireSid()) : (sessionId ?? null);
+    const s = mode === 'online' ? (sessionId ?? requireSid()) : null;
     return runCommand((a) => a.getState(s), 'GetState returned null WebGameState');
   }
 
-  function startLocalMultiplayer(attackerName: string, defenderName: string) {
-    services.gameContext.setMode('local');
+  async function startPractice(attackerName: string, defenderName: string) {
+    await services.gameContext.startLocal('practice');
     return runCommand(
       (a) => a.createLocalMultiplayer(attackerName, defenderName),
-      'CreateGame returned null WebGameState',
+      'Practice CreateGame returned null WebGameState',
     );
+  }
+
+  async function startLocalPvp(attackerName: string, defenderName: string) {
+    await services.gameContext.startLocal('pvp');
+    return runCommand(
+      (a) => a.createLocalMultiplayer(attackerName, defenderName),
+      'Local PvP CreateGame returned null WebGameState',
+    );
+  }
+
+  function startLocalMultiplayer(attackerName: string, defenderName: string) {
+    return startLocalPvp(attackerName, defenderName);
   }
 
   function singleAttackDefender(index: number) {
@@ -125,7 +137,11 @@ export function useGameCommands(overrideApi?: GameApi) {
   return {
     busy,
     getState,
+
+    startPractice,
+    startLocalPvp,
     startLocalMultiplayer,
+
     singleAttackDefender,
     singleAttackGoalkeeper,
     doubleAttack,

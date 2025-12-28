@@ -90,8 +90,13 @@ const opponentName = mode.opponentName;
 
 const api = computed(() => {
   const m = services.gameContext.mode.value;
-  return m ? services.game.forMode(m) : null;
+  if (!m) return null;
+
+  if (m === 'online') return services.game.forMode('online');
+
+  return services.game.forMode('local', services.gameContext.localKind.value);
 });
+
 
 const soundManager = createSoundManager({ basePath: '/assets/sounds/' });
 soundManager.preload('attack', 'attack.wav');
@@ -305,11 +310,51 @@ function exitToMainMenu() {
   router.push({ name: 'MainMenu' });
 }
 
+async function bootFromRoute(): Promise<void> {
+  const qMode = String(route.query.mode ?? '').trim();
+  const qSid = String(route.query.sid ?? '').trim();
+  const qKind = String(route.query.kind ?? '').trim();
+
+  const modeToUse = (qMode === 'online' ? 'online' : 'local') as 'online' | 'local';
+
+  if (modeToUse === 'online' && !services.net.isOnline.value) {
+    await services.gameContext.startLocal('practice');
+    return;
+  }
+
+  if (modeToUse === 'online') {
+    if (!qSid) {
+      services.gameContext.clear();
+      await router.push({ name: 'MainMenu' });
+      return;
+    }
+    await services.gameContext.startOnline(qSid);
+    return;
+  }
+
+  const kindToUse = (qKind === 'practice' ? 'practice' : 'pvp') as 'practice' | 'pvp';
+  await services.gameContext.startLocal(kindToUse);
+}
 
 onMounted(async () => {
   window.addEventListener('pagehide', beaconLeaveIfOnline);
+
+  await bootFromRoute();
+
+  const m = services.gameContext.mode.value;
+  if (m === 'local') {
+    const kind = services.gameContext.localKind.value;
+    const curKind = String(route.query.kind ?? '').trim();
+    const curMode = String(route.query.mode ?? '').trim();
+
+    if (curMode !== 'local' || curKind !== kind) {
+      router.replace({ name: 'PlayingField', query: { mode: 'local', kind } });
+    }
+  }
+
   await init();
 });
+
 
 
 const playingSceneStyle = {

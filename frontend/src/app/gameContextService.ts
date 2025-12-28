@@ -1,22 +1,29 @@
-// frontend/src/app/gameContextService.ts
 import { ref, type Ref } from 'vue';
 import type { WebGameState } from '@/types/WebGameState';
 import type { StreamHandle } from '@/api/gameEventStream';
 import type { GameApiRouter } from './appServices';
 
 export type GameMode = 'local' | 'online';
+export type LocalKind = 'pvp' | 'practice';
 
 export interface GameContextService {
   state: Ref<WebGameState | null>;
   mode: Ref<GameMode | null>;
   sessionId: Ref<string | null>;
   lastMeta: Ref<any | null>;
+
   localIsVsAI: Ref<boolean>;
   localHumanName: Ref<string | null>;
   setLocalControl(opts: { vsAI: boolean; humanName?: string | null }): void;
 
+  localKind: Ref<LocalKind>;
+  setLocalKind(kind: LocalKind): void;
+
   start(nextMode: GameMode, sid?: string | null): Promise<void>;
   startOnline(sessionId: string): Promise<void>;
+
+  startLocal(kind: LocalKind): Promise<void>;
+  startPractice(): Promise<void>;
 
   stop(): void;
   setState(state: WebGameState | null): void;
@@ -31,14 +38,15 @@ export function createGameContextService(game: GameApiRouter): GameContextServic
   const mode = ref<GameMode | null>(null);
   const sessionId = ref<string | null>(null);
   const lastMeta = ref<any | null>(null);
+
   const localIsVsAI = ref(false);
   const localHumanName = ref<string | null>(null);
 
+  const localKind = ref<LocalKind>('pvp');
+
   let handle: StreamHandle | null = null;
   let startToken = 0;
-
   let firstStreamMessage = true;
-
 
   function setState(next: WebGameState | null) {
     state.value = next;
@@ -48,6 +56,15 @@ export function createGameContextService(game: GameApiRouter): GameContextServic
     localIsVsAI.value = !!opts.vsAI;
     const hn = (opts.humanName ?? '').trim();
     localHumanName.value = hn ? hn : null;
+  }
+
+  function setLocalKind(next: LocalKind) {
+    localKind.value = next;
+
+    if (next === 'practice') {
+      localIsVsAI.value = false;
+      localHumanName.value = null;
+    }
   }
 
   function setMode(nextMode: GameMode) {
@@ -65,7 +82,6 @@ export function createGameContextService(game: GameApiRouter): GameContextServic
       handle = null;
     }
     lastMeta.value = null;
-
     firstStreamMessage = true;
   }
 
@@ -96,9 +112,13 @@ export function createGameContextService(game: GameApiRouter): GameContextServic
       if (myToken !== startToken) return;
 
       state.value = next;
-      
+
       const action = meta?.action;
-      if (action === 'RegularAttack' || action === 'DoubleAttack') {
+      if (
+        action === 'RegularAttack' ||
+        action === 'DoubleAttack' ||
+        action === 'SessionEnded'
+      ) {
         lastMeta.value = meta;
       } else {
         lastMeta.value = null;
@@ -121,7 +141,11 @@ export function createGameContextService(game: GameApiRouter): GameContextServic
     }
 
     try {
-      const api = game.forMode(nextMode);
+    const api =
+      nextMode === 'local'
+        ? game.forMode('local', localKind.value)
+        : game.forMode('online');
+
       const snap =
         nextMode === 'online'
           ? await api.fetchGameState(sessionId.value!)
@@ -154,6 +178,15 @@ export function createGameContextService(game: GameApiRouter): GameContextServic
     }
   }
 
+  async function startLocal(kind: LocalKind): Promise<void> {
+    setLocalKind(kind);
+    await start('local');
+  }
+
+  async function startPractice(): Promise<void> {
+    await startLocal('practice');
+  }
+
   function clear() {
     stop();
     state.value = null;
@@ -163,13 +196,21 @@ export function createGameContextService(game: GameApiRouter): GameContextServic
     localIsVsAI.value = false;
     localHumanName.value = null;
     lastMeta.value = null;
+
+    localKind.value = 'pvp';
   }
 
   return {
     state, mode, sessionId,
     lastMeta,
+
     localIsVsAI, localHumanName, setLocalControl,
+
+    localKind, setLocalKind,
+
     start, startOnline,
+    startLocal, startPractice,
+
     stop, setState, clear,
     setMode, setSessionId,
   };
