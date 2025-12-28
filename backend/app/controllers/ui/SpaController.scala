@@ -14,15 +14,15 @@ final class SpaController @Inject()(
   addToken: CSRFAddToken,
   env: Environment
 ) extends MessagesAbstractController(cc)
-  with ControllerSupport {
+    with ControllerSupport {
 
   def index(path: String): Action[AnyContent] =
     addToken(Action { implicit req: MessagesRequest[AnyContent] =>
       val sid = getOrCreateSid(req)
 
-      env.resourceAsStream("public/app/index.html") match {
+      env.resourceAsStream("public/web/index.html") match {
         case None =>
-          NotFound("Frontend not built. Run: cd frontend && npm run build:copy")
+          NotFound("Frontend not built. Ensure backend/public/web/index.html exists.")
         case Some(is) =>
           val html = scala.io.Source.fromInputStream(is, "UTF-8").mkString
           Ok(html)
@@ -31,3 +31,4 @@ final class SpaController @Inject()(
       }
     })
 }
+

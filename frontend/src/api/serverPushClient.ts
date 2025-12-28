@@ -149,7 +149,6 @@ export function createServerPushClient(
         return;
       }
 
-      console.log('[WS][RAW]', msg); // ✅ ALWAYS see what server sent
 
       try {
         const requestId = msg?.requestId as string | undefined;
@@ -257,19 +256,18 @@ export function createServerPushClient(
 
     const requestId = `req-${Date.now()}-${++reqCounter}`;
 
-    // ✅ build env without nulls
     const env: GameEnvelope = {
       kind: 'command',
       type,
       gameId: gid,
-      requestId,          // always a string
+      requestId,
       version: 1,
       payload,
     };
 
     const pid = opts.getPlayerId?.();
     if (pid && pid.trim()) {
-      env.playerId = pid.trim();   // only include if non-empty
+      env.playerId = pid.trim();
     }
 
     return new Promise<WebGameState | null>((resolve, reject) => {

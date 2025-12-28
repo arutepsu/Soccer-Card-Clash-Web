@@ -20,7 +20,7 @@ const player1 = ref('');
 const player2 = ref('');
 const busy = ref(false);
 
-const { startLocalMultiplayer } = useGameCommands(services.game.local);
+const { startLocalPvp } = useGameCommands();
 
 const soundManager: SoundManager = createSoundManager({
   basePath: '/assets/sounds/',
@@ -77,11 +77,12 @@ async function onSubmit() {
   onButtonClick();
 
   try {
-    services.gameContext.setMode('local');
-    const web = await startLocalMultiplayer(player1.value, player2.value);
-    services.gameContext.setState(web ?? null);
-    await router.push({ name: 'PlayingField', query: { mode: 'local' } });
+    await startLocalPvp(player1.value, player2.value);
 
+    await router.push({
+      name: 'PlayingField',
+      query: { mode: 'local', local: 'pvp' },
+    });
   } catch (err) {
     console.error('[MultiplayerView] create game failed:', err);
     showAlert('Could not create game, please try again.');
