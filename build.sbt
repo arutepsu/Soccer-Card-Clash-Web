@@ -5,16 +5,7 @@ import play.sbt.PlayScala
 
 ThisBuild / scalaVersion := "3.3.3"
 
-ThisBuild / resolvers ++= Seq(
-  "GitHub Packages" at "https://maven.pkg.github.com/arutepsu/Soccer-Card-Clash"
-)
-
-ThisBuild / credentials += Credentials(
-  "GitHub Package Registry",
-  "maven.pkg.github.com",
-  sys.env.getOrElse("GITHUB_USER", ""),
-  sys.env.getOrElse("GITHUB_TOKEN", "")
-)
+// GitHub Packages resolver/credentials REMOVED (now using Maven Central)
 
 lazy val backend = (project in file("backend"))
   .enablePlugins(PlayScala)
@@ -22,7 +13,7 @@ lazy val backend = (project in file("backend"))
     name := "SoccerCardClashWeb-backend",
     libraryDependencies ++= Seq(
       guice,
-      "io.github.arutepsu" %% "soccer-card-clash-core" % "0.1.1"
+      "io.github.arutepsu" %% "soccer-card-clash-core" % "0.1.4"
     ),
     dependencyOverrides ++= Seq(
       "com.google.inject" % "guice" % "6.0.0",
