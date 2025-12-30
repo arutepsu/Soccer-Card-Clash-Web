@@ -6,7 +6,8 @@ COPY frontend/package*.json ./
 RUN npm ci
 
 COPY frontend/ ./
-RUN npm run build
+RUN ls -la && ls -la src || true
+RUN npm run build -- --progress=false --stats-error-details
 
 
 # Backend build
