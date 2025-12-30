@@ -6,9 +6,7 @@ COPY frontend/package*.json ./
 RUN npm ci
 
 COPY frontend/ ./
-RUN ls -la && ls -la src || true
-RUN npm run build -- --progress=false --stats-error-details
-
+RUN npm run build
 
 # Backend build
 FROM eclipse-temurin:21-jdk AS backend-build
