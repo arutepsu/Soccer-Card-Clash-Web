@@ -4,20 +4,20 @@ WORKDIR /app/frontend
 
 COPY frontend/package*.json ./
 RUN npm ci
-
 COPY frontend/ ./
 RUN npm run build
 
-# Backend build
-FROM eclipse-temurin:21-jdk AS backend-build
+
+# Backend build (now includes sbt)
+FROM sbtscala/scala-sbt:eclipse-temurin-21.0.4_7_1.10.2_3.3.3 AS backend-build
 WORKDIR /app
 
 COPY build.sbt ./build.sbt
 COPY project/ ./project/
 COPY backend/ ./backend/
+
 RUN mkdir -p ./backend/public/web
 COPY --from=frontend /app/frontend/dist ./backend/public/web
-
 
 RUN sbt "backend/stage"
 
