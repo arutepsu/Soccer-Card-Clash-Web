@@ -1,4 +1,3 @@
-# Frontend build
 FROM node:20-bookworm AS frontend
 WORKDIR /app/frontend
 
@@ -8,20 +7,17 @@ COPY frontend/ ./
 RUN npm run build
 
 
-# Backend build
 FROM eclipse-temurin:21-jdk AS backend-build
 WORKDIR /app
 
-# install sbt
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl gnupg bash && \
-    curl -fsSL https://repo.scala-sbt.org/scalasbt/debian/gpg.key \
-      | gpg --dearmor -o /usr/share/keyrings/sbt.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/sbt.gpg] https://repo.scala-sbt.org/scalasbt/debian all main" \
-      > /etc/apt/sources.list.d/sbt.list && \
-    apt-get update && \
-    apt-get install -y sbt && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends curl bash ca-certificates && \
+    curl -fLo /usr/local/bin/cs https://github.com/coursier/launchers/raw/master/cs-x86_64-pc-linux && \
+    chmod +x /usr/local/bin/cs
+
+RUN cs setup --yes && cs install sbt
+
+ENV PATH="/root/.local/share/coursier/bin:${PATH}"
 
 COPY build.sbt ./build.sbt
 COPY project/ ./project/
@@ -31,6 +27,7 @@ RUN mkdir -p ./backend/public/web
 COPY --from=frontend /app/frontend/dist ./backend/public/web
 
 RUN sbt "backend/stage"
+
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
