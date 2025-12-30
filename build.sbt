@@ -5,8 +5,6 @@ import play.sbt.PlayScala
 
 ThisBuild / scalaVersion := "3.3.3"
 
-// GitHub Packages resolver/credentials REMOVED (now using Maven Central)
-
 lazy val backend = (project in file("backend"))
   .enablePlugins(PlayScala)
   .settings(
