@@ -5,15 +5,24 @@ import play.sbt.PlayScala
 
 ThisBuild / scalaVersion := "3.3.3"
 
-lazy val scc = ProjectRef(file("../Soccer-Card-Clash"), "root")
+ThisBuild / resolvers ++= Seq(
+  "GitHub Packages" at "https://maven.pkg.github.com/arutepsu/Soccer-Card-Clash"
+)
+
+ThisBuild / credentials += Credentials(
+  "GitHub Package Registry",
+  "maven.pkg.github.com",
+  sys.env.getOrElse("GITHUB_USER", ""),
+  sys.env.getOrElse("GITHUB_TOKEN", "")
+)
 
 lazy val backend = (project in file("backend"))
   .enablePlugins(PlayScala)
-  .dependsOn(scc)
   .settings(
     name := "SoccerCardClashWeb-backend",
     libraryDependencies ++= Seq(
-      guice
+      guice,
+      "io.github.arutepsu" %% "soccer-card-clash-core" % "0.1.0"
     ),
     dependencyOverrides ++= Seq(
       "com.google.inject" % "guice" % "6.0.0",
