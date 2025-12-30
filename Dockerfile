@@ -8,9 +8,20 @@ COPY frontend/ ./
 RUN npm run build
 
 
-# Backend build (now includes sbt)
-FROM sbtscala/scala-sbt:eclipse-temurin-21.0.4_7_1.10.2_3.3.3 AS backend-build
+# Backend build
+FROM eclipse-temurin:21-jdk AS backend-build
 WORKDIR /app
+
+# install sbt
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl gnupg bash && \
+    curl -fsSL https://repo.scala-sbt.org/scalasbt/debian/gpg.key \
+      | gpg --dearmor -o /usr/share/keyrings/sbt.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/sbt.gpg] https://repo.scala-sbt.org/scalasbt/debian all main" \
+      > /etc/apt/sources.list.d/sbt.list && \
+    apt-get update && \
+    apt-get install -y sbt && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY build.sbt ./build.sbt
 COPY project/ ./project/
@@ -21,10 +32,12 @@ COPY --from=frontend /app/frontend/dist ./backend/public/web
 
 RUN sbt "backend/stage"
 
-
-# Runtime image
 FROM eclipse-temurin:21-jre
 WORKDIR /app
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends bash && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY --from=backend-build /app/backend/target/universal/stage ./stage
 
@@ -33,4 +46,5 @@ RUN chmod +x /app/entrypoint.sh
 
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0"
 EXPOSE 8080
+
 CMD ["/app/entrypoint.sh"]
