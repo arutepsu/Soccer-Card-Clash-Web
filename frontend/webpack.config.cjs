@@ -19,6 +19,10 @@ module.exports = (env, argv) => {
   const isProd = argv.mode === 'production';
   const outDir = path.resolve(__dirname, '../backend/public/web');
 
+  const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+
+  const styleUse = isProd ? MiniCssExtractPlugin.loader : 'style-loader';
+
   const background = isProd
     ? findHashedAsset(outDir, 'background5.')
     : null;
@@ -49,11 +53,8 @@ module.exports = (env, argv) => {
           options: { appendTsSuffixTo: [/\.vue$/], transpileOnly: true },
           exclude: /node_modules/,
         },
-        { test: /\.css$/, use: ['style-loader', 'css-loader'] },
-        {
-          test: /\.s[ac]ss$/,
-          use: ['style-loader', 'css-loader', 'sass-loader'],
-        },
+        { test: /\.css$/, use: [styleUse, 'css-loader'] },
+        { test: /\.s[ac]ss$/, use: [styleUse, 'css-loader', 'sass-loader'] },
         {
           test: /\.(png|jpe?g|gif|svg)$/i,
           type: 'asset/resource',
@@ -77,6 +78,7 @@ module.exports = (env, argv) => {
 
       new HtmlWebpackPlugin({
         template: path.resolve(__dirname, 'public/index.html'),
+        filename: 'index.html',
         inject: 'body',
       }),
 
@@ -89,10 +91,14 @@ module.exports = (env, argv) => {
 
       ...(isProd
         ? [
+            new MiniCssExtractPlugin({
+              filename: 'assets/[name].[contenthash].css',
+              chunkFilename: 'assets/[name].[contenthash].css',
+            }),
             new GenerateSW({
               clientsClaim: true,
               skipWaiting: true,
-
+              swDest: 'service-worker.js',
               navigateFallback: '/web/index.html',
               navigateFallbackDenylist: [/^\/api\//],
               
@@ -138,7 +144,7 @@ module.exports = (env, argv) => {
       hot: true,
 
       historyApiFallback: {
-        index: '/web/',
+        index: '/web/index.html',
       },
 
       static: {
