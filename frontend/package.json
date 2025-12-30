@@ -1,0 +1,40 @@
+{
+  "name": "soccer-card-clash-web",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "webpack serve --mode development --config webpack.config.cjs",
+    "build": "webpack --mode production --config webpack.config.cjs",
+    "pwa:test": "npm run build",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/jquery": "^3.5.33",
+    "@vue/compiler-sfc": "^3.5.25",
+    "copy-webpack-plugin": "^13.0.1",
+    "css-loader": "^7.1.2",
+    "html-webpack-plugin": "^5.6.5",
+    "mini-css-extract-plugin": "^2.9.4",
+    "sass": "^1.95.1",
+    "sass-loader": "^16.0.6",
+    "serve": "^14.2.5",
+    "style-loader": "^4.0.0",
+    "ts-loader": "^9.5.4",
+    "typescript": "^5.9.3",
+    "vue-loader": "^17.3.1",
+    "vue-tsc": "^3.1.5",
+    "vuetify": "^3.11.3",
+    "webpack": "^5.103.0",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.2.2",
+    "workbox-webpack-plugin": "^7.4.0"
+  },
+  "dependencies": {
+    "@mdi/js": "^7.4.47",
+    "vue": "^3.5.25",
+    "vue-router": "^4.6.3"
+  }
+}
