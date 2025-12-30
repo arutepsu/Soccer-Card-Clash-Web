@@ -15,8 +15,9 @@ WORKDIR /app
 COPY build.sbt ./build.sbt
 COPY project/ ./project/
 COPY backend/ ./backend/
-
+RUN mkdir -p ./backend/public/web
 COPY --from=frontend /app/frontend/dist ./backend/public/web
+
 
 RUN sbt "backend/stage"
 
