@@ -17,7 +17,7 @@ function findHashedAsset(outDir, prefix, ext = '.jpg') {
 
 module.exports = (env, argv) => {
   const isProd = argv.mode === 'production';
-  const outDir = path.resolve(__dirname, '../backend/public/web');
+  const outDir = path.resolve(__dirname, 'dist');
 
   const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
@@ -101,11 +101,6 @@ module.exports = (env, argv) => {
               swDest: 'service-worker.js',
               navigateFallback: '/web/index.html',
               navigateFallbackDenylist: [/^\/api\//],
-              
-              additionalManifestEntries: background
-                ? [{ url: `/web/assets/${background}`, revision: null }]
-                : [],
-
               runtimeCaching: [
                 {
                   urlPattern: ({ request }) =>

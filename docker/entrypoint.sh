@@ -1,6 +1,6 @@
 set -euo pipefail
 
-export PLAY_HTTP_PORT="${PORT:-8080}"
+PORT="${PORT:-8080}"
 
 if [[ -z "${APPLICATION_SECRET:-}" ]]; then
   echo "ERROR: APPLICATION_SECRET is not set."
@@ -21,5 +21,8 @@ if [[ -z "$APP_BIN" ]]; then
   exit 1
 fi
 
-echo "Starting Play app: $APP_BIN on port $PLAY_HTTP_PORT"
-exec "$APP_BIN" -Dplay.http.secret.key="$APPLICATION_SECRET"
+echo "Starting Play app: $APP_BIN on port $PORT"
+exec "$APP_BIN" \
+  -Dhttp.port="$PORT" \
+  -Dhttp.address="0.0.0.0" \
+  -Dplay.http.secret.key="$APPLICATION_SECRET"
