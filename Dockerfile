@@ -14,21 +14,16 @@ RUN npm run build
 # -----------------------------
 # 2) Backend build (WITH sbt)
 # -----------------------------
-FROM sbtscala/scala-sbt:eclipse-temurin-21.0.2_13_1.10.1_3.3.3 AS backend-build
+FROM sbtscala/scala-sbt:eclipse-temurin-21.0.5_11_1.10.5_3.5.2 AS backend-build
 WORKDIR /app
 
-# Copy sbt build definition first (better Docker layer caching)
 COPY build.sbt ./build.sbt
 COPY project/ ./project/
-
-# Copy backend sources
 COPY backend/ ./backend/
 
-# Copy built frontend into Play public folder
 RUN mkdir -p ./backend/public/web
 COPY --from=frontend /app/frontend/dist ./backend/public/web
 
-# Build Play staged distribution
 RUN sbt "backend/stage"
 
 
