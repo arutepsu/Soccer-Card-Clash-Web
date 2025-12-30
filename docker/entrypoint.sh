@@ -8,19 +8,14 @@ if [[ -z "${APPLICATION_SECRET:-}" ]]; then
   exit 1
 fi
 
-BIN_DIR="/app/stage/bin"
-if [[ ! -d "$BIN_DIR" ]]; then
-  echo "ERROR: $BIN_DIR not found. Did stage build succeed?"
-  ls -la /app/stage || true
+APP_BIN="/app/stage/bin/soccercardclashweb-backend"
+if [[ ! -f "$APP_BIN" ]]; then
+  echo "ERROR: $APP_BIN not found. Contents of /app/stage/bin:"
+  ls -la /app/stage/bin || true
   exit 1
 fi
 
-APP_BIN="$(find "$BIN_DIR" -maxdepth 1 -type f -perm -111 | sort | head -n 1 || true)"
-if [[ -z "$APP_BIN" ]]; then
-  echo "ERROR: No executable found in $BIN_DIR"
-  ls -la "$BIN_DIR"
-  exit 1
-fi
+chmod +x "$APP_BIN" || true
 
 echo "Starting Play app: $APP_BIN on port $PORT"
 exec "$APP_BIN" \
