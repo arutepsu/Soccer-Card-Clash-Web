@@ -22,7 +22,7 @@ lazy val backend = (project in file("backend"))
     name := "SoccerCardClashWeb-backend",
     libraryDependencies ++= Seq(
       guice,
-      "io.github.arutepsu" %% "soccer-card-clash-core" % "0.1.0"
+      "io.github.arutepsu" %% "soccer-card-clash-core" % "0.1.1"
     ),
     dependencyOverrides ++= Seq(
       "com.google.inject" % "guice" % "6.0.0",

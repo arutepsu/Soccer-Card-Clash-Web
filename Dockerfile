@@ -17,6 +17,18 @@ RUN npm run build
 FROM sbtscala/scala-sbt:eclipse-temurin-21.0.5_11_1.10.5_3.5.2 AS backend-build
 WORKDIR /app
 
+# ---- GitHub Packages auth for sbt ----
+ARG GITHUB_USER
+ARG GITHUB_TOKEN
+RUN mkdir -p /root/.sbt/1.0 && \
+    if [ -n "${GITHUB_USER:-}" ] && [ -n "${GITHUB_TOKEN:-}" ]; then \
+      printf 'credentials += Credentials("GitHub Package Registry", "maven.pkg.github.com", "%s", "%s")\n' \
+        "$GITHUB_USER" "$GITHUB_TOKEN" \
+        > /root/.sbt/1.0/github-packages.sbt ; \
+    else \
+      echo "WARNING: GITHUB_USER/GITHUB_TOKEN not set; GitHub Packages may fail" ; \
+    fi
+
 COPY build.sbt ./build.sbt
 COPY project/ ./project/
 COPY backend/ ./backend/
