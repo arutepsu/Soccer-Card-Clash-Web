@@ -2,10 +2,11 @@ package app.auth
 
 final case class AuthPrincipal(
   userId: String,
-  username: String
+  email: Option[String],
+  nickname: Option[String]
 )
 
 object AuthPrincipal {
   val anonymous: AuthPrincipal =
-    AuthPrincipal(userId = "anon", username = "anonymous")
+    AuthPrincipal(userId = "anon", email = None, nickname = Some("anonymous"))
 }

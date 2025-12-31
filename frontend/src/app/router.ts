@@ -17,7 +17,8 @@ import SessionView from '../views/SessionView.vue';
 import PlayingFieldView from '../views/PlayingFieldView.vue';
 import AttackerHandView from '../views/AttackerHandView.vue';
 import AttackerDefendersView from '../views/AttackerDefendersView.vue';
-
+import ChooseNicknameView from '../views/ChooseNicknameView.vue';
+import { supabase } from '@/api/supabase';
 import { authState } from '@/auth/authState';
 
 const routes: RouteRecordRaw[] = [
@@ -45,11 +46,14 @@ const routes: RouteRecordRaw[] = [
     component: AttackerDefendersView,
   },
 
+  { path: '/choose-nickname', name: 'ChooseNickname', component: ChooseNicknameView },
+
   { path: '/practice', name: 'Practice', component: PlayingFieldView },
 
   { path: '/', redirect: { name: 'Login' } },
 
   { path: '/:pathMatch(.*)*', redirect: { name: 'Login' } },
+
 ];
 
 export const router = createRouter({
@@ -61,12 +65,39 @@ async function checkAuthOnce(): Promise<void> {
   if (authState.checked) return;
 
   try {
-    const res = await fetch('/api/auth/me', { credentials: 'include' });
-    if (!res.ok) throw new Error(String(res.status));
-    const me = (await res.json()) as { loggedIn: boolean; username?: string };
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
 
-    if (me.loggedIn) authState.setLoggedIn(me.username);
-    else authState.setLoggedOut();
+    if (!token) {
+      authState.setLoggedOut();
+      return;
+    }
+
+    const res = await fetch('/api/auth/me', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+      authState.setLoggedOut();
+      return;
+    }
+
+    const me = (await res.json()) as {
+      loggedIn: boolean;
+      userId?: string;
+      email?: string | null;
+      nickname?: string | null;
+    };
+
+    if (me.loggedIn) {
+      authState.setLoggedIn({
+        userId: me.userId,
+        nickname: me.nickname ?? null,
+        email: me.email ?? null,
+      });
+    } else {
+      authState.setLoggedOut();
+    }
   } catch {
     authState.setLoggedOut();
   }
@@ -87,11 +118,23 @@ router.beforeEach(async (to) => {
   await checkAuthOnce();
 
   if (to.name === 'Login') {
-    if (authState.loggedIn) return { name: 'MainMenu' };
+    if (authState.loggedIn) {
+      if (!authState.nickname) return { name: 'ChooseNickname' };
+      return { name: 'MainMenu' };
+    }
     return true;
   }
 
   if (!authState.loggedIn) return { name: 'Login' };
+
+  if (!authState.nickname && to.name !== 'ChooseNickname') {
+    return { name: 'ChooseNickname' };
+  }
+
+  if (authState.nickname && to.name === 'ChooseNickname') {
+    return { name: 'MainMenu' };
+  }
+
   return true;
 });
 

@@ -18,7 +18,7 @@ final class GameSessionService @Inject()(
   gameUseCases: IGameUseCases,
   ctxRepo: IGameContextRepository,
   sessionRepo: IGameSessionRepository,
-  eventHub: GameEventHub,
+  eventHub: GameEventHub
 ) extends IGameSessionService {
 
   private def newSessionId(): GameSessionId =
@@ -81,6 +81,7 @@ final class GameSessionService @Inject()(
 
   override def startSession(
     principal: AuthPrincipal,
+    token: PlayerToken,
     id: GameSessionId
   ): Either[GameSessionError, GameContext] =
     getSessionOpt(id) match {
@@ -89,7 +90,7 @@ final class GameSessionService @Inject()(
         Left(NotFound(id))
 
       case Some(info) =>
-        if (!isAuthorized(info, principal))
+        if (!isAuthorized(info, principal, token))
           Left(Unauthorized(id, principal.userId))
         else if (info.hostUserId != principal.userId)
           Left(CommandFailed("Only host can start the game"))
@@ -98,42 +99,39 @@ final class GameSessionService @Inject()(
         else if (info.state != SessionState.Ready)
           Left(CommandFailed("Session is not ready to start"))
         else {
+          gameUseCases
+            .createGame(info.hostName, info.guestName.get, id, Some(principal))
+            .match {
+              case Left(err) =>
+                Left(CommandFailed(err.message))
 
-        gameUseCases
-          .createGame(info.hostName, info.guestName.get, id, Some(principal))
-          .match {
-            case Left(err) =>
-              Left(CommandFailed(err.message))
+              case Right(_) =>
+                gameUseCases.getCtx(id) match {
+                  case None =>
+                    Left(CommandFailed("Game context missing after startSession"))
 
-            case Right(_) =>
-              gameUseCases.getCtx(id) match {
-                case None =>
-                  Left(CommandFailed("Game context missing after startSession"))
+                  case Some(ctx) =>
+                    val hostKey  = norm(info.hostName)
+                    val guestKey = norm(info.guestName.get)
+                    val guestUid = info.guestUserId.getOrElse {
+                      return Left(CommandFailed("Cannot start: guestUserId missing"))
+                    }
 
-                case Some(ctx) =>
-                  val hostKey  = norm(info.hostName)
-                  val guestKey = norm(info.guestName.get)
-                  val guestUid = info.guestUserId.getOrElse {
-                    return Left(CommandFailed("Cannot start: guestUserId missing"))
-                  }
+                    val mapping =
+                      info.nameToUserId ++ Map(
+                        hostKey  -> info.hostUserId,
+                        guestKey -> guestUid
+                      )
 
-
-                  val mapping =
-                    info.nameToUserId ++ Map(
-                      hostKey  -> info.hostUserId,
-                      guestKey -> guestUid
+                    val startedInfo = info.copy(
+                      state        = SessionState.Started,
+                      nameToUserId = mapping
                     )
 
-                  val startedInfo = info.copy(
-                    state        = SessionState.Started,
-                    nameToUserId = mapping
-                  )
-
-                  updateSession(id, startedInfo)
-                  Right(ctx)
-              }
-
-          }
+                    updateSession(id, startedInfo)
+                    Right(ctx)
+                }
+            }
         }
     }
 
@@ -190,10 +188,10 @@ final class GameSessionService @Inject()(
 
     }
 
-
   override def submitCommand(
     id: GameSessionId,
     principal: AuthPrincipal,
+    token: PlayerToken,
     cmd: GameCommand
   ): Either[GameSessionError, GameContext] =
     getSessionOpt(id) match {
@@ -201,14 +199,21 @@ final class GameSessionService @Inject()(
         Left(NotFound(id))
 
       case Some(info) =>
-        if (!isAuthorized(info, principal))
+        if (!isAuthorized(info, principal, token))
           Left(Unauthorized(id, principal.userId))
         else
           executeCommandThroughUseCases(id, principal, cmd)
     }
 
-  private def isAuthorized(info: SessionInfo, p: AuthPrincipal): Boolean =
-    info.hostUserId == p.userId || info.guestUserId.contains(p.userId)
+  private def isAuthorized(info: SessionInfo, p: AuthPrincipal, t: PlayerToken): Boolean = {
+    val hostOk =
+      info.hostUserId == p.userId && info.hostToken == t
+
+    val guestOk =
+      info.guestUserId.contains(p.userId) && info.guestToken.contains(t)
+
+    hostOk || guestOk
+  }
 
   private def executeCommandThroughUseCases(
     id: GameSessionId,
@@ -274,18 +279,27 @@ final class GameSessionService @Inject()(
 
   override def leaveSession(
     principal: AuthPrincipal,
+    token: PlayerToken,
     id: GameSessionId
   ): Either[GameSessionError, SessionInfo] =
-    leaveSessionWithReason(principal, id, reason = "mainmenu")
+    leaveSessionWithReason(principal, token, id, reason = "mainmenu")
 
   override def leaveSessionDisconnected(
     principal: AuthPrincipal,
+    token: PlayerToken,
     id: GameSessionId
   ): Either[GameSessionError, SessionInfo] =
-    leaveSessionWithReason(principal, id, reason = "disconnect")
+    leaveSessionWithReason(principal, token, id, reason = "disconnect")
 
+  private def displayName(p: AuthPrincipal): String =
+            p.nickname
+              .map(_.trim).filter(_.nonEmpty)
+              .orElse(p.email.map(_.trim).filter(_.nonEmpty))
+              .getOrElse(p.userId.take(8))
+              
   private def leaveSessionWithReason(
     principal: AuthPrincipal,
+    token: PlayerToken,
     id: GameSessionId,
     reason: String
   ): Either[GameSessionError, SessionInfo] =
@@ -293,10 +307,13 @@ final class GameSessionService @Inject()(
       case None => Left(NotFound(id))
 
       case Some(info) =>
-        if (!isAuthorized(info, principal)) Left(Unauthorized(id, principal.userId))
+        if (!isAuthorized(info, principal, token)) Left(Unauthorized(id, principal.userId))
         else {
           val isHost = info.hostUserId == principal.userId
-          val leftName = if (isHost) info.hostName else info.guestName.getOrElse(principal.username)
+
+          val leftName =
+            if (isHost) info.hostName
+            else info.guestName.getOrElse(displayName(principal))
 
           publishSessionEnded(id, leftName, reason)
 
@@ -317,5 +334,4 @@ final class GameSessionService @Inject()(
           }
         }
     }
-
 }

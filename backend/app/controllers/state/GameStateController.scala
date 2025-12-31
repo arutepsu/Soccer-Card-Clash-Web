@@ -4,13 +4,13 @@ import javax.inject._
 import play.api.libs.json._
 import play.api.mvc._
 import scala.concurrent.ExecutionContext
-import play.api.Configuration
 
 import app.controllers.support.ControllerSupport
 import app.session.{GameSessionId, IGameSessionService}
 import app.api.context.IGameContextRepository
 import app.mapping.IViewStateMapper
-import app.auth.AuthPrincipal
+import app.auth.SupabaseJwt
+import app.models.state.WebGameState
 
 @Singleton
 final class GameStateController @Inject()(
@@ -18,7 +18,7 @@ final class GameStateController @Inject()(
   sessionService: IGameSessionService,
   ctxRepo: IGameContextRepository,
   viewStateMapper: IViewStateMapper,
-  config: Configuration
+  jwt: SupabaseJwt
 )(implicit ec: ExecutionContext)
   extends AbstractController(cc)
     with ControllerSupport
@@ -33,14 +33,16 @@ final class GameStateController @Inject()(
     }
 
   override def state: Action[AnyContent] = Action { implicit req =>
-    given Configuration = config
+    given SupabaseJwt = jwt
 
-    principalOrAnonymous(req) match {
-      case Left(res) => res
+    requirePrincipal(req) match {
+      case Left(res) =>
+        res.as(JSON_CT)
 
       case Right(principal) =>
         sidFromQueryOrSession(req) match {
-          case Left(res) => res.as(JSON_CT)
+          case Left(res) =>
+            res.as(JSON_CT)
 
           case Right(sid) =>
             ctxRepo.get(sid) match {
@@ -51,13 +53,12 @@ final class GameStateController @Inject()(
 
               case Some(ctx) =>
                 val infoOpt = sessionService.getSession(sid).toOption
-                val web = viewStateMapper.toWebState(ctx, Some(principal), infoOpt)
+                val web: WebGameState = viewStateMapper.toWebState(ctx, Some(principal), infoOpt)
 
                 Ok(Json.toJson(web))
                   .as(JSON_CT)
                   .addingToSession("sid" -> sid.value)
             }
-
         }
     }
   }

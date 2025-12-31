@@ -5,6 +5,8 @@ const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const { GenerateSW } = require('workbox-webpack-plugin');
+const webpack = require('webpack')
+require('dotenv').config()
 
 function findHashedAsset(outDir, prefix, ext = '.jpg') {
   const assetsDir = path.join(outDir, 'assets');
@@ -130,6 +132,10 @@ module.exports = (env, argv) => {
             }),
           ]
         : []),
+      new webpack.DefinePlugin({
+        'process.env.SUPABASE_URL': JSON.stringify(process.env.SUPABASE_URL),
+        'process.env.SUPABASE_ANON_KEY': JSON.stringify(process.env.SUPABASE_ANON_KEY),
+      }),
     ],
 
     devtool: isProd ? false : 'source-map',

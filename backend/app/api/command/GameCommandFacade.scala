@@ -10,6 +10,7 @@ import app.models.state.WebGameState
 import app.session.{GameSessionError, GameSessionId, IGameSessionService, PlayerToken}
 import app.api.usecases.IGameUseCases
 import de.htwg.se.soccercardclash.model.gameComponent.context.GameContext
+import play.api.libs.json.{JsObject, Json}
 
 @Singleton
 final class GameCommandFacade @Inject()(
@@ -20,31 +21,36 @@ final class GameCommandFacade @Inject()(
 ) extends IGameCommandFacade {
 
   private val LocalPrincipal: AuthPrincipal =
-    AuthPrincipal(userId = "local", username = "local")
+    AuthPrincipal(userId = "local", email = None, nickname = Some("local"))
 
-  private def effectivePrincipal(p: Option[AuthPrincipal]): Option[AuthPrincipal] =
-    p.orElse(Some(LocalPrincipal))
+  private def effectivePrincipal(mode: CommandMode, p: Option[AuthPrincipal]): Option[AuthPrincipal] =
+    mode match {
+      case CommandMode.local  => p.orElse(Some(LocalPrincipal))
+      case CommandMode.online => p
+    }
 
   override def execute(
     mode: CommandMode,
     sid: GameSessionId,
     principal: Option[AuthPrincipal],
     cmd: GameCommand,
-    token: Option[PlayerToken]
+    token: Option[PlayerToken],
+    meta: Option[JsObject] = None
   ): Either[AppError, WebGameState] = {
 
-    val eff = effectivePrincipal(principal)
+    val eff = effectivePrincipal(mode, principal)
 
     val ctxE: Either[AppError, GameContext] =
       mode match {
         case CommandMode.online =>
-          eff match {
-            case Some(p) =>
+          (eff, token) match {
+            case (Some(p), Some(t)) =>
               sessionService
-                .submitCommand(sid, p, cmd) // (later: enforce token)
+                .submitCommand(sid, p, t, cmd)
                 .left.map(err => AppError(errorMessage(err)))
-            case None =>
-              Left(AppError("Principal resolution failed"))
+
+            case (None, _)  => Left(AppError("Missing principal for online command"))
+            case (_, None)  => Left(AppError("Missing playerToken for online command"))
           }
 
         case CommandMode.local =>
@@ -62,10 +68,18 @@ final class GameCommandFacade @Inject()(
         }
 
       val web = viewStateMapper.toWebState(ctx, eff, infoOpt)
-      eventHub.publish(sid, ctx)
+
+      val baseMeta = Json.obj("mode" -> mode.toString)
+      val mergedMeta = meta match {
+        case Some(m) => baseMeta.deepMerge(m)
+        case None    => baseMeta
+      }
+
+      eventHub.publish(sid = sid, ctx = ctx, meta = mergedMeta)
       web
     }
   }
+
 
   private def executeLocallyCtx(
     sid: GameSessionId,
@@ -100,6 +114,7 @@ final class GameCommandFacade @Inject()(
   private def errorMessage(err: GameSessionError): String = err match {
     case GameSessionError.NotFound(id)          => s"Session not found: ${id.value}"
     case GameSessionError.Unauthorized(id, uid) => s"Unauthorized: user $uid cannot act in session ${id.value}"
+    case GameSessionError.InvalidToken(id)      => s"Invalid player token for session ${id.value}"
     case GameSessionError.SessionFull(id)       => s"Session is full: ${id.value}"
     case GameSessionError.AlreadyJoined(id)     => s"Session already joined: ${id.value}"
     case GameSessionError.CommandFailed(msg)    => msg

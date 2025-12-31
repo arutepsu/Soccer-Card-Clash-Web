@@ -19,6 +19,7 @@ chmod +x "$APP_BIN" || true
 
 echo "Starting Play app: $APP_BIN on port $PORT"
 exec "$APP_BIN" \
+  -Dconfig.resource=application-prod.conf \
   -Dplay.server.http.port="$PORT" \
   -Dplay.server.http.address="0.0.0.0" \
   -Dplay.http.secret.key="$APPLICATION_SECRET"

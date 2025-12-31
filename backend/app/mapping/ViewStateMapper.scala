@@ -31,6 +31,12 @@ trait IViewStateMapper {
 @Singleton
 class ViewStateMapper @Inject()() extends IViewStateMapper {
 
+  def displayName(p: AuthPrincipal): String =
+    p.nickname
+      .map(_.trim).filter(_.nonEmpty)
+      .orElse(p.email.map(_.trim).filter(_.nonEmpty))
+      .getOrElse(p.userId.take(8))
+
   override def toWebState(
     ctx: GameContext,
     principal: Option[AuthPrincipal],
@@ -76,16 +82,16 @@ class ViewStateMapper @Inject()() extends IViewStateMapper {
               (attackerIsGuest && info.guestUserId.contains(p.userId))
 
             case None =>
-              norm(p.username) == attackerName
+              norm(displayName(p)) == attackerName
           }
 
 
         val sideEnum =
           if (youIsAttackerNow) PlayerSide.attacker else PlayerSide.defender
 
-        YouView(p.userId, p.username, sideEnum, youIsAttackerNow)
+        val name = displayName(p)
+        YouView(p.userId, name, sideEnum, youIsAttackerNow)
       }
-
 
     WebGameState(
       roles = RolesView(attacker = att.name, defender = de.name),
