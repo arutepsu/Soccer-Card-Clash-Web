@@ -9,7 +9,7 @@ trait IGameSessionService {
   def listSessions(): Seq[(GameSessionId, SessionInfo)]
 
   def getSession(id: GameSessionId): Either[GameSessionError, SessionInfo]
-  
+
   def createSession(
     principal: AuthPrincipal,
     hostName: String,
@@ -18,6 +18,7 @@ trait IGameSessionService {
 
   def startSession(
     principal: AuthPrincipal,
+    token: PlayerToken,
     id: GameSessionId
   ): Either[GameSessionError, GameContext]
 
@@ -30,16 +31,19 @@ trait IGameSessionService {
   def submitCommand(
     id: GameSessionId,
     principal: AuthPrincipal,
+    token: PlayerToken,
     cmd: GameCommand
   ): Either[GameSessionError, GameContext]
 
-   def leaveSessionDisconnected(
+  def leaveSessionDisconnected(
     principal: AuthPrincipal,
+    token: PlayerToken,
     id: GameSessionId
   ): Either[GameSessionError, SessionInfo]
-  
+
   def leaveSession(
-      principal: AuthPrincipal,
-      id: GameSessionId
-    ): Either[GameSessionError, SessionInfo] 
+    principal: AuthPrincipal,
+    token: PlayerToken,
+    id: GameSessionId
+  ): Either[GameSessionError, SessionInfo]
 }

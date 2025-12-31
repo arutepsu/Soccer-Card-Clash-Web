@@ -1,29 +1,29 @@
 package app.controllers.session
 
 import javax.inject.*
-import play.api.Configuration
+import scala.concurrent.ExecutionContext
+
 import play.api.mvc.*
 import play.api.libs.json.*
+
 import app.controllers.support.ControllerSupport
 import app.session.*
 import app.session.GameSessionError as GSE
-import app.auth.AuthPrincipal
+import app.auth.SupabaseJwt
 import app.mapping.IViewStateMapper
 import app.api.eventHub.GameEventHub
 
-// fix after real auth
 @Singleton
 final class SessionController @Inject()(
   cc: ControllerComponents,
   service: IGameSessionService,
-  config: Configuration,
   viewStateMapper: IViewStateMapper,
-  eventHub: GameEventHub
-) extends AbstractController(cc)
+  eventHub: GameEventHub,
+  jwt: SupabaseJwt
+)(using ec: ExecutionContext)
+  extends AbstractController(cc)
     with ISessionController
     with ControllerSupport {
-
-  given Configuration = config
 
   private def jsonErr(msg: String) = Json.obj("error" -> msg)
 
@@ -31,48 +31,43 @@ final class SessionController @Inject()(
     e match {
       case GSE.NotFound(_)        => NotFound(jsonErr("Session not found"))
       case GSE.Unauthorized(_, _) => Unauthorized(jsonErr("Unauthorized"))
+      case GSE.InvalidToken(_)    => Unauthorized(jsonErr("Invalid player token"))
       case GSE.SessionFull(_)     => Conflict(jsonErr("Session is full"))
       case GSE.AlreadyJoined(_)   => Conflict(jsonErr("Already joined"))
       case GSE.CommandFailed(m)   => BadRequest(jsonErr(m))
     }
 
-  private def isAnonymous(p: AuthPrincipal): Boolean =
-    p == AuthPrincipal.anonymous
-
-  private def principalFromName(name: String): AuthPrincipal =
-    AuthPrincipal(userId = name, username = name)
-
   // GET /api/sessions
   def list: Action[AnyContent] = Action { req =>
-    principalOrAnonymous(req) match {
+    given SupabaseJwt = jwt
+    requirePrincipal(req) match {
       case Left(res) => res
-      case Right(_) =>
-        val dtos = service
-          .listSessions()
-          .map { case (id, info) => SessionMapper.toDto(id, info) }
-
+      case Right(_)  =>
+        val dtos = service.listSessions().map { case (id, info) => SessionMapper.toDto(id, info) }
         Ok(Json.toJson(dtos))
     }
   }
 
   // GET /api/sessions/:id
   def get(id: String): Action[AnyContent] = Action { req =>
-    principalOrAnonymous(req) match {
+    given SupabaseJwt = jwt
+    requirePrincipal(req) match {
       case Left(res) => res
-      case Right(_) =>
+      case Right(_)  =>
         service.getSession(GameSessionId(id)) match {
           case Left(err)   => toHttpError(err)
-          case Right(info) =>
-            Ok(Json.toJson(SessionMapper.toDto(GameSessionId(id), info)))
+          case Right(info) => Ok(Json.toJson(SessionMapper.toDto(GameSessionId(id), info)))
         }
     }
   }
 
   // POST /api/sessions
   def create: Action[JsValue] = Action(parse.json) { req =>
-    principalOrAnonymous(req) match {
+    given SupabaseJwt = jwt
+    requirePrincipal(req) match {
       case Left(res) => res
-      case Right(p0) =>
+
+      case Right(p) =>
         req.body.validate[CreateSessionRequestDto] match {
           case JsError(e) =>
             BadRequest(Json.obj("error" -> "Invalid payload", "details" -> JsError.toJson(e)))
@@ -82,14 +77,12 @@ final class SessionController @Inject()(
             if (sessionName.isEmpty) BadRequest(jsonErr("Session name must not be empty"))
             else {
               val hostName =
-                if (isAnonymous(p0)) Option(dto.hostName).map(_.trim).filter(_.nonEmpty).getOrElse("host")
-                else p0.username
+                Option(dto.hostName).map(_.trim).filter(_.nonEmpty)
+                  .orElse(p.nickname.map(_.trim).filter(_.nonEmpty))
+                  .getOrElse("host")
 
-              val principal =
-                if (isAnonymous(p0)) principalFromName(hostName)
-                else p0
 
-              service.createSession(principal, hostName, sessionName) match {
+              service.createSession(p, hostName, sessionName) match {
                 case Left(err) =>
                   toHttpError(err)
 
@@ -101,7 +94,7 @@ final class SessionController @Inject()(
                     .withSession(
                       req.session +
                         ("sid" -> created.id.value) +
-                        ("username" -> hostName) +
+                        ("nickname" -> hostName) +
                         ("playerToken" -> created.hostToken.value)
                     )
               }
@@ -112,35 +105,35 @@ final class SessionController @Inject()(
 
   // POST /api/sessions/:id/join
   def join(id: String): Action[JsValue] = Action(parse.json) { req =>
-    principalOrAnonymous(req) match {
+    given SupabaseJwt = jwt
+    requirePrincipal(req) match {
       case Left(res) => res
-      case Right(p0) =>
+
+      case Right(p) =>
         req.body.validate[JoinSessionRequestDto] match {
           case JsError(e) =>
             BadRequest(Json.obj("error" -> "Invalid payload", "details" -> JsError.toJson(e)))
 
           case JsSuccess(dto, _) =>
             val guestName =
-              if (isAnonymous(p0)) Option(dto.playerName).map(_.trim).filter(_.nonEmpty).getOrElse("guest")
-              else p0.username
+              Option(dto.playerName).map(_.trim).filter(_.nonEmpty)
+                .orElse(p.nickname.map(_.trim).filter(_.nonEmpty))
+                .getOrElse("guest")
 
-            val principal =
-              if (isAnonymous(p0)) principalFromName(guestName)
-              else p0
 
-            service.joinSession(principal, GameSessionId(id), guestName) match {
+            service.joinSession(p, GameSessionId(id), guestName) match {
               case Left(err) =>
                 toHttpError(err)
 
               case Right(joined) =>
                 Ok(Json.toJson(SessionJoinedResponseDto(
-                  sessionId    = id,
-                  playerToken  = joined.guestToken.value
+                  sessionId   = id,
+                  playerToken = joined.guestToken.value
                 )))
                   .withSession(
                     req.session +
                       ("sid" -> id) +
-                      ("username" -> guestName) +
+                      ("nickname" -> guestName) +
                       ("playerToken" -> joined.guestToken.value)
                   )
             }
@@ -148,33 +141,38 @@ final class SessionController @Inject()(
     }
   }
 
-  // POST /api/sessions/:id/leave 
+  // POST /api/sessions/:id/leave
   def leave(id: String): Action[AnyContent] = Action { req =>
-    principalOrAnonymous(req) match {
-      case Left(res) => res
-      case Right(principal) =>
-        service.leaveSession(principal, GameSessionId(id)) match {
+    given SupabaseJwt = jwt
+    (requirePrincipal(req), requirePlayerToken(req)) match {
+      case (Left(res), _) => res
+      case (_, Left(res)) => res
 
+      case (Right(principal), Right(token)) =>
+        service.leaveSession(principal, token, GameSessionId(id)) match {
           case Left(GSE.CommandFailed("Session closed")) =>
             Ok(jsonErr("Session closed"))
-              .withSession(req.session - "sid" - "username")
+              .withSession(req.session - "sid" - "nickname" - "playerToken")
 
           case Left(err) =>
             toHttpError(err)
 
           case Right(_) =>
             Ok(Json.obj("ok" -> true))
-              .withSession(req.session - "sid" - "username")
+              .withSession(req.session - "sid" - "nickname" - "playerToken")
         }
     }
   }
 
   // POST /api/sessions/:id/start
   def start(id: String): Action[AnyContent] = Action { req =>
-    principalOrAnonymous(req) match {
-      case Left(res) => res
-      case Right(principal) =>
-        service.startSession(principal, GameSessionId(id)) match {
+    given SupabaseJwt = jwt
+    (requirePrincipal(req), requirePlayerToken(req)) match {
+      case (Left(res), _) => res
+      case (_, Left(res)) => res
+
+      case (Right(principal), Right(token)) =>
+        service.startSession(principal, token, GameSessionId(id)) match {
           case Left(err) =>
             toHttpError(err)
 

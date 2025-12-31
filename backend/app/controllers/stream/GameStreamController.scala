@@ -12,16 +12,17 @@ import akka.util.ByteString
 
 import play.api.libs.json._
 import play.api.mvc._
+
 import app.mapping.IViewStateMapper
 import app.controllers.support.ControllerSupport
-import app.controllers.stream.IGameStreamController
 import app.api.eventHub.{GameEvent, GameEventHub}
-import app.auth.AuthPrincipal
-import app.session.{GameSessionId, SessionInfo}
+import app.auth.{AuthPrincipal, SupabaseJwt}
+import app.session.{GameSessionId, SessionInfo, PlayerToken}
 import app.session.repositories.IGameSessionRepository
 import app.models.state.WebGameState
 import app.api.context.IGameContextRepository
 import app.session.IGameSessionService
+
 @Singleton
 final class GameStreamController @Inject()(
   cc: ControllerComponents,
@@ -29,48 +30,60 @@ final class GameStreamController @Inject()(
   viewStateMapper: IViewStateMapper,
   sessionRepo: IGameSessionRepository,
   ctxRepo: IGameContextRepository,
-  sessionService: IGameSessionService
+  sessionService: IGameSessionService,
+  jwt: SupabaseJwt
 )(implicit ec: ExecutionContext, system: ActorSystem, mat: Materializer)
   extends AbstractController(cc)
-  with ControllerSupport
-  with IGameStreamController {
+    with ControllerSupport
+    with IGameStreamController {
 
   private def sidFromQuery(req: RequestHeader): Either[Result, GameSessionId] =
     req.getQueryString("sid").map(_.trim).filter(_.nonEmpty) match {
       case Some(raw) => Right(GameSessionId(raw))
-      case None      => Left(BadRequest("Missing sid query param"))
+      case None      => Left(BadRequest(Json.obj("error" -> "Missing sid query param")))
     }
 
+  private def requireOnlineAuth(req: RequestHeader): Either[Result, (AuthPrincipal, PlayerToken)] = {
+    given SupabaseJwt = jwt
+    (requirePrincipal(req), requirePlayerToken(req)) match {
+      case (Left(res), _)          => Left(res)
+      case (_, Left(res))          => Left(res)
+      case (Right(p), Right(token)) => Right((p, token))
+    }
+  }
 
   override def sse: Action[AnyContent] = Action.async { implicit req =>
-    requirePrincipal(req) match {
-      case Left(res) => Future.successful(res)
-      case Right(principal) =>
+    requireOnlineAuth(req) match {
+      case Left(res) =>
+        Future.successful(res)
+
+      case Right((principal, token)) =>
         sidFromQuery(req) match {
           case Left(res) => Future.successful(res)
+
           case Right(sid) =>
             val (queue, src) =
               Source.queue[GameEvent](32, OverflowStrategy.dropHead).preMaterialize()
-              
+
             val unsubscribe = eventHub.subscribe(sid) { ev =>
-              queue.offer(ev).failed.foreach { t =>
-              }(ec)
+              queue.offer(ev).failed.foreach(_ => ())(ec)
               ()
             }
 
             queue.watchCompletion().foreach { _ =>
               unsubscribe()
-              sessionService.leaveSessionDisconnected(principal, sid)
+              sessionService.leaveSessionDisconnected(principal, token, sid)
+              ()
             }(ec)
-
-
 
             def infoOpt: Option[SessionInfo] = sessionRepo.get(sid)
 
             val snapshotSource: Source[ByteString, _] =
               ctxRepo.get(sid) match {
                 case Some(ctx) =>
-                  val web  = viewStateMapper.toWebState(ctx, Some(principal), infoOpt)
+                  val web: WebGameState =
+                    viewStateMapper.toWebState(ctx, Some(principal), infoOpt)
+
                   val json = Json.obj("eventId" -> 0L, "state" -> Json.toJson(web))
 
                   Source.single(
@@ -84,10 +97,11 @@ final class GameStreamController @Inject()(
                   Source.empty
               }
 
-
             val liveSource: Source[ByteString, _] =
               src.map { ev =>
-                val web  = viewStateMapper.toWebState(ev.ctx, Some(principal), infoOpt)
+                val web: WebGameState =
+                  viewStateMapper.toWebState(ev.ctx, Some(principal), infoOpt)
+
                 val json = Json.obj(
                   "eventId" -> ev.eventId,
                   "state"   -> Json.toJson(web),
@@ -99,7 +113,6 @@ final class GameStreamController @Inject()(
                   s"data: ${Json.stringify(json)}\n\n"
                 )
               }
-
 
             val keepAlive: Source[ByteString, _] =
               Source.tick(10.seconds, 10.seconds, ByteString(": keep-alive\n\n"))
@@ -121,10 +134,11 @@ final class GameStreamController @Inject()(
   }
 
   override def comet(lastEventId: Long): Action[AnyContent] = Action.async { implicit req =>
-    requirePrincipal(req) match {
-      case Left(res) => Future.successful(res)
+    requireOnlineAuth(req) match {
+      case Left(res) =>
+        Future.successful(res)
 
-      case Right(principal) =>
+      case Right((principal, _token)) =>
         sidFromQuery(req) match {
           case Left(res) => Future.successful(res)
 
@@ -133,7 +147,9 @@ final class GameStreamController @Inject()(
 
             def snapshotJson: Option[String] =
               ctxRepo.get(sid).map { ctx =>
-                val web = viewStateMapper.toWebState(ctx, Some(principal), infoOpt)
+                val web: WebGameState =
+                  viewStateMapper.toWebState(ctx, Some(principal), infoOpt)
+
                 Json.stringify(Json.obj("eventId" -> 0L, "state" -> Json.toJson(web)))
               }
 
@@ -159,8 +175,7 @@ final class GameStreamController @Inject()(
                   .as("application/json")
                   .addingToSession("sid" -> sid.value)
               )
-            }
-            else snapshotJson match {
+            } else snapshotJson match {
               case Some(snap) =>
                 Future.successful(
                   Ok(snap)
@@ -202,5 +217,4 @@ final class GameStreamController @Inject()(
         }
     }
   }
-
 }

@@ -6,20 +6,15 @@ import app.models.AppError
 import app.models.state.WebGameState
 import app.auth.AuthPrincipal
 import app.api.command.CommandMode
+import play.api.libs.json.{JsObject, Json}
 
 trait IGameCommandFacade {
-  /** Executes a command and returns the WebGameState.
-    * Publishes to GameEventHub exactly once on success.
-    *
-    * token:
-    * - Some(token) => online multiplayer path (session must exist, auth enforced)
-    * - None        => local/offline path (no sessionRepo required)
-    */
   def execute(
     mode: CommandMode,
     sid: GameSessionId,
     principal: Option[AuthPrincipal],
     cmd: GameCommand,
-    token: Option[PlayerToken]
+    token: Option[PlayerToken],
+    meta: Option[JsObject] = None
   ): Either[AppError, WebGameState]
 }

@@ -2,19 +2,21 @@ package app.controllers.command
 
 import javax.inject._
 import scala.concurrent.{ExecutionContext, Future}
+
 import play.api.libs.json._
 import play.api.mvc._
 
 import app.controllers.support.ControllerSupport
-import app.api.command.{IGameCommandFacade, GameCommandDecoder, CommandMode}
-import app.controllers.command.IGameCommandController
-import app.session.GameSessionId
+import app.session.{GameSessionId, PlayerToken}
+import app.api.command._
+import app.auth.{AuthPrincipal, SupabaseJwt}
 
 @Singleton
 final class GameCommandController @Inject()(
   cc: ControllerComponents,
   decoder: GameCommandDecoder,
-  facade: IGameCommandFacade
+  facade: IGameCommandFacade,
+  jwt: SupabaseJwt
 )(implicit ec: ExecutionContext)
   extends AbstractController(cc)
     with ControllerSupport
@@ -43,39 +45,54 @@ final class GameCommandController @Inject()(
         else Right(getOrCreateLocalSid(req))
 
       sidEither match {
-        case Left(res) => Future.successful(res.as(JSON))
+        case Left(res) =>
+          Future.successful(res.as(JSON))
 
         case Right(sid) =>
           def persistSid(res: Result): Result =
             if (mode == CommandMode.online) res.addingToSession("sid" -> sid.value)
             else res.addingToSession("localSid" -> sid.value)
 
-          val principal =
+          val authEither: Either[Result, (Option[AuthPrincipal], Option[PlayerToken])] =
             mode match {
               case CommandMode.local =>
                 val pid = readPlayerId(req.body).getOrElse("local")
-                Some(app.auth.AuthPrincipal(userId = "local", username = pid))
+                val p = AuthPrincipal(userId = "local", email = None, nickname = Some(pid))
+                Right((Some(p), None))
+
               case CommandMode.online =>
-                principalOpt(req)
+                given SupabaseJwt = jwt
+                (requirePrincipal(req), requirePlayerToken(req)) match {
+                  case (Left(res), _) => Left(res)
+                  case (_, Left(res)) => Left(res)
+                  case (Right(p), Right(t)) =>
+                    Right((Some(p), Some(t)))
+                }
             }
 
-          decoder.fromRestJson(req.body) match {
-            case Left(err) =>
-              Future.successful(
-                persistSid(BadRequest(Json.obj("error" -> err.message)).as(JSON))
-              )
+          authEither match {
+            case Left(res) =>
+              Future.successful(persistSid(res.as(JSON)))
 
-            case Right(cmd) =>
-              facade.execute(mode, sid, principal, cmd, None) match {
-                case Left(appErr) =>
+            case Right((principalOpt, tokenOpt)) =>
+              decoder.fromRestJson(req.body) match {
+                case Left(err) =>
                   Future.successful(
-                    persistSid(BadRequest(Json.obj("error" -> appErr.message)).as(JSON))
+                    persistSid(BadRequest(Json.obj("error" -> err.message)).as(JSON))
                   )
 
-                case Right(web) =>
-                  Future.successful(
-                    persistSid(Ok(Json.toJson(web)).as(JSON))
-                  )
+                case Right(cmd) =>
+                  facade.execute(mode, sid, principalOpt, cmd, tokenOpt) match {
+                    case Left(appErr) =>
+                      Future.successful(
+                        persistSid(BadRequest(Json.obj("error" -> appErr.message)).as(JSON))
+                      )
+
+                    case Right(web) =>
+                      Future.successful(
+                        persistSid(Ok(Json.toJson(web)).as(JSON))
+                      )
+                  }
               }
           }
       }
