@@ -1,8 +1,8 @@
 GET   /api/auth/me             app.controllers.auth.AuthApiController.me()
-POST  /api/auth/login          app.controllers.auth.AuthApiController.login()
+PATCH /api/auth/profile        app.controllers.auth.AuthApiController.updateNickname()
 POST  /api/auth/logout         app.controllers.auth.AuthApiController.logout()
 
-GET   /api/bootstrap            app.controllers.auth.BootstrapController.bootstrap()
+GET   /api/bootstrap           app.controllers.auth.BootstrapController.bootstrap()
 
 POST  /api/command             app.controllers.command.GameCommandController.command
 GET   /api/stream/sse          app.controllers.stream.GameStreamController.sse
@@ -22,6 +22,10 @@ POST  /api/sessions/:id/join        app.controllers.session.SessionController.jo
 POST  /api/sessions/:id/leave       app.controllers.session.SessionController.leave(id: String)
 GET   /api/sessions/:id             app.controllers.session.SessionController.get(id: String)
 POST  /api/sessions/:id/start       app.controllers.session.SessionController.start(id: String)
+
+GET   /api/health              app.controllers.db.HealthController.health
+GET   /api/health/dbHealth     app.controllers.db.HealthController.dbHealth
+
 
 GET   /web/assets/*file        controllers.Assets.versioned(path="/public/web/assets", file: Asset)
 GET   /web/icons/*file         controllers.Assets.versioned(path="/public/web/icons", file: Asset)

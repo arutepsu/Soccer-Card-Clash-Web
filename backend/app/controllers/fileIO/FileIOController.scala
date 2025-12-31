@@ -3,17 +3,13 @@ package controllers.fileIO
 import javax.inject._
 import play.api.mvc._
 import play.api.libs.json._
+
 import app.fileIO.IFileIO
 import app.api.usecases.IGameUseCases
 import app.api.context.IGameContextRepository
-import app.models.AppError
-import app.models.state.WebGameState
-import app.mapping.ViewStateMapper
-import de.htwg.se.soccercardclash.model.gameComponent.context.GameContext
-import app.session.GameSessionId
-import play.api.Configuration
 import app.controllers.support.ControllerSupport
-import app.auth.AuthPrincipal
+import app.session.GameSessionId
+import app.auth.SupabaseJwt
 
 @Singleton
 final class FileIOController @Inject()(
@@ -21,7 +17,7 @@ final class FileIOController @Inject()(
   fileIO: IFileIO,
   gameUseCases: IGameUseCases,
   repo: IGameContextRepository,
-  config: Configuration
+  jwt: SupabaseJwt
 ) extends AbstractController(cc)
     with ControllerSupport {
 
@@ -48,10 +44,10 @@ final class FileIOController @Inject()(
   // POST /api/files/load
   // body: { "fileName": "abc.json" }
   def loadGameFromFile(): Action[JsValue] = Action(parse.json) { implicit request =>
-    given Configuration = config
+    given SupabaseJwt = jwt
 
-    principalOrAnonymous(request) match {
-      case Left(res) => res
+    requirePrincipal(request) match {
+      case Left(res) => res.as(JSON_CT)
 
       case Right(principal) =>
         val sid = getOrCreateSid(request)
@@ -74,10 +70,10 @@ final class FileIOController @Inject()(
   // POST /api/files/save
   // body: { "fileName": "abc.json" }
   def saveGameToFile(): Action[JsValue] = Action(parse.json) { implicit request =>
-    given Configuration = config
+    given SupabaseJwt = jwt
 
-    principalOrAnonymous(request) match {
-      case Left(res) => res
+    requirePrincipal(request) match {
+      case Left(res) => res.as(JSON_CT)
 
       case Right(principal) =>
         val sid = getOrCreateSid(request)
