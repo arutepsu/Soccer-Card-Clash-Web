@@ -1,5 +1,6 @@
 import { supabase } from '@/api/supabase'
 import { getAccessToken } from '@/auth/token'
+import { apiGetJSON } from './apiClient'
 
 export interface AuthMeResponse {
   loggedIn: boolean
@@ -23,23 +24,13 @@ export interface AuthApi {
 
 export function createAuthApi(): AuthApi {
 async function me(): Promise<AuthMeResponse> {
-  const token = await getAccessToken()
-  console.log('[me] token present?', !!token, token?.slice(0, 20))
-
-  if (!token) return { loggedIn: false }
-
-  const res = await fetch('/api/auth/me', {
-    method: 'GET',
-    credentials: 'include',
-    headers: { Authorization: `Bearer ${token}` },
-  })
-
-  const text = await res.text()
-  console.log('[me] status', res.status, 'body=', text)
-  if (!res.ok) return { loggedIn: false }
-  return JSON.parse(text)
+  // apiGetJSON -> apiFetch -> attaches Authorization + credentials: 'include'
+  try {
+    return await apiGetJSON<AuthMeResponse>('/api/auth/me')
+  } catch {
+    return { loggedIn: false }
+  }
 }
-
 
 
   async function loginEmail(email: string, password: string): Promise<void> {
