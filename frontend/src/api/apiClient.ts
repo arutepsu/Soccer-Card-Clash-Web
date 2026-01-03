@@ -27,25 +27,27 @@ async function handleAuthFailure() {
   authState.setLoggedOut()
 }
 
-export async function apiFetch(
-  url: string,
-  init: RequestInit = {},
-): Promise<Response> {
-  const headers = await buildHeaders(init.headers ?? {})
+export async function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const token = await getAccessToken()
 
   const res = await fetch(url, {
     ...init,
-    headers,
-    credentials: 'include', // IMPORTANT: keeps sid + playerToken session cookie
+    headers: {
+      ...(init.headers ?? {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    credentials: 'include',
   })
 
   if (isAuthStatus(res.status)) {
-    await handleAuthFailure()
+    // only hard-logout if we *thought* we were logged in
+    if (token) authState.setLoggedOut()
     throw new AuthRequiredError(`Auth required for ${url}`)
   }
 
   return res
 }
+
 
 export async function apiGetJSON<T>(url: string, headers?: HeadersInit): Promise<T> {
   const res = await apiFetch(url, {

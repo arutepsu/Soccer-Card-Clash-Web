@@ -10,7 +10,7 @@
 /.metals/
 /.bloop/
 /.vscode/
-
+.env
 .DS_Store
 Thumbs.db
 
