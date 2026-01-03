@@ -1,16 +1,26 @@
+# --- !Ups
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 CREATE TABLE IF NOT EXISTS users (
-  id           UUID PRIMARY KEY,
-  provider     TEXT NOT NULL,
-  subject      TEXT NOT NULL,
-  email        TEXT,
-  nickname     TEXT,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (provider, subject),
-  UNIQUE (nickname)
+  id uuid PRIMARY KEY,
+  provider text NOT NULL,
+  subject text NOT NULL,
+  email text,
+  nickname text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_users_provider_subject
-  ON users (provider, subject);
+-- needed for ON CONFLICT (provider, subject)
+CREATE UNIQUE INDEX IF NOT EXISTS users_provider_subject_uq
+  ON users(provider, subject);
+
+-- optional: enforce unique nickname (your updateNickname catches conflict)
+CREATE UNIQUE INDEX IF NOT EXISTS users_nickname_uq
+  ON users(nickname)
+  WHERE nickname IS NOT NULL;
+
+# --- !Downs
 
 DROP TABLE IF EXISTS users;

@@ -15,7 +15,9 @@ lazy val backend = (project in file("backend"))
       evolutions,
       "org.postgresql" % "postgresql" % "42.7.3",
       "io.github.arutepsu" %% "soccer-card-clash-core" % "0.1.4",
-      "com.github.jwt-scala" %% "jwt-play" % "9.4.5"
+      "com.github.jwt-scala" %% "jwt-play" % "9.4.5",
+      "io.github.cdimascio" % "java-dotenv" % "5.2.2",
+
     ),
     dependencyOverrides ++= Seq(
       "com.google.inject" % "guice" % "6.0.0",

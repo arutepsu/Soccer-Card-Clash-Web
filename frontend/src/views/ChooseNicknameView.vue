@@ -10,7 +10,7 @@ import { authState } from '@/auth/authState'
 const router = useRouter()
 const { auth } = useAppServices()
 
-const nickname = ref('')
+const nickname = ref(authState.nickname ?? '')
 const busy = ref(false)
 
 function showError(message: string): void {
@@ -32,14 +32,25 @@ async function onSubmit(e?: Event) {
 
   busy.value = true
   try {
-    await auth.updateNickname(n)
-    authState.nickname = n
+    const res = await auth.updateNickname(n)
+
+    authState.setLoggedIn({
+      userId: authState.userId ?? undefined,
+      email: authState.email ?? undefined,
+      nickname: res.nickname,
+    })
+
     await router.push({ name: 'MainMenu' })
   } catch (err: any) {
     showError(err?.message ?? 'Failed to set nickname')
   } finally {
     busy.value = false
   }
+}
+
+type NickAction = 'save'
+function onCommand(payload: { action: NickAction }) {
+  if (payload.action === 'save') void onSubmit()
 }
 </script>
 
@@ -58,8 +69,8 @@ async function onSubmit(e?: Event) {
           @enter="onSubmit"
         />
       </InputContainer>
-
-      <GameButton action="save" :busy="busy" @onCommand="onSubmit">
+      
+      <GameButton action="save" :busy="busy" class="gbtn" @command="onCommand">
         {{ busy ? 'Saving...' : 'Save nickname' }}
       </GameButton>
     </form>

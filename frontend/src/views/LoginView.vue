@@ -1,6 +1,6 @@
 <!-- frontend/src/views/LoginView.vue -->
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import GameButton from '../components/button/GameButton.vue'
 import GlitchInput from '@/components/input-field/GlitchInput.vue'
@@ -9,6 +9,7 @@ import overlayFrame from '@/assets/images/frames/overlay.png'
 import InputContainer from '@/components/input-field/InputContainer.vue'
 import { useAppServices } from '@/app/appServices'
 import { authState } from '@/auth/authState'
+import { supabase } from '@/api/supabase'
 
 const router = useRouter()
 const { auth } = useAppServices()
@@ -65,23 +66,54 @@ async function onSubmit(e?: Event) {
     busy.value = false
   }
 }
-
 async function onGitHubLogin() {
   busy.value = true
   try {
+    console.log('[Login] starting GitHub OAuth...')
     await auth.loginGitHub()
+    console.log('[Login] OAuth call returned (it should usually redirect away)')
   } catch (err: any) {
+    console.error('[Login] GitHub OAuth error', err)
     showError(err?.message ?? 'GitHub login failed')
     busy.value = false
   }
 }
 
-type LoginAction = 'login' | 'github'
 
-function onCommand(payload: { action: LoginAction }) {
-  if (payload.action === 'login') onSubmit()
-  if (payload.action === 'github') onGitHubLogin()
-}
+  type LoginAction = 'login' | 'signup' | 'github'
+
+  async function onSignup() {
+    await router.push({
+      name: 'Register',
+      query: { email: email.value.trim() || undefined },
+    })
+  }
+
+  function onCommand(payload: { action: LoginAction }) {
+    if (payload.action === 'login') onSubmit()
+    if (payload.action === 'signup') onSignup()
+    if (payload.action === 'github') onGitHubLogin()
+  }
+
+onMounted(async () => {
+  const flag = String(router.currentRoute.value.query.registered ?? '')
+  if (flag === 'ok') alert('Account created. You can log in now.')
+  if (flag === 'confirm') alert('Account created. Please confirm your email, then log in.')
+
+  const { data } = await supabase.auth.getSession()
+  if (!data.session?.access_token) {
+    // No session → do NOT call /me
+    return
+  }
+
+  try {
+    const me = await auth.me()
+    if (me.loggedIn) await afterLoginNavigate()
+  } catch {
+    // ignore
+  }
+})
+
 
 const loginBgStyle = {
   backgroundImage: `url(${loginBg})`,
@@ -125,7 +157,15 @@ const overlayFrameStyle = {
             <GameButton action="login" :busy="busy" class="gbtn" @command="onCommand">
               {{ busy ? 'Logging in...' : 'Log in' }}
             </GameButton>
-
+            <GameButton
+              action="signup"
+              :busy="false"
+              :disableOnBusy="false"
+              class="gbtn"
+              @command="onCommand"
+            >
+              Sign up
+            </GameButton>
             <GameButton action="github" :busy="busy" class="gbtn" @command="onCommand">
               Continue with GitHub
             </GameButton>

@@ -12,10 +12,15 @@ final class BootstrapController @Inject()(
 ) extends MessagesAbstractController(cc)
   with ControllerSupport {
 
-  /** Called by SPA on startup (dev + prod) to ensure session has sid (and CSRF cookie). */
   def bootstrap(): Action[AnyContent] =
     addToken(Action { implicit req: MessagesRequest[AnyContent] =>
       val sid = getOrCreateSid(req)
-      NoContent.addingToSession("sid" -> sid.value)
+      val playerToken = getOrCreatePlayerToken(req)
+
+      NoContent.addingToSession(
+        "sid" -> sid.value,
+        "playerToken" -> playerToken.value
+      )
     })
+
 }

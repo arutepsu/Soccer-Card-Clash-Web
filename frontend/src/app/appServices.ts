@@ -4,7 +4,7 @@ import { inject, type InjectionKey, ref, watch } from 'vue';
 import type { GameApi } from '@/api/GameApi';
 import { createOnlineGameApi } from '@/api/onlineGameApi';
 import { createLocalGameApiHttp } from '@/api/localGameApiHttp';
-import { createPracticeGameApi } from '@/api/practiceGameApi'; // ✅ add this
+import { createPracticeGameApi } from '@/api/practiceGameApi';
 
 import { createServerPushClient, type PushClient } from '@/api/serverPushClient';
 import { createGameEventStream } from '@/api/gameEventStream';
@@ -16,6 +16,7 @@ import { createGameContextService } from './gameContextService';
 import type { GameContextService, GameMode, LocalKind } from './gameContextService';
 
 import { practiceEngine } from '@/pwa/practiceEngine';
+import { getAccessToken } from '@/auth/token';
 
 export interface GameApiRouter {
   localPvp: GameApi;
@@ -55,6 +56,7 @@ export function createAppServices(): AppServices {
   const pushClient = createServerPushClient({
     path: '/api/ws',
     getPlayerId: () => getCurrentPlayerId(),
+    getAccessToken,
   });
 
   const streamClient = createGameEventStream();

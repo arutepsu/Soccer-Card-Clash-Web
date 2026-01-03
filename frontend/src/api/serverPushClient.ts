@@ -1,7 +1,5 @@
 import type { WebGameState } from '../types/WebGameState';
 
-let wsSessionUnavailable = false;
-
 export type GameCommandType =
   | 'GetState'
   | 'RegularAttack'
@@ -37,8 +35,9 @@ export interface PushClient {
   close(): void;
 
   sendCommand(type: GameCommandType, payload?: unknown): Promise<WebGameState | null>;
-  setGameId?(id: string | null): void;
+  setGameId(id: string | null): void;
   reconnect(): void;
+
   getState(): void;
   regularAttack(target: 'defender' | 'goalkeeper', index?: number | null): void;
   doubleAttack(target: 'defender' | 'goalkeeper', index?: number | null): void;
@@ -56,19 +55,18 @@ export interface PushClient {
 }
 
 export interface CreateServerPushClientOptions {
-  baseUrl?: string;
-  path?: string;
-  reconnectDelayMs?: number;
+  baseUrl?: string;                 // e.g. "http://localhost:9000" (optional)
+  path?: string;                    // default "/api/ws"
+  reconnectDelayMs?: number;         // default 1000
   getPlayerId?: () => string | null;
+  getAccessToken?: () => Promise<string | null>;
 }
-
 
 /**
  * WebSocket-based push client.
  *
- * - Connects to backend /api/ws
- * - Sends command envelopes to the server
- * - Supports request/response via requestId
+ * Auth: uses Supabase access token in the WS query string (?token=...)
+ * Game room: selected via setGameId() and included in each command envelope.
  */
 export function createServerPushClient(
   opts: CreateServerPushClientOptions = {},
@@ -79,6 +77,8 @@ export function createServerPushClient(
   let connected = false;
   let reconnectTimer: number | null = null;
   let intentionallyClosed = false;
+
+  // this is your GAME ROOM / GAME SESSION ID
   let currentGameId: string | null = null;
 
   const handlers = new Set<PushMessageHandler>();
@@ -89,15 +89,17 @@ export function createServerPushClient(
     { resolve: (state: WebGameState | null) => void; reject: (err: unknown) => void }
   >();
 
-  function buildWsUrl(sid?: string | null): string {
-    const proto = (opts.baseUrl?.startsWith('https') || location.protocol === 'https:') ? 'wss' : 'ws';
+  function buildWsUrl(token?: string | null): string {
+    const proto =
+      (opts.baseUrl?.startsWith('https') || location.protocol === 'https:') ? 'wss' : 'ws';
+
     const base =
       opts.baseUrl
         ? `${proto}://${opts.baseUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '')}${path}`
         : `${proto}://${location.host}${path}`;
 
-    const s = (sid ?? '').trim();
-    return s ? `${base}?sid=${encodeURIComponent(s)}` : base;
+    const t = (token ?? '').trim();
+    return t ? `${base}?token=${encodeURIComponent(t)}` : base;
   }
 
   function scheduleReconnect(): void {
@@ -105,12 +107,22 @@ export function createServerPushClient(
     if (reconnectTimer != null) return;
     reconnectTimer = window.setTimeout(() => {
       reconnectTimer = null;
-      connect();
+      void connect();
     }, reconnectDelayMs);
   }
 
-  function connect(): void {
-    const url = buildWsUrl(currentGameId);
+  async function connect(): Promise<void> {
+    const token = await opts.getAccessToken?.().catch(() => null);
+
+    // Recommended: don't connect until authenticated.
+    // If you want anonymous WS connections, remove this guard.
+    if (!token) {
+      console.log('[WS] not connecting yet (no access token)');
+      scheduleReconnect();
+      return;
+    }
+
+    const url = buildWsUrl(token);
     console.log('[WS] connecting to', url);
 
     try {
@@ -123,7 +135,6 @@ export function createServerPushClient(
 
     ws.onopen = () => {
       connected = true;
-      wsSessionUnavailable = false;
       console.log('[WS] connected');
     };
 
@@ -149,7 +160,7 @@ export function createServerPushClient(
         return;
       }
 
-
+      // resolve pending request/response
       try {
         const requestId = msg?.requestId as string | undefined;
         if (requestId && pending.has(requestId)) {
@@ -159,15 +170,20 @@ export function createServerPushClient(
           if (msg.kind === 'event' && msg.type === 'StateUpdated') {
             entry.resolve(msg.payload as WebGameState);
           } else if (msg.kind === 'error') {
-            const errMsg = msg.payload?.message as string | undefined;
+            // IMPORTANT:
+            // Do NOT permanently disable WS just because there is no active game yet.
+            // Only treat real auth errors as fatal.
+            const errMsg = (msg.payload?.message as string | undefined) ?? '';
 
-            if (errMsg && errMsg.startsWith('Session not found')) {
-              console.warn('[WS] session does not exist for this sid; disabling WS for this tab');
-              wsSessionUnavailable = true;
+            if (/invalid token|jwt|unauthorized|forbidden/i.test(errMsg)) {
+              console.warn('[WS] auth error (token invalid?)', msg);
+              entry.resolve(null);
+              // optional: close and stop reconnecting until user logs in again
+              // close();
+            } else {
+              // normal error like "No active game" / "Game not found"
+              entry.resolve(null);
             }
-
-            console.warn('[WS] command error:', msg);
-            entry.resolve(null);
           } else {
             entry.resolve(null);
           }
@@ -176,11 +192,11 @@ export function createServerPushClient(
         console.warn('[WS] error handling response for requestId:', err);
       }
 
+      // broadcast to listeners
       handlers.forEach((h) => {
         try { h(msg); } catch (err) { console.error('[WS] handler threw:', err); }
       });
     };
-
   }
 
   function isConnected(): boolean {
@@ -203,11 +219,7 @@ export function createServerPushClient(
       reconnectTimer = null;
     }
     if (ws) {
-      try {
-        ws.close();
-      } catch {
-        // ignore
-      }
+      try { ws.close(); } catch {}
       ws = null;
     }
     connected = false;
@@ -215,7 +227,6 @@ export function createServerPushClient(
 
   function reconnect(): void {
     intentionallyClosed = false;
-    wsSessionUnavailable = false;
 
     if (reconnectTimer != null) {
       clearTimeout(reconnectTimer);
@@ -223,27 +234,20 @@ export function createServerPushClient(
     }
 
     if (ws) {
-      try {
-        ws.close();
-      } catch {
-      }
+      try { ws.close(); } catch {}
       ws = null;
     }
 
     connected = false;
-    connect();
+    void connect();
   }
 
   function setGameId(id: string | null): void {
-    const next = id?.trim() || null;
-    currentGameId = next;
-    wsSessionUnavailable = false;
-    console.log('[WS] setGameId:', currentGameId);
+    currentGameId = id?.trim() || null;
+    console.log('[WS] setGameId (game room):', currentGameId);
   }
 
   function sendCommand(type: GameCommandType, payload: unknown = {}): Promise<WebGameState | null> {
-    if (wsSessionUnavailable) return Promise.resolve(null);
-
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       console.warn('[WS] not connected, cannot send command:', type);
       return Promise.resolve(null);
@@ -251,7 +255,8 @@ export function createServerPushClient(
 
     const gid = currentGameId ?? 'ignored';
     if (gid === 'ignored') {
-      console.warn('[WS] sendCommand without gameId (will likely fail):', type);
+      // normal BEFORE a room exists (login screen, session screen before create/join)
+      console.warn('[WS] sendCommand without gameId (no active room yet):', type);
     }
 
     const requestId = `req-${Date.now()}-${++reqCounter}`;
@@ -266,9 +271,7 @@ export function createServerPushClient(
     };
 
     const pid = opts.getPlayerId?.();
-    if (pid && pid.trim()) {
-      env.playerId = pid.trim();
-    }
+    if (pid && pid.trim()) env.playerId = pid.trim();
 
     return new Promise<WebGameState | null>((resolve, reject) => {
       const timeout = window.setTimeout(() => {
@@ -295,73 +298,39 @@ export function createServerPushClient(
     });
   }
 
-
-  function getState(): void {
-    void sendCommand('GetState', {});
-  }
+  // Convenience wrappers
+  function getState(): void { void sendCommand('GetState', {}); }
 
   function regularAttack(target: 'defender' | 'goalkeeper', index: number | null = null): void {
-    void sendCommand('RegularAttack', {
-      target,
-      index: target === 'defender' ? index : null,
-    });
+    void sendCommand('RegularAttack', { target, index: target === 'defender' ? index : null });
   }
 
   function doubleAttack(target: 'defender' | 'goalkeeper', index: number | null = null): void {
-    void sendCommand('DoubleAttack', {
-      target,
-      index: target === 'defender' ? index ?? 0 : 0,
-    });
+    void sendCommand('DoubleAttack', { target, index: target === 'defender' ? (index ?? 0) : 0 });
   }
 
   function boost(target: 'defender' | 'goalkeeper', index: number | null = null): void {
-    void sendCommand('Boost', {
-      target,
-      index: target === 'defender' ? index : null,
-    });
+    void sendCommand('Boost', { target, index: target === 'defender' ? index : null });
   }
 
   function swap(index: number | string): void {
     void sendCommand('RegularSwap', { index: Number(index) });
   }
 
-  function reverseSwap(): void {
-    void sendCommand('ReverseSwap', {});
-  }
-
-  function undo(): void {
-    void sendCommand('Undo', {});
-  }
-
-  function redo(): void {
-    void sendCommand('Redo', {});
-  }
-
-  function executeAI(aiAction: any): void {
-    void sendCommand('ExecuteAI', aiAction);
-  }
-
-  function createGame(p1: string, p2: string): void {
-    void sendCommand('CreateGame', { p1, p2 });
-  }
-
+  function reverseSwap(): void { void sendCommand('ReverseSwap', {}); }
+  function undo(): void { void sendCommand('Undo', {}); }
+  function redo(): void { void sendCommand('Redo', {}); }
+  function executeAI(aiAction: any): void { void sendCommand('ExecuteAI', aiAction); }
+  function createGame(p1: string, p2: string): void { void sendCommand('CreateGame', { p1, p2 }); }
   function createGameWithAI(humanPlayer: string, aiName: string): void {
     void sendCommand('CreateGameWithAI', { humanPlayer, aiName });
   }
+  function load(fileName: string): void { void sendCommand('LoadGame', { fileName }); }
+  function save(): void { void sendCommand('SaveGame', {}); }
+  function quit(): void { void sendCommand('QuitGame', {}); }
 
-  function load(fileName: string): void {
-    void sendCommand('LoadGame', { fileName });
-  }
-
-  function save(): void {
-    void sendCommand('SaveGame', {});
-  }
-
-  function quit(): void {
-    void sendCommand('QuitGame', {});
-  }
-
-  connect();
+  // auto-connect (will wait until token exists)
+  void connect();
 
   return {
     isConnected,
@@ -369,7 +338,7 @@ export function createServerPushClient(
     offMessage,
     close,
     sendCommand,
-    setGameId,   
+    setGameId,
     reconnect,
     getState,
     regularAttack,

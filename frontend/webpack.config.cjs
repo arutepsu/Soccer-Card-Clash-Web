@@ -157,13 +157,39 @@ module.exports = (env, argv) => {
       },
 
       proxy: [
-        {
-          context: ['/api'],
-          target: 'http://localhost:9000',
-          changeOrigin: true,
-          ws: true,
+      // Normal HTTP API calls
+      {
+        context: ['/api'],
+        target: 'http://localhost:9000',
+        changeOrigin: true,
+        ws: false, // <-- IMPORTANT: don't try to upgrade random /api calls
+        onProxyReq: (proxyReq, req) => {
+          if (req.headers.authorization) {
+            proxyReq.setHeader('Authorization', req.headers.authorization);
+          }
+          if (req.headers.cookie) {
+            proxyReq.setHeader('cookie', req.headers.cookie);
+          }
         },
-      ],
+      },
+
+      // WebSocket only for the WS endpoint
+      {
+        context: ['/api/ws'],
+        target: 'ws://localhost:9000',
+        changeOrigin: true,
+        ws: true,
+        onProxyReqWs: (proxyReq, req) => {
+          if (req.headers.authorization) {
+            proxyReq.setHeader('Authorization', req.headers.authorization);
+          }
+          if (req.headers.cookie) {
+            proxyReq.setHeader('cookie', req.headers.cookie);
+          }
+        },
+      },
+    ],
+
     },
   };
 };

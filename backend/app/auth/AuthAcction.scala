@@ -41,19 +41,35 @@ final class AuthAction @Inject()(
       case Some(token) =>
         jwt.verify(token) match {
           case Left(err) =>
+            println(s"[AuthAction] jwt.verify failed: $err")
             Future.successful(Results.Unauthorized(Json.obj("error" -> "Invalid token", "detail" -> err)))
 
           case Right(json) =>
-            val sub   = (json \ "sub").asOpt[String]
-            val email = (json \ "email").asOpt[String]
+            println("[AuthAction] jwt payload keys: " + json.keys.mkString(","))
 
-            sub match {
+            val subjectOpt =
+              (json \ "sub").asOpt[String]
+                .orElse((json \ "user_id").asOpt[String])
+                .orElse((json \ "uid").asOpt[String])
+                .orElse((json \ "user_metadata" \ "sub").asOpt[String])
+                .orElse((json \ "user_metadata" \ "user_id").asOpt[String])
+                .orElse((json \ "email").asOpt[String])
+
+            val email =
+              (json \ "email").asOpt[String]
+                .orElse((json \ "user_metadata" \ "email").asOpt[String])
+
+            subjectOpt match {
               case None =>
-                Future.successful(Results.Unauthorized(Json.obj("error" -> "Token missing sub claim")))
+                Future.successful(Results.Unauthorized(Json.obj(
+                  "error" -> "Token missing subject claim",
+                  "hint"  -> "Expected sub/user_id/uid or user_metadata.sub"
+                )))
               case Some(subject) =>
                 val user = AuthUser("supabase", subject, email)
                 block(new AuthRequest(user, request))
             }
+
         }
     }
   }

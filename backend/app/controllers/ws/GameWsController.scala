@@ -79,14 +79,13 @@ final class GameWsController @Inject()(
       case None      => requireSid(req)
     }
 
-  private def requireOnlineAuth(req: RequestHeader): Either[Result, (AuthPrincipal, PlayerToken)] = {
-    given SupabaseJwt = jwt
-    (requirePrincipal(req), requirePlayerToken(req)) match {
+  private def requireWsAuth(req: RequestHeader): Either[Result, (AuthPrincipal, PlayerToken)] =
+    (requireSessionPrincipal(req), requirePlayerToken(req)) match {
       case (Left(res), _)           => Left(res)
       case (_, Left(res))           => Left(res)
       case (Right(p), Right(token)) => Right((p, token))
     }
-  }
+
 
   override def ws: WebSocket =
     WebSocket.acceptOrResult[JsValue, JsValue] { req =>
@@ -95,10 +94,8 @@ final class GameWsController @Inject()(
           Future.successful(Left(res))
 
         case Right(sid) =>
-          requireOnlineAuth(req) match {
-            case Left(res) =>
-              Future.successful(Left(res))
-
+          requireWsAuth(req) match {
+            case Left(res) => Future.successful(Left(res))
             case Right((principal, playerToken)) =>
               val flow =
                 Flow[JsValue]
@@ -156,7 +153,6 @@ final class GameWsController @Inject()(
         }
     }
   }
-
 
   private def stateEnvelope(in: Envelope, sid: GameSessionId, web: WebGameState): Envelope =
     Envelope(
