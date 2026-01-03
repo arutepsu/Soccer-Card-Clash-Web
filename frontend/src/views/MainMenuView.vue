@@ -6,12 +6,15 @@ import { useOverlay } from '../composables/useOverlay';
 import GameLogo from '../components/logo/GameLogo.vue';
 import MenuCarousel from '../components/carousel/MainMenuCarousel.vue';
 import mainBg from '@/assets/images/frames/background1.jpg';
+import { useAppServices, setCurrentPlayerId } from '@/app/appServices'
+import { authState } from '@/auth/authState'
 
 const router = useRouter();
 const { show, hide } = useOverlay();
 
 const sceneRoot = ref<HTMLElement | null>(null);
 const carouselRef = ref<InstanceType<typeof MenuCarousel> | null>(null);
+const { auth, push, gameContext } = useAppServices()
 
 const soundManager: SoundManager = createSoundManager({
   basePath: '/assets/sounds/',
@@ -81,6 +84,7 @@ function onButtonClick() {
   soundManager.play('click', { volume: 0.6 });
 }
 
+
 function openAbout() {
   onButtonClick();
 
@@ -119,10 +123,25 @@ function onGameInfoClick() {
   router.push({ name: 'Rules' });
 }
 
-function onLogoutClick() {
-  onButtonClick();
-  router.push({ name: 'Login' });
+async function onLogoutClick() {
+  onButtonClick()
+
+  try {
+    try { gameContext.stop?.() } catch {}
+    try { push.close?.() } catch {}
+
+    await auth.logout()
+  } catch (e) {
+    console.warn('[logout] error', e)
+  } finally {
+    authState.setLoggedOut()
+    setCurrentPlayerId('')
+
+    await router.replace({ name: 'Login' })
+  }
 }
+
+
 
 function onCommand(payload: { action: MainMenuAction }) {
   switch (payload.action) {

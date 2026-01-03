@@ -17,15 +17,27 @@ final class AuthApiController @Inject()(
   db: Database
 ) extends AbstractController(cc) with ControllerSupport {
 
-  def me(): Action[AnyContent] = auth { req =>
-    val (id, email, nickname) = upsertAndLoadUser(req.user)
+  def me(): Action[AnyContent] = auth { implicit req =>
+    try {
+      val (id, email, nickname) = upsertAndLoadUser(req.user)
 
-    Ok(Json.obj(
-      "loggedIn" -> true,
-      "userId" -> id.toString,
-      "email" -> email,
-      "nickname" -> nickname
-    ))
+      Ok(Json.obj(
+        "loggedIn" -> true,
+        "userId" -> id.toString,
+        "email" -> email,
+        "nickname" -> nickname
+      )).addingToSession(
+        "uid" -> id.toString,
+        "email" -> email.getOrElse(""),
+        "nickname" -> nickname.getOrElse("")
+      )
+    } catch {
+      case e: Throwable =>
+        InternalServerError(Json.obj(
+          "error" -> "auth/me failed",
+          "detail" -> e.toString
+        ))
+    }
   }
 
   def updateNickname(): Action[JsValue] = auth(parse.json) { req =>
@@ -73,10 +85,14 @@ final class AuthApiController @Inject()(
 }
 
   def logout(): Action[AnyContent] = Action { implicit req =>
-    // Keep sid if you want, but clear any old session keys.
     Ok(Json.obj("loggedIn" -> false))
+      .removingFromSession(
+        "uid", "email", "nickname",
+        "sid", "playerToken",
+        "localSid"
+      )
   }
-
+  
   private def upsertAndLoadUser(u: AuthUser): (UUID, Option[String], Option[String]) = {
     db.withConnection { conn =>
       val ps = conn.prepareStatement(

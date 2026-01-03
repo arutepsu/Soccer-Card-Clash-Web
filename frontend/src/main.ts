@@ -11,9 +11,11 @@ import { createAppServices, AppServicesKey } from './app/appServices';
 import vuetify from './plugins/vuetify';
 import { registerServiceWorker } from './pwa/registerSW';
 
+import { ensureBackendSession } from '@/api/bootstrapApi';
+
 async function bootstrap() {
   try {
-    await fetch('/api/bootstrap', { method: 'GET', credentials: 'include' });
+    await ensureBackendSession();
   } catch (e) {
     console.warn('[bootstrap] failed (continuing)', e);
   }

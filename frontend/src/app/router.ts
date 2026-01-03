@@ -13,6 +13,7 @@ import AISelectionView from '../views/AISelectionView.vue';
 import LoadGameView from '../views/LoadGameView.vue';
 import LoginView from '../views/LoginView.vue';
 import SessionView from '../views/SessionView.vue';
+import RegisterUserView from '../views/RegisterUserView.vue'
 
 import PlayingFieldView from '../views/PlayingFieldView.vue';
 import AttackerHandView from '../views/AttackerHandView.vue';
@@ -20,9 +21,14 @@ import AttackerDefendersView from '../views/AttackerDefendersView.vue';
 import ChooseNicknameView from '../views/ChooseNicknameView.vue';
 import { supabase } from '@/api/supabase';
 import { authState } from '@/auth/authState';
+import AuthCallbackView from '../views/AuthCallbackView.vue'
+
+
 
 const routes: RouteRecordRaw[] = [
   { path: '/login',        name: 'Login',        component: LoginView },
+  { path: '/register',     name: 'Register',     component: RegisterUserView },
+  { path: '/auth/callback', name: 'AuthCallback', component: AuthCallbackView },
   { path: '/main-menu',    name: 'MainMenu',     component: MainMenuView },
   { path: '/singleplayer', name: 'SinglePlayer', component: SinglePlayerView },
   { path: '/multiplayer',  name: 'Multiplayer',  component: MultiplayerView },
@@ -74,6 +80,8 @@ async function checkAuthOnce(): Promise<void> {
     }
 
     const res = await fetch('/api/auth/me', {
+      method: 'GET',
+      credentials: 'include',
       headers: { Authorization: `Bearer ${token}` },
     });
 
@@ -82,13 +90,7 @@ async function checkAuthOnce(): Promise<void> {
       return;
     }
 
-    const me = (await res.json()) as {
-      loggedIn: boolean;
-      userId?: string;
-      email?: string | null;
-      nickname?: string | null;
-    };
-
+    const me = await res.json();
     if (me.loggedIn) {
       authState.setLoggedIn({
         userId: me.userId,
@@ -100,10 +102,18 @@ async function checkAuthOnce(): Promise<void> {
     }
   } catch {
     authState.setLoggedOut();
+  } finally {
+    authState.checked = true;
   }
 }
 
+
 router.beforeEach(async (to) => {
+  // allow OAuth callback
+  if (to.name === 'AuthCallback') return true
+
+  if (to.name === 'Register') return true
+
   if (!navigator.onLine) {
     const isPracticePF =
       to.name === 'PlayingField' &&
@@ -111,7 +121,6 @@ router.beforeEach(async (to) => {
       String(to.query.kind ?? '') === 'practice';
 
     if (isPracticePF) return true;
-
     return { name: 'PlayingField', query: { mode: 'local', kind: 'practice' } };
   }
 
@@ -137,6 +146,7 @@ router.beforeEach(async (to) => {
 
   return true;
 });
+
 
 
 

@@ -15,18 +15,44 @@ trait ControllerSupport { self: Results =>
       .map(GameSessionId.apply)
       .getOrElse(GameSessionId(UUID.randomUUID().toString))
 
+  protected def getOrCreatePlayerToken(req: RequestHeader): PlayerToken =
+    req.session
+      .get("playerToken")
+      .map(_.trim)
+      .filter(_.nonEmpty)
+      .map(PlayerToken.apply)
+      .getOrElse(PlayerToken(UUID.randomUUID().toString))
+
   protected def getOrCreateLocalSid(req: RequestHeader): GameSessionId =
     req.session
       .get("localSid")
       .map(GameSessionId.apply)
       .getOrElse(GameSessionId(UUID.randomUUID().toString))
 
+  private def readBearerFromHeader(req: RequestHeader): Option[String] =
+    req.headers
+      .get("Authorization")
+      .map(_.trim)
+      .filter(_.startsWith("Bearer "))
+      .map(_.drop("Bearer ".length).trim)
+      .filter(_.nonEmpty)
+
+  private def readBearerFromQuery(req: RequestHeader): Option[String] =
+    req.getQueryString("token")
+      .map(_.trim)
+      .filter(_.nonEmpty)
+
   protected def requirePrincipal(req: RequestHeader)(using jwt: SupabaseJwt): Either[Result, AuthPrincipal] = {
     val maybeToken =
-      req.headers.get("Authorization")
+      req.headers
+        .get("Authorization")
+        .map(_.trim)
         .filter(_.startsWith("Bearer "))
-        .map(_.drop(7).trim)
+        .map(_.drop("Bearer ".length).trim)
         .filter(_.nonEmpty)
+        .orElse(
+          req.getQueryString("token").map(_.trim).filter(_.nonEmpty)
+        )
 
     maybeToken match {
       case None =>
@@ -59,6 +85,20 @@ trait ControllerSupport { self: Results =>
         }
     }
   }
+
+protected def requireSessionPrincipal(req: RequestHeader): Either[Result, AuthPrincipal] = {
+  val uid = req.session.get("uid").map(_.trim).filter(_.nonEmpty)
+  if (uid.isEmpty) return Left(Unauthorized(Json.obj("error" -> "Not logged in")))
+
+  val email = req.session.get("email").map(_.trim).filter(_.nonEmpty)
+  val nickname = req.session.get("nickname").map(_.trim).filter(_.nonEmpty)
+
+  Right(AuthPrincipal(
+    userId = uid.get,
+    email = email,
+    nickname = nickname
+  ))
+}
 
   protected def requirePlayerToken(req: RequestHeader): Either[Result, PlayerToken] =
     req.session.get("playerToken") match {
