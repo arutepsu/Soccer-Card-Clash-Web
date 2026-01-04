@@ -17,7 +17,7 @@ interface CreateSoundManagerOptions {
 }
 
 export function createSoundManager(
-  { basePath = '/web/assets/sounds/' }: CreateSoundManagerOptions = {},
+  { basePath = '/assets/sounds/' }: CreateSoundManagerOptions = {},
 ): SoundManager {
   const sounds = new Map<string, HTMLAudioElement>();
   let unlocked = false;

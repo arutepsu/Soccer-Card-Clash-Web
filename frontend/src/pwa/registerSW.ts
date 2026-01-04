@@ -1,12 +1,26 @@
 export function registerServiceWorker(opts?: {
   onUpdateReady?: () => void;
+  onRegistered?: () => void | Promise<void>;
 }) {
-  if (process.env.NODE_ENV !== 'production') return;
   if (!('serviceWorker' in navigator)) return;
 
-  window.addEventListener('load', async () => {
+  (async () => {
     try {
-      const reg = await navigator.serviceWorker.register('/web/service-worker.js');
+      const reg = await navigator.serviceWorker.register('/service-worker.js', {
+        scope: '/',
+      });
+
+      async function runRegisteredIfControlled() {
+        if (navigator.serviceWorker.controller) {
+          await opts?.onRegistered?.();
+        }
+      }
+
+      await runRegisteredIfControlled();
+
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        runRegisteredIfControlled();
+      });
 
       reg.addEventListener('updatefound', () => {
         const sw = reg.installing;
@@ -21,5 +35,5 @@ export function registerServiceWorker(opts?: {
     } catch (e) {
       console.warn('[PWA] SW registration failed', e);
     }
-  });
+  })();
 }

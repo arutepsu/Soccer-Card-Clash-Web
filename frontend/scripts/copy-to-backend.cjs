@@ -17,7 +17,7 @@ function copyDir(srcDir, dstDir) {
 }
 
 const src = path.resolve(__dirname, '..', 'dist');
-const dst = path.resolve(__dirname, '..', '..', 'backend', 'public', 'web');
+const dst = path.resolve(__dirname, '..', '..', 'backend', 'public');
 
 fs.rmSync(dst, { recursive: true, force: true });
 copyDir(src, dst);
