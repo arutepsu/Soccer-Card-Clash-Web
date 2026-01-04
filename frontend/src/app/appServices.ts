@@ -54,26 +54,10 @@ export function getCurrentPlayerId(): string | null {
 export const AppServicesKey: InjectionKey<AppServices> = Symbol('AppServices');
 
 export function createAppServices(): AppServices {
-  const sessions = createSessionApi({
-    getJSON: apiGetJSON,
-    postJSON: apiPostJSON,
-  })
+  const isOnline = ref<boolean>(navigator.onLine);
 
-  const pushClient = createServerPushClient({
-    path: '/api/ws',
-    getPlayerId: () => getCurrentPlayerId(),
-    getAccessToken,
-
-    getPlayerToken: (sid) => (sid ? sessions.getPlayerToken(sid) : null),
-  })
-
-  const streamClient = createGameEventStream()
-
-  const onlineApi = createOnlineGameApi({
-    streamClient,
-    pushClient,
-    getPlayerId: () => getCurrentPlayerId(),
-  })
+  window.addEventListener('online', () => (isOnline.value = true));
+  window.addEventListener('offline', () => (isOnline.value = false));
 
   const localPvpApi = createLocalGameApiHttp({
     getPlayerId: () => 'local',
@@ -81,37 +65,73 @@ export function createAppServices(): AppServices {
 
   const practiceApi = createPracticeGameApi(practiceEngine);
 
+  const sessions: SessionApi = isOnline.value
+    ? createSessionApi({ getJSON: apiGetJSON, postJSON: apiPostJSON })
+    : ({
+        async getPlayerToken() { return null; },
+      } as any);
+
+  const pushClient: PushClient = isOnline.value
+    ? createServerPushClient({
+        path: '/api/ws',
+        getPlayerId: () => getCurrentPlayerId(),
+        getAccessToken,
+        getPlayerToken: (sid) => (sid ? sessions.getPlayerToken(sid) : null),
+      })
+    : ({
+        reconnect() {},
+        close() {},
+        setGameId() {},
+      } as any);
+
+  const streamClient = isOnline.value
+    ? createGameEventStream()
+    : ({
+        open() {
+          return { type: 'none' as const, close() {} };
+        },
+      } as any);
+
+  const onlineApi: GameApi = isOnline.value
+    ? createOnlineGameApi({
+        streamClient,
+        pushClient,
+        getPlayerId: () => getCurrentPlayerId(),
+      })
+    : ({
+        openStream() { return { type: 'none' as const, close() {} }; },
+        async fetchGameState() { return practiceApi.fetchGameState(); },
+        async getState() { return practiceApi.getState(); },
+      } as any);
+
   const game: GameApiRouter = {
     localPvp: localPvpApi,
     practice: practiceApi,
     online: onlineApi,
 
     forMode: (mode: GameMode, localKind?: LocalKind | null) => {
+      if (!isOnline.value) return practiceApi;
+
       if (mode === 'online') return onlineApi;
       return (localKind ?? 'pvp') === 'practice' ? practiceApi : localPvpApi;
     },
   };
 
   const soundManager = createSoundManager();
-  soundManager.preload('attack', 'attack.wav')
-  soundManager.preload('hover', 'hover.wav')
+  soundManager.preload('attack', 'attack.wav');
+  soundManager.preload('hover', 'hover.wav');
 
   const gameContext = createGameContextService(game);
   const auth = createAuthApi();
 
-  const isOnline = ref<boolean>(navigator.onLine);
-
-  window.addEventListener('online', () => (isOnline.value = true));
-  window.addEventListener('offline', () => (isOnline.value = false));
-
   let lastOnlineSid: string | null = null;
 
   watch(
-    [gameContext.mode, gameContext.sessionId],
-    ([m, sid]) => {
-      if (m !== 'online') {
+    [gameContext.mode, gameContext.sessionId, isOnline],
+    ([m, sid, on]) => {
+      if (!on || m !== 'online') {
         lastOnlineSid = null;
-        pushClient.setGameId?.(null);
+        try { pushClient.setGameId?.(null); } catch {}
         return;
       }
 
