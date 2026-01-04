@@ -26,6 +26,7 @@ export interface PlayerAvatarRegistry {
     opts?: { scale?: number; baseWidth?: number },
   ): HTMLImageElement;
   getImages(): Record<string, string>;
+  getAllUrls(): string[];
 }
 
 export function createPlayerAvatarRegistry(
@@ -178,6 +179,11 @@ export function createPlayerAvatarRegistry(
     return Object.fromEntries(entries);
   }
 
+  function getAllUrls(): string[] {
+    return knownFiles.map(fileUrl);
+  }
+
+
   return {
     avatarsPath,
     preloadAvatars,
@@ -187,5 +193,6 @@ export function createPlayerAvatarRegistry(
     getAvatarUrl,
     getAvatarImg,
     getImages,
+    getAllUrls,
   };
 }

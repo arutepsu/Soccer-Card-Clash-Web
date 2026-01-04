@@ -23,6 +23,7 @@ export interface CardImageRegistry {
   getImageForCard(cardFileName: string | null | undefined): string;
   getDefeatedImage(): string;
   clear(): void;
+  getAllUrls(): string[]
 }
 
 export function createCardImageRegistry(
@@ -132,11 +133,25 @@ export function createCardImageRegistry(
     images.clear();
   }
 
+  function getAllUrls(): string[] {
+    const urls: string[] = [];
+
+    const suits = ['hearts', 'diamonds', 'clubs', 'spades'] as const;
+    const values = ['2','3','4','5','6','7','8','9','10','jack','queen','king','ace'] as const;
+
+    values.forEach((v) => suits.forEach((s) => urls.push(resolveUrl(`${v}_of_${s}.png`))));
+    urls.push(resolveUrl('flippedCard.png'), resolveUrl('defeated.png'));
+
+    return urls;
+  }
+
+
   return {
     preloadAll,
     getImageUrl,
     getImageForCard,
     getDefeatedImage,
     clear,
+    getAllUrls,
   };
 }

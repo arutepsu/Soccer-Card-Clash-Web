@@ -4,7 +4,7 @@
 /logs/
 /RUNNING_PID
 
-public/web
+/public/
 /.idea/
 /*.iml
 /.bsp/

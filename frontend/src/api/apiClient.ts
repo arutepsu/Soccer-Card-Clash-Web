@@ -1,4 +1,3 @@
-// frontend/src/api/apiClient.ts
 import { getAccessToken } from '@/auth/token'
 import { authState } from '@/auth/authState'
 
@@ -9,16 +8,41 @@ export class AuthRequiredError extends Error {
   }
 }
 
+export class OfflineError extends Error {
+  constructor(message = 'Offline') {
+    super(message)
+    this.name = 'OfflineError'
+  }
+}
+
 function isAuthStatus(status: number) {
   return status === 401
 }
 
+function assertOnline(url: string) {
+  if (!navigator.onLine) {
+    throw new OfflineError(`Offline: ${url}`)
+  }
+}
+
+function isOfflineFetchError(e: any): boolean {
+  const msg = String(e?.message ?? e ?? '')
+  return (
+    !navigator.onLine ||
+    msg.includes('Failed to fetch') ||
+    msg.includes('NetworkError') ||
+    msg.includes('ERR_INTERNET_DISCONNECTED')
+  )
+}
+
 export async function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  assertOnline(url)
 
   let token: string | null = null
   try {
     token = await getAccessToken()
   } catch (e) {
+    if (isOfflineFetchError(e)) throw new OfflineError(`Offline while getting token: ${url}`)
     console.error('[apiFetch] getAccessToken threw', e)
     token = null
   }
@@ -26,21 +50,23 @@ export async function apiFetch(url: string, init: RequestInit = {}): Promise<Res
   const headers = new Headers(init.headers ?? {})
   if (token) headers.set('Authorization', `Bearer ${token}`)
 
-  const res = await fetch(url, { ...init, headers, credentials: 'include' })
+  try {
+    const res = await fetch(url, { ...init, headers, credentials: 'include' })
 
-  if (isAuthStatus(res.status)) {
-    const body = await res.text().catch(() => '')
-    console.warn('[apiFetch] auth failed', url, res.status, body)
+    if (isAuthStatus(res.status)) {
+      const body = await res.text().catch(() => '')
+      console.warn('[apiFetch] auth failed', url, res.status, body)
 
-    if (token) authState.setLoggedOut()
-
-    throw new AuthRequiredError(`Auth required for ${url}`)
-  }
-
+      if (token) authState.setLoggedOut()
+      throw new AuthRequiredError(`Auth required for ${url}`)
+    }
 
     return res
+  } catch (e) {
+    if (isOfflineFetchError(e)) throw new OfflineError(`Offline: ${url}`)
+    throw e
   }
-
+}
 
 export async function apiGetJSON<T>(url: string, headers?: HeadersInit): Promise<T> {
   const h = new Headers(headers ?? {})
