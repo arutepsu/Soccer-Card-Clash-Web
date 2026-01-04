@@ -7,7 +7,7 @@ import play.api.libs.json._
 import play.api.mvc._
 
 import app.controllers.support.ControllerSupport
-import app.session.{GameSessionId, PlayerToken}
+import app.session.PlayerToken
 import app.api.command._
 import app.auth.{AuthPrincipal, SupabaseJwt}
 
@@ -30,29 +30,12 @@ final class GameCommandController @Inject()(
   private def readPlayerId(body: JsValue): Option[String] =
     (body \ "playerId").asOpt[String].map(_.trim).filter(_.nonEmpty)
 
-  private def sidFromQueryOrSession(req: RequestHeader): Either[Result, GameSessionId] =
-    req.getQueryString("sid").map(_.trim).filter(_.nonEmpty) match {
-      case Some(raw) => Right(GameSessionId(raw))
-      case None      => requireSid(req)
-    }
-
   override def command: Action[JsValue] =
     Action(parse.json).async { implicit req =>
       val mode = CommandMode.from(readMode(req.body))
 
-      val sidEither: Either[Result, GameSessionId] =
-        if (mode == CommandMode.online) sidFromQueryOrSession(req)
-        else Right(getOrCreateLocalSid(req))
-
-      sidEither match {
-        case Left(res) =>
-          Future.successful(res.as(JSON))
-
-        case Right(sid) =>
-          def persistSid(res: Result): Result =
-            if (mode == CommandMode.online) res.addingToSession("sid" -> sid.value)
-            else res.addingToSession("localSid" -> sid.value)
-
+      Future.successful(
+        withSidForMode(mode, req) { sid =>
           val authEither: Either[Result, (Option[AuthPrincipal], Option[PlayerToken])] =
             mode match {
               case CommandMode.local =>
@@ -72,29 +55,24 @@ final class GameCommandController @Inject()(
 
           authEither match {
             case Left(res) =>
-              Future.successful(persistSid(res.as(JSON)))
+              res.as(JSON)
 
             case Right((principalOpt, tokenOpt)) =>
               decoder.fromRestJson(req.body) match {
                 case Left(err) =>
-                  Future.successful(
-                    persistSid(BadRequest(Json.obj("error" -> err.message)).as(JSON))
-                  )
+                  BadRequest(Json.obj("error" -> err.message)).as(JSON)
 
                 case Right(cmd) =>
                   facade.execute(mode, sid, principalOpt, cmd, tokenOpt) match {
                     case Left(appErr) =>
-                      Future.successful(
-                        persistSid(BadRequest(Json.obj("error" -> appErr.message)).as(JSON))
-                      )
+                      BadRequest(Json.obj("error" -> appErr.message)).as(JSON)
 
                     case Right(web) =>
-                      Future.successful(
-                        persistSid(Ok(Json.toJson(web)).as(JSON))
-                      )
+                      Ok(Json.toJson(web)).as(JSON)
                   }
               }
           }
-      }
+        }
+      )
     }
 }

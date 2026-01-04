@@ -34,26 +34,20 @@ final class SupabaseJwt @Inject()(config: Configuration) {
     env("SUPABASE_JWKS_URL")
       .orElse(config.getOptional[String]("supabase.jwt.jwksUrl").map(_.trim).filter(_.nonEmpty))
 
-  println("[SupabaseJwt] env jwksUrl = " + env("SUPABASE_JWKS_URL"))
-  println("[SupabaseJwt] env secret set? " + env("SUPABASE_JWT_SECRET").nonEmpty)
-
   private val http = HttpClient.newHttpClient()
 
   private val jwksTtl: FiniteDuration = 10.minutes
   @volatile private var cachedAtMs: Long = 0L
   @volatile private var cachedKeys: Map[String, PublicKey] = Map.empty
 
-  /** Verify Supabase JWT and return its JSON payload */
   def verify(token: String): Either[String, JsObject] = {
 
     val alg = readHeaderField(token, "alg").getOrElse("")
-    println(s"[SupabaseJwt] alg=${readHeaderField(token,"alg")} kid=${readHeaderField(token,"kid")} jwksUrlSet=${jwksUrlOpt.nonEmpty}")
     alg match {
       case "HS256" => verifyHs256(token)
       case "RS256" => verifyRs256(token)
       case "ES256" => verifyEs256(token)
       case other =>
-        // If alg is unknown, try the most likely ones (Supabase commonly ES256).
         verifyEs256(token)
           .orElse(verifyRs256(token))
           .orElse(verifyHs256(token))
@@ -96,11 +90,10 @@ final class SupabaseJwt @Inject()(config: Configuration) {
 
     Jwt.decode(token, pubKey, Seq(JwtAlgorithm.ES256)).toEither match {
       case Left(e) =>
-        println("[SupabaseJwt] ES256 decode failed: " + e.getMessage)
         Left(e.getMessage)
 
       case Right(claim) =>
-        println("[SupabaseJwt] ES256 claim content FULL: " + claim.content)
+        
         claimToJson(claim)
     }
 
@@ -137,7 +130,6 @@ final class SupabaseJwt @Inject()(config: Configuration) {
 
           (kidOpt, ktyOpt) match {
 
-            // --- EC (ES256) ---
             case (Some(kid), Some("EC")) =>
               val crvOpt = (k \ "crv").asOpt[String]
               val xOpt   = (k \ "x").asOpt[String]
@@ -150,7 +142,6 @@ final class SupabaseJwt @Inject()(config: Configuration) {
                   None
               }
 
-            // --- RSA (RS256) ---
             case (Some(kid), Some("RSA")) =>
               val nOpt = (k \ "n").asOpt[String]
               val eOpt = (k \ "e").asOpt[String]
@@ -192,7 +183,6 @@ final class SupabaseJwt @Inject()(config: Configuration) {
     }
   }
 
-  /** Build EC public key for P-256 (secp256r1) from JWKS x/y */
   private def jwkToEcPublicKeyP256(xB64Url: String, yB64Url: String): Either[String, PublicKey] = {
     try {
       val xBytes = base64UrlDecode(xB64Url)

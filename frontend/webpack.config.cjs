@@ -62,11 +62,6 @@ module.exports = (env, argv) => {
           type: 'asset/resource',
           generator: { filename: 'assets/[name].[contenthash][ext]' },
         },
-        {
-          test: /\.(wav|mp3|ogg)$/i,
-          type: 'asset/resource',
-          generator: { filename: 'assets/sounds/[name].[contenthash][ext]' },
-        },
       ],
     },
 
@@ -88,6 +83,7 @@ module.exports = (env, argv) => {
         patterns: [
           { from: 'public/manifest.json', to: 'manifest.json' },
           { from: 'public/icons', to: 'icons' },
+          { from: 'src/assets/sounds', to: 'assets/sounds' },
         ],
       }),
 
@@ -143,13 +139,13 @@ module.exports = (env, argv) => {
     devtool: isProd ? false : 'source-map',
 
     devServer: {
-      port: 8081,
+      port: 8080,
       hot: true,
 
-      historyApiFallback: {
-        index: '/web/index.html',
+      historyApiFallback: { index: '/web/index.html' },
+      devMiddleware: {
+        publicPath: '/web/',
       },
-
       static: {
         directory: path.resolve(__dirname, '../backend/public'),
         publicPath: '/',
@@ -157,39 +153,15 @@ module.exports = (env, argv) => {
       },
 
       proxy: [
-      // Normal HTTP API calls
-      {
-        context: ['/api'],
-        target: 'http://localhost:9000',
-        changeOrigin: true,
-        ws: false, // <-- IMPORTANT: don't try to upgrade random /api calls
-        onProxyReq: (proxyReq, req) => {
-          if (req.headers.authorization) {
-            proxyReq.setHeader('Authorization', req.headers.authorization);
-          }
-          if (req.headers.cookie) {
-            proxyReq.setHeader('cookie', req.headers.cookie);
-          }
+        {
+          context: ['/api'],
+          target: 'http://localhost:9000',
+          changeOrigin: true,
+          ws: true,
+          secure: false,
+          logLevel: 'debug',
         },
-      },
-
-      // WebSocket only for the WS endpoint
-      {
-        context: ['/api/ws'],
-        target: 'ws://localhost:9000',
-        changeOrigin: true,
-        ws: true,
-        onProxyReqWs: (proxyReq, req) => {
-          if (req.headers.authorization) {
-            proxyReq.setHeader('Authorization', req.headers.authorization);
-          }
-          if (req.headers.cookie) {
-            proxyReq.setHeader('cookie', req.headers.cookie);
-          }
-        },
-      },
-    ],
-
-    },
+      ],
+    }
   };
 };

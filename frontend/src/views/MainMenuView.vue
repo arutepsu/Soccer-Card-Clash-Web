@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
-import { createSoundManager, type SoundManager } from '../utils/soundManager';
 import { useOverlay } from '../composables/useOverlay';
 import GameLogo from '../components/logo/GameLogo.vue';
 import MenuCarousel from '../components/carousel/MainMenuCarousel.vue';
@@ -14,11 +13,7 @@ const { show, hide } = useOverlay();
 
 const sceneRoot = ref<HTMLElement | null>(null);
 const carouselRef = ref<InstanceType<typeof MenuCarousel> | null>(null);
-const { auth, push, gameContext } = useAppServices()
-
-const soundManager: SoundManager = createSoundManager({
-  basePath: '/assets/sounds/',
-});
+const { auth, push, gameContext, soundManager } = useAppServices()
 
 let unlockAudioHandler: ((e: Event) => void) | null = null;
 
@@ -77,11 +72,11 @@ const menuItems = [
 ];
 
 function onButtonHover() {
-  soundManager.play('hover', { volume: 0.8 });
+  soundManager?.play('hover', { volume: 0.8 });
 }
 
 function onButtonClick() {
-  soundManager.play('click', { volume: 0.6 });
+  soundManager?.play('click', { volume: 0.6 });
 }
 
 
@@ -209,9 +204,6 @@ function onKeydown(e: KeyboardEvent): void {
 }
 
 onMounted(() => {
-  soundManager.preload('hover', 'hover.wav');
-  soundManager.preload('click', 'attack.wav');
-
   unlockAudioHandler = () => {
     soundManager.unlock();
     window.removeEventListener('pointerdown', unlockAudioHandler!);

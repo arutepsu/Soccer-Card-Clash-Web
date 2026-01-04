@@ -17,6 +17,7 @@ import type { GameContextService, GameMode, LocalKind } from './gameContextServi
 
 import { practiceEngine } from '@/pwa/practiceEngine';
 import { getAccessToken } from '@/auth/token';
+import { apiGetJSON, apiPostJSON } from '@/api/apiClient'
 
 export interface GameApiRouter {
   localPvp: GameApi;
@@ -53,19 +54,26 @@ export function getCurrentPlayerId(): string | null {
 export const AppServicesKey: InjectionKey<AppServices> = Symbol('AppServices');
 
 export function createAppServices(): AppServices {
+  const sessions = createSessionApi({
+    getJSON: apiGetJSON,
+    postJSON: apiPostJSON,
+  })
+
   const pushClient = createServerPushClient({
     path: '/api/ws',
     getPlayerId: () => getCurrentPlayerId(),
     getAccessToken,
-  });
 
-  const streamClient = createGameEventStream();
+    getPlayerToken: (sid) => (sid ? sessions.getPlayerToken(sid) : null),
+  })
+
+  const streamClient = createGameEventStream()
 
   const onlineApi = createOnlineGameApi({
     streamClient,
     pushClient,
     getPlayerId: () => getCurrentPlayerId(),
-  });
+  })
 
   const localPvpApi = createLocalGameApiHttp({
     getPlayerId: () => 'local',
@@ -85,13 +93,11 @@ export function createAppServices(): AppServices {
   };
 
   const soundManager = createSoundManager();
+  soundManager.preload('attack', 'attack.wav')
+  soundManager.preload('hover', 'hover.wav')
+
   const gameContext = createGameContextService(game);
   const auth = createAuthApi();
-
-  const sessions = createSessionApi({
-    getJSON: onlineApi.getJSON,
-    postJSON: onlineApi.postJSON,
-  });
 
   const isOnline = ref<boolean>(navigator.onLine);
 

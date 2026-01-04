@@ -2,7 +2,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { createSoundManager, type SoundManager } from '../utils/soundManager';
 import { setPlayers } from '../utils/playerSideRegistry';
 import { useOverlay } from '../composables/useOverlay';
 import { useGameCommands } from '../composables/useGameCommands';
@@ -15,19 +14,13 @@ import { useAppServices } from '@/app/appServices';
 const router = useRouter();
 const services = useAppServices();
 const { show, hide } = useOverlay();
+const { soundManager, gameContext } = useAppServices()
 
 const player1 = ref('');
 const player2 = ref('');
 const busy = ref(false);
 
 const { startLocalPvp } = useGameCommands();
-
-const soundManager: SoundManager = createSoundManager({
-  basePath: '/assets/sounds/',
-});
-
-soundManager.preload('hover', 'hover.wav');
-soundManager.preload('click', 'attack.wav');
 
 function onButtonHover() {
   soundManager.play('hover', { volume: 0.3 });
@@ -67,6 +60,8 @@ function validate(): boolean {
     showAlert('Names should be 40 characters or fewer.');
     return false;
   }
+
+  gameContext.setLocalPvpNames({ player1: v1, player2: v2 });
   return true;
 }
 

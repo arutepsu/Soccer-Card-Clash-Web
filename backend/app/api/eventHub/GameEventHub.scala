@@ -31,16 +31,24 @@ class GameEventHub @javax.inject.Inject()()(implicit ec: ExecutionContext) {
     val id  = nextId.getAndIncrement()
     val ev  = GameEvent(id, ctx, meta)
     val key = sid.value
-    val listenerCount = listenersBySid.get(key).map(_.size).getOrElse(0)
 
     historyBySid.updateWith(key) {
       case Some(vec) => Some((vec :+ ev).takeRight(500))
       case None      => Some(Vector(ev))
     }
 
-    listenersBySid.get(key).foreach(_.foreach(cb => try cb(ev) catch { case _: Throwable => () }))
+    listenersBySid.get(key).foreach { list =>
+      list.foreach { cb =>
+        ec.execute(() => {
+          try cb(ev)
+          catch { case _: Throwable => () }
+        })
+      }
+    }
+
     ev
   }
+
 
   def subscribe(sid: GameSessionId)(cb: GameEvent => Unit): () => Unit = {
     val key = sid.value

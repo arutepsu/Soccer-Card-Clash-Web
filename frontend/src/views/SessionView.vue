@@ -38,9 +38,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref, watchEffect } from 'vue';
 import bgSessions from '@/assets/images/frames/background10.jpg';
-import { createSoundManager, type SoundManager } from '@/utils/soundManager';
 import { useAppServices, setCurrentPlayerId } from '@/app/appServices';
 import type { SessionDto } from '@/types/SessionDtos';
 
@@ -53,18 +52,26 @@ import { useRouter } from 'vue-router';
 const router = useRouter();
 
 const services = useAppServices();
+const { soundManager } = useAppServices()
 
 const overlay = useOverlayStore();
 
 async function goToOnlineGame(sessionId: string) {
-  await services.gameContext.startOnline(sessionId);
-
   return router.push({
     name: 'PlayingField',
     query: { mode: 'online', sid: sessionId },
   });
 }
 
+
+function displayName(): string | null {
+  return (
+    authState.nickname?.trim() ||
+    authState.email?.trim()?.split('@')[0] ||
+    authState.userId?.slice(0, 8) ||
+    null
+  )
+}
 
 function openLobby(sessionId: string) {
   overlay.show({
@@ -85,11 +92,6 @@ function openLobby(sessionId: string) {
     },
   });
 }
-
-const soundManager: SoundManager = createSoundManager({
-  basePath: '/assets/sounds/',
-});
-
 const sessions = ref<SessionDto[]>([]);
 const selectedSessionId = ref<string | null>(null);
 const showCreateForm = ref(false);
@@ -102,14 +104,19 @@ const sessionDetails = computed<SessionDto | null>(() => {
   return sessions.value.find((s) => s.id === selectedSessionId.value) ?? null;
 });
 
-onMounted(async () => {
-  soundManager.preload('hover', 'hover.wav');
-  soundManager.preload('click', 'attack.wav');
-  await refreshSessions();
-});
+watchEffect(async () => {
+  if (!authState.checked) return
+  if (!authState.loggedIn) {
+    router.replace({ name: 'Login' })
+    return
+  }
+
+  await refreshSessions()
+})
+
 
 async function refreshSessions(): Promise<void> {
-  sessions.value = await services.sessions.listSessions();
+  sessions.value = await services.sessions.listSessions()
 }
 
 function handleMouseEnter(): void {
@@ -142,8 +149,8 @@ async function submitCreate(): Promise<void> {
   soundManager.play('click', { volume: 0.6 });
 
   try {
-    const hostName = authState.username?.trim();
-    if (!hostName) return;
+    const hostName = displayName()
+    if (!hostName) return
 
     const res = await services.sessions.createSession({ hostName, name: sessionName });
 
@@ -181,8 +188,8 @@ async function joinSession(): Promise<void> {
 
   soundManager.play('click', { volume: 0.6 });
 
-  const playerName = authState.username?.trim();
-  if (!playerName) return;
+  const playerName = displayName()
+  if (!playerName) return
 
   const res = await services.sessions.joinSession(sid, { playerName });
 

@@ -11,6 +11,10 @@ export interface GameContextService {
   mode: Ref<GameMode | null>;
   sessionId: Ref<string | null>;
   lastMeta: Ref<any | null>;
+  
+  localPvpPlayer1: Ref<string | null>;
+  localPvpPlayer2: Ref<string | null>;
+  setLocalPvpNames(names: { player1?: string | null; player2?: string | null }): void;
 
   localIsVsAI: Ref<boolean>;
   localHumanName: Ref<string | null>;
@@ -47,6 +51,16 @@ export function createGameContextService(game: GameApiRouter): GameContextServic
   let handle: StreamHandle | null = null;
   let startToken = 0;
   let firstStreamMessage = true;
+
+  const localPvpPlayer1 = ref<string | null>(null)
+  const localPvpPlayer2 = ref<string | null>(null)
+
+  function setLocalPvpNames(names: { player1?: string | null; player2?: string | null }) {
+    const p1 = (names.player1 ?? '').trim()
+    const p2 = (names.player2 ?? '').trim()
+    localPvpPlayer1.value = p1 ? p1 : null
+    localPvpPlayer2.value = p2 ? p2 : null
+  }
 
   function setState(next: WebGameState | null) {
     state.value = next;
@@ -146,10 +160,27 @@ export function createGameContextService(game: GameApiRouter): GameContextServic
         ? game.forMode('local', localKind.value)
         : game.forMode('online');
 
-      const snap =
-        nextMode === 'online'
-          ? await api.fetchGameState(sessionId.value!)
-          : await api.getState();
+      let snap: WebGameState | null = null;
+
+      if (nextMode === 'online') {
+        snap = await api.fetchGameState(sessionId.value!);
+      } else {
+        if (localKind.value === 'pvp' && typeof api.createLocalMultiplayer === 'function') {
+          const p1 =
+            (localPvpPlayer1.value ?? localHumanName.value ?? 'Player 1').trim() || 'Player 1';
+
+          const p2 = localIsVsAI.value
+            ? 'AI'
+            : ((localPvpPlayer2.value ?? 'Player 2').trim() || 'Player 2');
+
+          snap = await api.createLocalMultiplayer(p1, p2);
+
+          if (!snap) snap = await api.getState();
+        } else {
+          snap = await api.getState();
+        }
+      }
+
 
       if (myToken !== startToken) return;
       state.value = (snap as WebGameState | null) ?? null;
@@ -192,7 +223,8 @@ export function createGameContextService(game: GameApiRouter): GameContextServic
     state.value = null;
     mode.value = null;
     sessionId.value = null;
-
+    localPvpPlayer1.value = null
+    localPvpPlayer2.value = null
     localIsVsAI.value = false;
     localHumanName.value = null;
     lastMeta.value = null;
@@ -207,7 +239,7 @@ export function createGameContextService(game: GameApiRouter): GameContextServic
     localIsVsAI, localHumanName, setLocalControl,
 
     localKind, setLocalKind,
-
+    localPvpPlayer1, localPvpPlayer2, setLocalPvpNames,
     start, startOnline,
     startLocal, startPractice,
 
