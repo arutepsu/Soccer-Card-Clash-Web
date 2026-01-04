@@ -6,6 +6,7 @@ import { useAppServices } from './../../app/appServices';
 import { fileIOApi } from './../../api/fileIoApi';
 import PauseDialog from '../dialog/PauseDialog.vue';
 import { useGameCommands } from '@/composables/useGameCommands';
+import { computed } from 'vue';
 
 const props = defineProps<{ busy?: boolean }>();
 
@@ -28,6 +29,12 @@ function goName(name: string) {
 function goMainMenu() {
   router.push({ name: 'MainMenu' });
 }
+
+const isOnline = computed(() => {
+  const m = (services.gameContext.mode.value ?? '').toString();
+  const q = (route.query.mode ?? '').toString();
+  return m === 'online' || q === 'online';
+});
 
 async function leaveOnlineSessionIfNeeded() {
   const sid = (route.query.sid as string | undefined) ?? null;
@@ -74,10 +81,6 @@ async function doSaveGame() {
     await fileIOApi.quickSave();
     soundManager?.play('success', { volume: 0.7 });
 
-    // Decide what you want after save:
-    // - If you want to KEEP the game and allow Back -> stay in gameplay:
-    //   goName('PlayingField');
-    // - If you want to EXIT (recommended)
     services.gameContext.clear(); 
     goMainMenu();
   } catch (error: any) {
@@ -95,6 +98,9 @@ async function doRedo() {
 }
 
 async function handlePauseAction(action: string) {
+  if (isOnline.value && (action === 'undo' || action === 'redo' || action === 'restart') || (action === 'save')) {
+    return hide();
+  }
   if (action === 'resume') return hide();
   if (action === 'undo') return void doUndo();
   if (action === 'redo') return void doRedo();
@@ -122,7 +128,10 @@ function openPauseDialog() {
     title: 'Paused',
     message: null,
     content: PauseDialog,
-    componentProps: { onAction: handlePauseAction },
+    componentProps: {
+      onAction: handlePauseAction,
+      isOnline: isOnline.value,
+    },
   });
 }
 

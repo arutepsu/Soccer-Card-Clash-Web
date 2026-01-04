@@ -11,16 +11,15 @@ import { createAppServices, AppServicesKey } from './app/appServices';
 import vuetify from './plugins/vuetify';
 import { registerServiceWorker } from './pwa/registerSW';
 
-import { ensureBackendSession } from '@/api/bootstrapApi';
+import { ensureBackendSession } from '@/api/bootstrapApi'
+import { bootstrapAuth, watchSupabaseAuth } from '@/auth/bootstrapAuth'
 
 async function bootstrap() {
-  try {
-    await ensureBackendSession();
-  } catch (e) {
-    console.warn('[bootstrap] failed (continuing)', e);
-  }
-}
+  try { await ensureBackendSession() } catch (e) { console.warn('[bootstrap] backend failed', e) }
+  try { await bootstrapAuth() } catch (e) { console.warn('[bootstrap] auth failed', e) }
 
+  watchSupabaseAuth()
+}
 
 bootstrap().then(() => {
   const app = createApp(App);

@@ -103,12 +103,6 @@ function hasLiveDefender(slot: SlotLike): boolean {
 
 const canSelectGoalkeeper = computed(() => {
   const result = defenders.value.every((slot) => !hasLiveDefender(slot));
-  console.log(
-    '[PlayersField] canSelectGoalkeeper =',
-    result,
-    'defenders=',
-    defenders.value,
-  );
   return result;
 });
 
@@ -128,7 +122,6 @@ watch(
       emit('defender-selected', null);
       emit('goalkeeper-selected', false);
 
-      console.log('[PlayersField] scene changed -> selection reset');
     }
   },
 );
@@ -145,19 +138,12 @@ function onDefenderSelect(index: number) {
     emit('defender-selected', index);
   }
 
-  console.log(
-    '[PlayersField] onDefenderSelect -> selectedDefenderIndex=',
-    selectedDefenderIndex.value,
-  );
 }
 
 function onGoalkeeperSelect() {
   if (props.busy) return;
 
   if (!canSelectGoalkeeper.value) {
-    console.log(
-      '[PlayersField] onGoalkeeperSelect blocked – defenders still alive',
-    );
     return;
   }
 
@@ -170,10 +156,6 @@ function onGoalkeeperSelect() {
   }
   emit('goalkeeper-selected', next);
 
-  console.log(
-    '[PlayersField] onGoalkeeperSelect -> goalkeeperSelected=',
-    goalkeeperSelected.value,
-  );
 }
 </script>
 

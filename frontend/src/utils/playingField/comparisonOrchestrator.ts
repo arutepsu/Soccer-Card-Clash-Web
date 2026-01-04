@@ -7,7 +7,7 @@ import type {
   ComparisonCard,
 } from './comparisonDialogHandler';
 import type { UIActionScheduler } from '../../ui/uiActionScheduler';
-import type { GameApi } from '../../api/gameApi1';
+import type { GameApi } from '../../api/GameApi';
 
 type CardLikeForTie =
   | Pick<CardView, 'fileName'>
@@ -288,12 +288,6 @@ function getAttackAndDefendCardsFromState(
           })
         : null;
 
-    console.log(
-      '[CMP] runOverlay pending=',
-      pendingActionType,
-      'hasAction=',
-      !!overlayAction,
-    );
 
     if (overlayAction) {
       scheduler.runSequence(overlayAction);
@@ -313,14 +307,7 @@ function getAttackAndDefendCardsFromState(
     currentComparison = null;
 
     const cmp: ComparisonEvent[] = extractComparisonEvents(serverWeb as any);
-    console.log(
-      '[CMP] afterServerApply action=',
-      meta?.action,
-      'defIdx=',
-      meta?.defenderIndex,
-      'extracted=',
-      cmp.map(e => e.type),
-    );
+
 
     if (cmp.length) {
       cmp.forEach(ev => comparisonHandler.handleComparisonEvent(ev));
@@ -330,9 +317,6 @@ function getAttackAndDefendCardsFromState(
           type: 'AttackResultEvent',
           attackSuccess: false,
         });
-        console.log(
-          '[CMP] synthesized AttackResultEvent=false (no server result)',
-        );
       }
 
       const cmpEvt = cmp.find(e => e.type === 'ComparedCardsEvent');
@@ -354,16 +338,6 @@ function getAttackAndDefendCardsFromState(
         extraAtkCardTie,
         extraDefCardTie,
       } = getAttackAndDefendCardsFromState(source, meta);
-
-      console.log(
-        '[CMP] synth from PRE-ACTION state (end-of-queue):',
-        {
-          atkCard,
-          defCard,
-          extraAtkCardTie,
-          extraDefCardTie,
-        },
-      );
 
       if (atkCard && defCard) {
         const tie = isSingleTie(atkCard, defCard);
@@ -388,9 +362,6 @@ function getAttackAndDefendCardsFromState(
             extraAttackerCard: extraAtkCardTie,
             extraDefenderCard: extraDefCardTie,
           });
-          console.log(
-            '[CMP] synthesized TieComparisonEvent (client-side)',
-          );
         }
 
         comparisonHandler.handleComparisonEvent({
@@ -419,17 +390,6 @@ function getAttackAndDefendCardsFromState(
         extraDefCardTie,
       } = getAttackAndDefendCardsFromState(source, meta);
 
-      console.log(
-        '[CMP] synth DOUBLE from PRE-ACTION state (last 2 cards):',
-        {
-          atkCard1Double,
-          atkCard2Double,
-          defCard,
-          extraAtkCardTie,
-          extraDefCardTie,
-        },
-      );
-
       if (atkCard1Double && atkCard2Double && defCard) {
         const tie = isDoubleTie(atkCard1Double, atkCard2Double, defCard);
 
@@ -455,9 +415,6 @@ function getAttackAndDefendCardsFromState(
             extraAttackerCard: extraAtkCardTie,
             extraDefenderCard: extraDefCardTie,
           });
-          console.log(
-            '[CMP] synthesized DoubleTieComparisonEvent (client-side)',
-          );
         }
 
         comparisonHandler.handleComparisonEvent({

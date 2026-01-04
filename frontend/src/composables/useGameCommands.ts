@@ -61,20 +61,18 @@ export function useGameCommands(overrideApi?: GameApi) {
   }
 
   async function startPractice(attackerName: string, defenderName: string) {
+    services.gameContext.setLocalPvpNames({ player1: attackerName, player2: defenderName });
     await services.gameContext.startLocal('practice');
-    return runCommand(
-      (a) => a.createLocalMultiplayer(attackerName, defenderName),
-      'Practice CreateGame returned null WebGameState',
-    );
+
+    return services.gameContext.state.value;
   }
 
   async function startLocalPvp(attackerName: string, defenderName: string) {
+    services.gameContext.setLocalPvpNames({ player1: attackerName, player2: defenderName });
     await services.gameContext.startLocal('pvp');
-    return runCommand(
-      (a) => a.createLocalMultiplayer(attackerName, defenderName),
-      'Local PvP CreateGame returned null WebGameState',
-    );
+    return services.gameContext.state.value;
   }
+
 
   function startLocalMultiplayer(attackerName: string, defenderName: string) {
     return startLocalPvp(attackerName, defenderName);

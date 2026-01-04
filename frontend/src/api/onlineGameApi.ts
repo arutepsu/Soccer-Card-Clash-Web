@@ -195,8 +195,10 @@ export function createOnlineGameApi(options: CreateOnlineGameApiOptions = {}): G
     return commandWithWsFallback('ExecuteAI', action, normalizeSid(sid))
   }
 
-  const postJSON = <T = unknown>(url: string, payload: unknown = {}) =>
-    apiPostJSON<T>(url, payload, extraHeaders)
+  const postJSON = async <T = unknown>(url: string, payload: unknown = {}) => {
+    return apiPostJSON<T>(url, payload, extraHeaders)
+  }
+
 
   const getJSON = <T = unknown>(url: string) =>
     apiGetJSON<T>(url, extraHeaders)

@@ -66,127 +66,172 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import GameButton from '@/components/button/GameButton.vue';
-import { useAppServices, setCurrentPlayerId } from '@/app/appServices';
-import { useOverlayStore } from '@/stores/overlayStore';
-import type { SessionDto } from '@/types/SessionDtos';
-import { useGameContext } from '@/composables/useGameContext';
-import { useGameCommands } from '@/composables/useGameCommands';
-import { authState } from '@/auth/authState';
+import { computed, onBeforeUnmount, onMounted, ref, watchEffect } from 'vue'
+import GameButton from '@/components/button/GameButton.vue'
+import { useAppServices, setCurrentPlayerId } from '@/app/appServices'
+import { useOverlayStore } from '@/stores/overlayStore'
+import type { SessionDto } from '@/types/SessionDtos'
+import { useGameContext } from '@/composables/useGameContext'
+import { useGameCommands } from '@/composables/useGameCommands'
+import { authState } from '@/auth/authState'
+import { apiPostJSON } from '@/api/apiClient'
 
 const props = defineProps<{
-  sessionId: string;
-  onHover?: () => void;
-  onLeftLobby?: () => void;
-  onGameStarted?: () => void;
-}>();
+  sessionId: string
+  onHover?: () => void
+  onLeftLobby?: () => void
+  onGameStarted?: () => void
+}>()
 
-const services = useAppServices();
-const overlay = useOverlayStore();
-const gameContext = useGameContext();
-const gameCmds = useGameCommands();
+const services = useAppServices()
+const overlay = useOverlayStore()
+const gameContext = useGameContext()
+const gameCmds = useGameCommands()
 
-const loading = ref(true);
-const session = ref<SessionDto | null>(null);
+const loading = ref(true)
+const session = ref<SessionDto | null>(null)
 
-const norm = (s: string | null | undefined) => (s ?? '').trim().toLowerCase();
-const isHost = computed(() => norm(session.value?.hostName) === norm(authState.username));
+const norm = (s: string | null | undefined) => (s ?? '').trim().toLowerCase()
+const myDisplay = computed(() => {
+  return (
+    authState.nickname?.trim() ||
+    authState.email?.trim()?.split('@')[0] ||
+    authState.userId?.slice(0, 8) ||
+    ''
+  )
+})
+
+const isHost = computed(() => norm(session.value?.hostName) === norm(myDisplay.value))
+
 const isFull = computed(() => {
-  const pc = Number(session.value?.playerCount ?? 0);
-  const st = String(session.value?.status ?? '');
-  return pc >= 2 || st === 'Full';
-});
+  const pc = Number(session.value?.playerCount ?? 0)
+  const st = session.value?.status
+  return pc >= 2 || st === 'Full' || st === 'Ready'
+})
 
-const showStart = computed(() => isHost.value);
-const canStart = computed(() => isHost.value && isFull.value);
+const showStart = computed(() => isHost.value)
+const canStart = computed(
+  () => isHost.value && (session.value?.status === 'Ready' || session.value?.status === 'Full'),
+)
 
-let timer: number | null = null;
-let didLeaveLobby = false;
+let timer: number | null = null
+const starting = ref(false)
+const navigatingToGame = ref(false)
+
+function stopPolling() {
+  if (timer) {
+    window.clearInterval(timer)
+    timer = null
+  }
+}
 
 function forwardHover(payload: { action: string; hovering: boolean }) {
-  if (payload.hovering) props.onHover?.();
+  if (payload.hovering) props.onHover?.()
 }
 
 function goToGame() {
-  props.onGameStarted?.();
-  overlay.hide();
+  props.onGameStarted?.()
+  overlay.hide()
 }
 
 async function startOnlineGameAndGo() {
-  services.gameContext.setMode('online');
-  services.gameContext.setSessionId(props.sessionId);
-  await services.gameContext.startOnline(props.sessionId);
-  goToGame();
+  navigatingToGame.value = true
+  stopPolling()
+
+  services.gameContext.setMode('online')
+  services.gameContext.setSessionId(props.sessionId)
+  await services.gameContext.startOnline(props.sessionId)
+
+  goToGame()
 }
 
 async function enterGameIfStarted(next: SessionDto | null) {
-  if (!next) return;
-  if (next.status !== 'Started') return;
-
-  if (timer) {
-    window.clearInterval(timer);
-    timer = null;
-  }
-
-  await startOnlineGameAndGo();
+  if (!next) return
+  if (next.status !== 'Started') return
+  await startOnlineGameAndGo()
 }
 
 async function startGame() {
-  props.onHover?.();
-  await services.sessions.startSession(props.sessionId);
-  await startOnlineGameAndGo();
-}
+  if (starting.value || navigatingToGame.value) return
+  starting.value = true
 
-async function refresh() {
   try {
-    const next = await services.sessions.getSession(props.sessionId);
-    console.log('[Lobby] session dto', next);
-    session.value = next;
-    await enterGameIfStarted(next);
-  } catch {
-    didLeaveLobby = true;
-    props.onLeftLobby?.();
-    overlay.hide();
+    stopPolling()
+    await apiPostJSON(`/api/sessions/${encodeURIComponent(props.sessionId)}/start`, {})
+    await startOnlineGameAndGo()
+  } catch (e) {
+    console.error(e)
+    alert(String(e))
+    navigatingToGame.value = false
+    if (!timer) timer = window.setInterval(refresh, 2000)
   } finally {
-    loading.value = false;
+    starting.value = false
   }
 }
 
 async function leave() {
-  props.onHover?.();
-  didLeaveLobby = true;
+
+  stopPolling()
 
   try {
-    await services.sessions.leaveSession(props.sessionId);
+    const res = await services.sessions.leaveSession(props.sessionId)
+  } catch (e) {
+    alert(String(e))
+    if (!timer) timer = window.setInterval(refresh, 2000)
+    return
+  }
+  setCurrentPlayerId('frontend')
+  services.gameContext.clear()
+
+  props.onLeftLobby?.()
+  overlay.hide()
+}
+
+async function refresh() {
+  if (navigatingToGame.value) return
+
+  if (!authState.checked) {
+    loading.value = true
+    return
+  }
+
+  if (!authState.loggedIn) {
+    loading.value = true
+    return
+  }
+
+  try {
+    const next = await services.sessions.getSession(props.sessionId)
+    session.value = next
+    await enterGameIfStarted(next)
+  } catch (e) {
+    console.warn('[Lobby] refresh failed (retrying):', e)
   } finally {
-    setCurrentPlayerId('frontend');
-    services.gameContext.clear();
-    props.onLeftLobby?.();
-    overlay.hide();
+    loading.value = false
   }
 }
 
 async function copyInvite() {
-  props.onHover?.();
+  props.onHover?.()
   try {
-    const url =
-      `${window.location.origin}/#/playing-field?mode=online&sid=${encodeURIComponent(props.sessionId)}`;
-    await navigator.clipboard.writeText(url);
+    const url = `${window.location.origin}/#/playing-field?mode=online&sid=${encodeURIComponent(
+      props.sessionId,
+    )}`
+    await navigator.clipboard.writeText(url)
   } catch {}
 }
 
 onMounted(async () => {
-  await refresh();
-  timer = window.setInterval(refresh, 2000);
-});
+  await refresh()
+  timer = window.setInterval(refresh, 2000)
+})
 
 onBeforeUnmount(() => {
-  if (timer) window.clearInterval(timer);
-  if (!didLeaveLobby) return;
-  services.gameContext.clear();
-});
+  stopPolling()
+})
+
 </script>
+
 
 <style scoped>
 

@@ -1,25 +1,19 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { createSoundManager, type SoundManager } from '../utils/soundManager';
 import { useOverlay } from '../composables/useOverlay';
 import GameButton from '../components/button/GameButton.vue';
 import GameLogo from '../components/logo/GameLogo.vue';
 import GlitchInput from '../components/input-field/GlitchInput.vue';
 import singleBg from '@/assets/images/frames/background2.jpg';
+import { useAppServices } from '@/app/appServices';
 
 const router = useRouter();
 const { show, hide } = useOverlay();
 
 const playerName = ref('');
 const busy = ref(false);
-
-const soundManager: SoundManager = createSoundManager({
-  basePath: '/assets/sounds/',
-});
-
-soundManager.preload('hover', 'hover.wav');
-soundManager.preload('click', 'attack.wav');
+const { soundManager } = useAppServices()
 
 function onButtonHover() {
   soundManager.play('hover', { volume: 0.6 });

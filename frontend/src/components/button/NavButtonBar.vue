@@ -16,7 +16,6 @@ const emit = defineEmits<{
 }>();
 
 function onCommand(payload: { action: NavAction }) {
-  console.log('[NavButtonBar] Command received:', payload);
 
   switch (payload.action) {
     case 'pause':

@@ -166,22 +166,33 @@ final class SessionController @Inject()(
 
   // POST /api/sessions/:id/start
   def start(id: String): Action[AnyContent] = Action { req =>
+
     given SupabaseJwt = jwt
-    (requirePrincipal(req), requirePlayerToken(req)) match {
+    val pE = requirePrincipal(req)
+
+    val tE = requirePlayerToken(req)
+
+    (pE, tE) match {
       case (Left(res), _) => res
       case (_, Left(res)) => res
-
       case (Right(principal), Right(token)) =>
-        service.startSession(principal, token, GameSessionId(id)) match {
+
+        val r = service.startSession(principal, token, GameSessionId(id))
+
+
+        r match {
           case Left(err) =>
             toHttpError(err)
 
           case Right(ctx) =>
             val infoOpt = service.getSession(GameSessionId(id)).toOption
             val web = viewStateMapper.toWebState(ctx, Some(principal), infoOpt)
+
             eventHub.publish(GameSessionId(id), ctx)
+
             Ok(Json.toJson(web)).withSession(req.session + ("sid" -> id))
         }
     }
   }
+
 }

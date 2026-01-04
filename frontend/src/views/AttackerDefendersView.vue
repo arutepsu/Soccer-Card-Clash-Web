@@ -66,8 +66,6 @@ async function onBoost() {
     } else if (err?.code === 'NO_TARGET_SELECTED') {
       showAlert('Pick one of your defenders or the goalkeeper to boost.');
     } else {
-      console.error('[AttackerDefendersView] Boost failed', err);
-      showAlert('Boost failed. Please try again.');
     }
   }
 }

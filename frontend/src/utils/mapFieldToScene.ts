@@ -30,10 +30,6 @@ export function buildMapFieldToScene(cardRegistry: CardImageRegistry) {
       const fileName = data?.fileName as string | undefined;
       const img = toImg(fileName ?? null);
       const isDefeated = !fileName;
-      console.log('[mapFieldToScene] defenders', padded.map(s => ({
-        backendFileName: s?.card?.fileName,
-        finalImg: toImg(s?.card?.fileName ?? null),
-      })));
 
       return {
         id: slot?.id ?? fileName ?? `slot-${index}`,

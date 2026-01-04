@@ -6,8 +6,11 @@ import { fileIOApi } from '../api/fileIoApi';
 import { createSoundManager, type SoundManager } from '../utils/soundManager';
 import GameButton from '../components/button/GameButton.vue';
 import loadBg from '@/assets/images/frames/background4.jpg';
+import { useAppServices } from '@/app/appServices';
 
 const router = useRouter();
+
+const {soundManager } = useAppServices()
 
 const savedGames = ref<string[]>([]);
 const selectedGameId = ref<string | null>(null);
@@ -20,12 +23,6 @@ const messageText = ref<string | null>(null);
 const messageType = ref<MessageType>('info');
 let messageTimeout: number | null = null;
 
-const soundManager: SoundManager = createSoundManager({
-  basePath: '/assets/sounds/',
-});
-
-soundManager.preload('hover', 'hover.wav');
-soundManager.preload('click', 'attack.wav');
 
 function playHover() {
   soundManager.play('hover', { volume: 0.3 });

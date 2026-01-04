@@ -34,7 +34,6 @@ final class GameUseCases @Inject()(
   private def noGame(sessionId: GameSessionId): Left[AppError, Nothing] = {
     val ks = try repo.keys.map(_.value).mkString(", ") catch
       case _: Throwable => "<unavailable>"
-    println(s"[GameUseCases] No active game for sessionId='${sessionId.value}'. Repo keys: [$ks]")
     Left(AppError(s"No active game for sessionId: '${sessionId.value}'"))
   }
 
@@ -146,11 +145,7 @@ final class GameUseCases @Inject()(
         }
 
       case None =>
-        // ✅ simplest: local always allowed
         Right(())
-        // If you insist on local identity check, use:
-        // if (norm(principal.username) == attackerKey) Right(())
-        // else Left(AppError("Not your turn (only attacker may act)"))
     }
   }
 

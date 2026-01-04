@@ -21,7 +21,6 @@ import { createPlayerAvatarRegistry } from '../utils/playerAvatarRegistry';
 import { UIActionScheduler } from '../ui/uiActionScheduler';
 import { createComparisonDialogHandler } from '../utils/playingField/comparisonDialogHandler';
 import { createComparisonOrchestrator } from '../utils/playingField/comparisonOrchestrator';
-import { createSoundManager } from '../utils/soundManager';
 import type { ActionMeta } from '@/types/SessionDtos';
 import playingBg from '@/assets/images/frames/background5.jpg';
 import { SceneView } from '@/utils/playingField/sceneMapping';
@@ -77,6 +76,7 @@ function showInfoAlert(message: string) {
 const services = useAppServices();
 const router = useRouter();
 const route = useRoute();
+const { soundManager } = useAppServices()
 
 const mode = usePlayingFieldMode(computed(() => displayWebState.value), showInfoAlert, {
   mode: computed(() => services.gameContext.mode.value),
@@ -96,11 +96,6 @@ const api = computed(() => {
 
   return services.game.forMode('local', services.gameContext.localKind.value);
 });
-
-
-const soundManager = createSoundManager({ basePath: '/assets/sounds/' });
-soundManager.preload('attack', 'attack.wav');
-soundManager.preload('hover', 'hover.wav');
 
 const scheduler = new UIActionScheduler();
 

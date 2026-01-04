@@ -24,7 +24,6 @@ export interface AuthApi {
 
 export function createAuthApi(): AuthApi {
 async function me(): Promise<AuthMeResponse> {
-  // apiGetJSON -> apiFetch -> attaches Authorization + credentials: 'include'
   try {
     return await apiGetJSON<AuthMeResponse>('/api/auth/me')
   } catch {
@@ -37,7 +36,6 @@ async function me(): Promise<AuthMeResponse> {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw new Error(error.message)
 
-    // IMPORTANT: make sure we really got a session
     if (!data.session?.access_token) {
       throw new Error("Login succeeded but no session/token returned (email not confirmed or session not persisted).")
     }
@@ -47,14 +45,7 @@ async function me(): Promise<AuthMeResponse> {
     const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) throw new Error(error.message)
 
-    console.log('[signup] data:', {
-      user: data.user,
-      session: data.session,
-      emailConfirmedAt: data.user?.email_confirmed_at,
-    })
-
     const needsEmailConfirmation = !data.session?.access_token
-    console.log('[signup] needsEmailConfirmation =', needsEmailConfirmation)
 
     return { needsEmailConfirmation }
   }

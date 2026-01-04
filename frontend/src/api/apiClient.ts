@@ -10,53 +10,43 @@ export class AuthRequiredError extends Error {
 }
 
 function isAuthStatus(status: number) {
-  return status === 401 || status === 403
-}
-
-async function buildHeaders(base: HeadersInit = {}): Promise<HeadersInit> {
-  const token = await getAccessToken()
-  return {
-    ...base,
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  }
-}
-
-async function handleAuthFailure() {
-  // This is the single place where we mark the app logged out on 401/403.
-  // (You can also trigger a router redirect in main.ts using a watcher.)
-  authState.setLoggedOut()
+  return status === 401
 }
 
 export async function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
-  const token = await getAccessToken()
 
-  const res = await fetch(url, {
-    ...init,
-    headers: {
-      ...(init.headers ?? {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    credentials: 'include',
-  })
+  let token: string | null = null
+  try {
+    token = await getAccessToken()
+  } catch (e) {
+    console.error('[apiFetch] getAccessToken threw', e)
+    token = null
+  }
+
+  const headers = new Headers(init.headers ?? {})
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+
+  const res = await fetch(url, { ...init, headers, credentials: 'include' })
 
   if (isAuthStatus(res.status)) {
-    // only hard-logout if we *thought* we were logged in
+    const body = await res.text().catch(() => '')
+    console.warn('[apiFetch] auth failed', url, res.status, body)
+
     if (token) authState.setLoggedOut()
+
     throw new AuthRequiredError(`Auth required for ${url}`)
   }
 
-  return res
-}
+
+    return res
+  }
 
 
 export async function apiGetJSON<T>(url: string, headers?: HeadersInit): Promise<T> {
-  const res = await apiFetch(url, {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
-      ...(headers ?? {}),
-    },
-  })
+  const h = new Headers(headers ?? {})
+  h.set('Accept', 'application/json')
+
+  const res = await apiFetch(url, { method: 'GET', headers: h })
 
   if (!res.ok) {
     const text = await res.text().catch(() => '')
@@ -71,13 +61,13 @@ export async function apiPostJSON<T>(
   payload: unknown = {},
   headers?: HeadersInit,
 ): Promise<T | null> {
+  const h = new Headers(headers ?? {})
+  h.set('Accept', 'application/json')
+  h.set('Content-Type', 'application/json')
+
   const res = await apiFetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      ...(headers ?? {}),
-    },
+    headers: h,
     body: JSON.stringify(payload),
   })
 

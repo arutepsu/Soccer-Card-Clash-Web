@@ -73,23 +73,24 @@ final class GameWsController @Inject()(
     }
   }
 
-  private def sidFromQueryOrSession(req: RequestHeader): Either[Result, GameSessionId] =
+  private def sidFromQuery(req: RequestHeader): Either[Result, GameSessionId] =
     req.getQueryString("sid").map(_.trim).filter(_.nonEmpty) match {
       case Some(raw) => Right(GameSessionId(raw))
-      case None      => requireSid(req)
+      case None      => Left(BadRequest(Json.obj("error" -> "Missing sid query param")))
     }
 
-  private def requireWsAuth(req: RequestHeader): Either[Result, (AuthPrincipal, PlayerToken)] =
-    (requireSessionPrincipal(req), requirePlayerToken(req)) match {
-      case (Left(res), _)           => Left(res)
-      case (_, Left(res))           => Left(res)
-      case (Right(p), Right(token)) => Right((p, token))
+  private def requireWsAuth(req: RequestHeader): Either[Result, (AuthPrincipal, PlayerToken)] = {
+    given SupabaseJwt = jwt
+    (requirePrincipal(req), requirePlayerToken(req)) match {
+      case (Left(res), _)            => Left(res)
+      case (_, Left(res))            => Left(res)
+      case (Right(p), Right(token))  => Right((p, token))
     }
-
+  }
 
   override def ws: WebSocket =
     WebSocket.acceptOrResult[JsValue, JsValue] { req =>
-      sidFromQueryOrSession(req) match {
+     sidFromQuery(req) match {
         case Left(res) =>
           Future.successful(Left(res))
 
