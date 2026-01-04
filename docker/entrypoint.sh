@@ -8,10 +8,18 @@ if [[ -z "${APPLICATION_SECRET:-}" ]]; then
   exit 1
 fi
 
-APP_BIN="/app/stage/bin/soccercardclashweb-backend"
-if [[ ! -f "$APP_BIN" ]]; then
-  echo "ERROR: $APP_BIN not found. Contents of /app/stage/bin:"
-  ls -la /app/stage/bin || true
+BIN_DIR="/app/stage/bin"
+if [[ ! -d "$BIN_DIR" ]]; then
+  echo "ERROR: $BIN_DIR not found."
+  ls -la /app/stage || true
+  exit 1
+fi
+
+APP_BIN="$(find "$BIN_DIR" -maxdepth 1 -type f -not -name "*.bat" | head -n 1)"
+
+if [[ -z "$APP_BIN" || ! -f "$APP_BIN" ]]; then
+  echo "ERROR: No app binary found in $BIN_DIR. Contents:"
+  ls -la "$BIN_DIR" || true
   exit 1
 fi
 
