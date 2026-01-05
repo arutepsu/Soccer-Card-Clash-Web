@@ -35,38 +35,43 @@ function isOfflineFetchError(e: any): boolean {
   )
 }
 
+import { resolveHttpUrl } from '@/api/url'
 export async function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
-  assertOnline(url)
+
+  const resolvedUrl = resolveHttpUrl(url)
+
+  if (!navigator.onLine) {
+    throw new OfflineError(`Offline: ${resolvedUrl}`)
+  }
 
   let token: string | null = null
   try {
     token = await getAccessToken()
   } catch (e) {
-    if (isOfflineFetchError(e)) throw new OfflineError(`Offline while getting token: ${url}`)
-    console.error('[apiFetch] getAccessToken threw', e)
     token = null
   }
 
   const headers = new Headers(init.headers ?? {})
   if (token) headers.set('Authorization', `Bearer ${token}`)
 
-  try {
-    const res = await fetch(url, { ...init, headers, credentials: 'include' })
+  const res = await fetch(resolvedUrl, {
+    ...init,
+    headers,
+    credentials: 'include',
+    // Optional but recommended for auth endpoints:
+    cache: 'no-store',
+  })
 
-    if (isAuthStatus(res.status)) {
-      const body = await res.text().catch(() => '')
-      console.warn('[apiFetch] auth failed', url, res.status, body)
-
-      if (token) authState.setLoggedOut()
-      throw new AuthRequiredError(`Auth required for ${url}`)
-    }
-
-    return res
-  } catch (e) {
-    if (isOfflineFetchError(e)) throw new OfflineError(`Offline: ${url}`)
-    throw e
+  if (res.status === 401) {
+    const body = await res.text().catch(() => '')
+    console.warn('[apiFetch] auth failed', resolvedUrl, res.status, body)
+    if (token) authState.setLoggedOut()
+    throw new AuthRequiredError(`Auth required for ${resolvedUrl}`)
   }
+
+  return res
 }
+
 
 export async function apiGetJSON<T>(url: string, headers?: HeadersInit): Promise<T> {
   const h = new Headers(headers ?? {})
