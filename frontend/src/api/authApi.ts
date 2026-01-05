@@ -55,11 +55,12 @@ async function me(): Promise<AuthMeResponse> {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'github',
       options: {
-        redirectTo: `${window.location.origin}/web/#/auth/callback`,
+        redirectTo: `${window.location.origin}/#/auth/callback`,
       },
     })
     if (error) throw new Error(error.message)
   }
+
 
   async function updateNickname(nickname: string) {
     const token = await getAccessToken()
