@@ -1,4 +1,5 @@
 import type { WebGameState } from '../types/WebGameState';
+import { resolveWsOrigin } from '@/api/url'
 
 export type GameCommandType =
   | 'GetState'
@@ -92,13 +93,11 @@ export function createServerPushClient(
   >();
 
 function buildWsUrl(token?: string | null): string {
-  const proto =
-    (opts.baseUrl?.startsWith('https') || location.protocol === 'https:') ? 'wss' : 'ws'
+  const origin = opts.baseUrl
+    ? opts.baseUrl.replace(/^http:/i, 'ws:').replace(/^https:/i, 'wss:').replace(/\/+$/, '')
+    : resolveWsOrigin()
 
-  const base =
-    opts.baseUrl
-      ? `${proto}://${opts.baseUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '')}${path}`
-      : `${proto}://${location.host}${path}`
+  const base = `${origin}${path}`
 
   const q = new URLSearchParams()
 
