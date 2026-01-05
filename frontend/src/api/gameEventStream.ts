@@ -1,6 +1,7 @@
 // frontend/src/api/gameEventStream.ts
 import type { WebGameState } from '@/types/WebGameState'
 import { getAccessToken } from '@/auth/token'
+import { resolveHttpUrl } from '@/api/url'
 
 export interface StreamHandle {
   type: 'sse' | 'comet' | 'ws' | 'none'
@@ -143,7 +144,7 @@ export function createGameEventStream(opts: CreateGameEventStreamOptions = {}): 
       q.set('sid', s)
       q.set('lastEventId', String(lastEventId))
 
-      let url = `/api/stream/comet?${q.toString()}`
+      let url = resolveHttpUrl(`/api/stream/comet?${q.toString()}`)
       url = await withAuthParams(url, s, getToken, getPlayerToken)
 
       try {
@@ -220,10 +221,9 @@ export function createGameEventStream(opts: CreateGameEventStreamOptions = {}): 
     const s = (sid ?? '').trim()
     if (!s) return null
 
-    const base = '/api/stream/sse'
+    const base = resolveHttpUrl('/api/stream/sse')
     const rawUrl = `${base}?sid=${encodeURIComponent(s)}`
     const url = await withAuthParams(rawUrl, s, getToken, getPlayerToken)
-
     const es = new EventSource(url, { withCredentials: true })
 
     let closed = false
