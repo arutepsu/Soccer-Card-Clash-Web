@@ -115,6 +115,10 @@ module.exports = (env, argv) => {
 
               runtimeCaching: [
                 {
+                  urlPattern: ({ url }) => url.pathname.startsWith('/api/stream/'),
+                  handler: 'NetworkOnly',
+                },
+                {
                   urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
                   handler: 'NetworkOnly',
                 },
