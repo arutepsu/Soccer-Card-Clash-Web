@@ -73,6 +73,7 @@ export interface SoundManagerLike {
 
 export interface OrchestratorDeps {
   api: GameApi;
+  getSid: () => string | null;
   scheduler: UIActionScheduler;
   comparisonHandler: ComparisonDialogHandler;
   ActionNames: ActionNameMap;
@@ -108,6 +109,7 @@ interface CurrentComparison {
 export function createComparisonOrchestrator({
   api,
   scheduler,
+  getSid,  
   comparisonHandler,
   ActionNames,
   getRoles,
@@ -149,10 +151,10 @@ export function createComparisonOrchestrator({
 async function applyBufferedStateAfterOverlay() {
   try {
     soundManager.play('attack', { volume: 0.7 });
-
+    const sid = getSid();
     const fresh =
       latestStreamWeb ||
-      (await api.fetchGameState()) ||
+      (sid ? await api.fetchGameState(sid) : null) ||
       lastStableWeb ||
       null;
 

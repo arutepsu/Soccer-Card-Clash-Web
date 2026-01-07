@@ -119,6 +119,10 @@ const comparisonHandler = createComparisonDialogHandler({
 function makeOrchestrator(a: any) {
   return createComparisonOrchestrator({
     api: a,
+    getSid: () =>
+      services.gameContext.mode.value === 'online'
+        ? services.gameContext.sessionId.value
+        : null,
     scheduler,
     comparisonHandler,
     ActionNames: {
@@ -349,8 +353,6 @@ onMounted(async () => {
 
   await init();
 });
-
-
 
 const playingSceneStyle = {
   backgroundImage: `url(${playingBg})`,
