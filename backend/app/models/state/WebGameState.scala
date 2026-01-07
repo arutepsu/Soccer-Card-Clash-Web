@@ -8,7 +8,8 @@ final case class WebGameState(
   scores: ScoresView,
   cards: CardsView,
   allowed: AllowedActionsView,
-  you: Option[YouView]
+  you: Option[YouView],
+  presence: Option[SessionPresenceView] = None
 )
 
 object WebGameState {
