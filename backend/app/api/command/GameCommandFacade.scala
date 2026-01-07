@@ -11,13 +11,17 @@ import app.session.{GameSessionError, GameSessionId, IGameSessionService, Player
 import app.api.usecases.IGameUseCases
 import de.htwg.se.soccercardclash.model.gameComponent.context.GameContext
 import play.api.libs.json.{JsObject, Json}
+import app.api.context.IGameContextRepository
+import app.api.ai.ComparisonFromDiff
 
 @Singleton
 final class GameCommandFacade @Inject()(
   sessionService: IGameSessionService,
   gameUseCases: IGameUseCases,
   viewStateMapper: IViewStateMapper,
-  eventHub: GameEventHub
+  eventHub: GameEventHub,
+  ctxRepo: IGameContextRepository,
+  comp: ComparisonFromDiff
 ) extends IGameCommandFacade {
 
   private val LocalPrincipal: AuthPrincipal =
@@ -39,6 +43,7 @@ final class GameCommandFacade @Inject()(
   ): Either[AppError, WebGameState] = {
 
     val eff = effectivePrincipal(mode, principal)
+    val beforeOpt: Option[GameContext] = ctxRepo.get(sid)
 
     val ctxE: Either[AppError, GameContext] =
       mode match {
@@ -60,12 +65,15 @@ final class GameCommandFacade @Inject()(
           }
       }
 
+
     ctxE.map { ctx =>
       val infoOpt =
         mode match {
           case CommandMode.online => sessionService.getSession(sid).toOption
           case CommandMode.local  => None
         }
+      val comparisonMeta: JsObject =
+        comp.metaFor(cmd, beforeOpt, ctx)
 
       val web = viewStateMapper.toWebState(ctx, eff, infoOpt)
 
@@ -75,11 +83,12 @@ final class GameCommandFacade @Inject()(
         case None    => baseMeta
       }
 
-      eventHub.publish(sid = sid, ctx = ctx, meta = mergedMeta)
+      val mergedMeta2 = mergedMeta.deepMerge(comparisonMeta)
+      eventHub.publish(sid = sid, ctx = ctx, meta = mergedMeta2)
+
       web
     }
   }
-
 
   private def executeLocallyCtx(
     sid: GameSessionId,

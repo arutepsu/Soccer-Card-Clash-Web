@@ -2,6 +2,7 @@ import { ref, type Ref } from 'vue';
 import type { WebGameState } from '@/types/WebGameState';
 import type { StreamHandle } from '@/api/gameEventStream';
 import type { GameApiRouter } from './appServices';
+import { createAsyncQueue } from '@/utils/asyncQueue'
 
 export type GameMode = 'local' | 'online';
 export type LocalKind = 'pvp' | 'practice';
@@ -35,6 +36,7 @@ export interface GameContextService {
 
   setMode(nextMode: GameMode): void;
   setSessionId(id: string | null): void;
+  setComparisonHandler(fn: ((payload: any) => Promise<void>) | null): void
 }
 
 export function createGameContextService(game: GameApiRouter): GameContextService {
@@ -99,6 +101,8 @@ export function createGameContextService(game: GameApiRouter): GameContextServic
     firstStreamMessage = true;
   }
 
+  const q = createAsyncQueue()
+
   async function startOnline(id: string): Promise<void> {
     const sid = (id ?? '').trim();
     if (!sid) throw new Error('[GameContext] startOnline: sessionId is required');
@@ -123,21 +127,31 @@ export function createGameContextService(game: GameApiRouter): GameContextServic
     firstStreamMessage = true;
 
     handle = api.openStream((next, meta) => {
-      if (myToken !== startToken) return;
+      if (myToken !== startToken) return
 
-      state.value = next;
+      q.enqueue(async () => {
+        if (myToken !== startToken) return
 
-      const action = meta?.action;
-      if (
-        action === 'RegularAttack' ||
-        action === 'DoubleAttack' ||
-        action === 'SessionEnded'
-      ) {
-        lastMeta.value = meta;
-      } else {
-        lastMeta.value = null;
-      }
-    }, sid);
+        if (firstStreamMessage) {
+          firstStreamMessage = false
+          state.value = next
+          lastMeta.value = null
+          return
+        }
+
+        const action = meta?.action
+
+        if (action === 'Comparison' && meta?.payload && comparisonHandler) {
+          lastMeta.value = meta
+          await comparisonHandler(meta.payload)
+        } else {
+          lastMeta.value = meta ?? null
+        }
+
+        state.value = next
+      })
+    }, sid)
+
   }
 
   async function start(nextMode: GameMode, sid?: string | null): Promise<void> {
@@ -195,17 +209,30 @@ export function createGameContextService(game: GameApiRouter): GameContextServic
       firstStreamMessage = true;
 
       handle = api.openStream((next, meta) => {
-        if (myToken !== startToken) return;
-        state.value = next;
+        if (myToken !== startToken) return
 
-        if (firstStreamMessage) {
-          firstStreamMessage = false;
-          lastMeta.value = null;
-          return;
-        }
+        q.enqueue(async () => {
+          if (myToken !== startToken) return
 
-        lastMeta.value = meta ?? null;
-      }, id);
+          if (firstStreamMessage) {
+            firstStreamMessage = false
+            state.value = next
+            lastMeta.value = null
+            return
+          }
+
+          const action = meta?.action
+          if (action === 'Comparison' && meta?.payload && comparisonHandler) {
+            lastMeta.value = meta
+            await comparisonHandler(meta.payload)
+          } else {
+            lastMeta.value = meta ?? null
+          }
+
+          state.value = next
+        })
+      }, sid)
+
     }
   }
 
@@ -231,6 +258,12 @@ export function createGameContextService(game: GameApiRouter): GameContextServic
 
     localKind.value = 'pvp';
   }
+  
+  let comparisonHandler: ((payload: any) => Promise<void>) | null = null
+
+  function setComparisonHandler(fn: ((payload: any) => Promise<void>) | null) {
+    comparisonHandler = fn
+  }
 
   return {
     state, mode, sessionId,
@@ -245,5 +278,6 @@ export function createGameContextService(game: GameApiRouter): GameContextServic
 
     stop, setState, clear,
     setMode, setSessionId,
+    setComparisonHandler
   };
 }

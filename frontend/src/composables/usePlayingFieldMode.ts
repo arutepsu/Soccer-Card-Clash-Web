@@ -30,7 +30,7 @@ export function usePlayingFieldMode(
 
     if (st.you) return st.you.isAttacker === true;
 
-    const me = (authState.username ?? '').trim().toLowerCase();
+    const me = (authState.nickname ?? '').trim().toLowerCase();
     const attacker = (st.roles?.attacker ?? '').trim().toLowerCase();
     return !!me && me === attacker;
   });
@@ -53,7 +53,7 @@ export function usePlayingFieldMode(
 
     if (st.you) return st.you.isAttacker === false;
 
-    const me = (authState.username ?? '').trim().toLowerCase();
+    const me = (authState.nickname ?? '').trim().toLowerCase();
     const attacker = (st.roles?.attacker ?? '').trim().toLowerCase();
     return !!me && me !== attacker;
   });
@@ -71,7 +71,7 @@ export function usePlayingFieldMode(
       return myTurn.value ? d : a;
     }
 
-    const me = (authState.username ?? '').trim().toLowerCase();
+    const me = (authState.nickname ?? '').trim().toLowerCase();
     return a.toLowerCase() === me ? d : a;
   });
 
