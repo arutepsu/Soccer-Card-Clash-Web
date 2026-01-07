@@ -62,7 +62,7 @@ export interface PushClient {
     getPlayerId?: () => string | null
     getAccessToken?: () => Promise<string | null>
 
-    getPlayerToken?: (sid: string | null) => string | null
+    getPlayerToken?: (sid: string | null) => Promise<string | null> | string | null
   }
 
 
@@ -92,26 +92,27 @@ export function createServerPushClient(
     { resolve: (state: WebGameState | null) => void; reject: (err: unknown) => void }
   >();
 
-function buildWsUrl(token?: string | null): string {
+async function buildWsUrl(token?: string | null): Promise<string> {
   const origin = opts.baseUrl
     ? opts.baseUrl.replace(/^http:/i, 'ws:').replace(/^https:/i, 'wss:').replace(/\/+$/, '')
-    : resolveWsOrigin()
+    : resolveWsOrigin();
 
-  const base = `${origin}${path}`
+  const base = `${origin}${path}`;
+  const q = new URLSearchParams();
 
-  const q = new URLSearchParams()
+  const t = (token ?? '').trim();
+  if (t) q.set('token', t);
 
-  const t = (token ?? '').trim()
-  if (t) q.set('token', t)
+  const sid = (currentGameId ?? '').trim();
+  if (sid) q.set('sid', sid);
 
-  const sid = (currentGameId ?? '').trim()
-  if (sid) q.set('sid', sid)
+  const maybePt = opts.getPlayerToken?.(currentGameId) ?? null;
+  const pt = typeof maybePt === 'string' ? maybePt : await maybePt;
+  const ptTrim = (pt ?? '').trim();
+  if (ptTrim) q.set('playerToken', ptTrim);
 
-  const pt = (opts.getPlayerToken?.(currentGameId) ?? '').trim()
-  if (pt) q.set('playerToken', pt)
-
-  const qs = q.toString()
-  return qs ? `${base}?${qs}` : base
+  const qs = q.toString();
+  return qs ? `${base}?${qs}` : base;
 }
 
   function scheduleReconnect(): void {
@@ -122,35 +123,39 @@ function buildWsUrl(token?: string | null): string {
       if (currentGameId) void connect();
     }, reconnectDelayMs);
   }
+  let connectSeq = 0;
 
   async function connect(): Promise<void> {
+    const mySeq = ++connectSeq;
+
     const token = await opts.getAccessToken?.().catch(() => null);
+    if (mySeq !== connectSeq) return;
 
-    if (!token) {
-      scheduleReconnect();
-      return;
-    }
+    if (!token) { scheduleReconnect(); return; }
 
-    const url = buildWsUrl(token);
-
+    const url = await buildWsUrl(token);
+    if (mySeq !== connectSeq) return;
+    
+    let nextWs: WebSocket;
     try {
-      ws = new WebSocket(url);
+      nextWs = new WebSocket(url);
     } catch (err) {
       console.warn('[WS] failed to construct WebSocket:', err);
       scheduleReconnect();
       return;
     }
 
-    ws.onopen = () => {
-      connected = true;
-    };
+    if (ws) { try { ws.close(); } catch {} }
+    ws = nextWs;
+
+    ws.onopen = () => { if (mySeq === connectSeq) connected = true; };
 
     ws.onclose = (ev) => {
-      connected = false
-      console.warn('[WS] close', { code: ev.code, reason: ev.reason, wasClean: ev.wasClean })
-
-      if (!intentionallyClosed) scheduleReconnect()
-    }
+      if (ws === nextWs) ws = null;
+      connected = false;
+      console.warn('[WS] close', { code: ev.code, reason: ev.reason, wasClean: ev.wasClean });
+      if (!intentionallyClosed) scheduleReconnect();
+    };
 
     ws.onerror = (e) => {
       console.warn('[WS] error:', e);
