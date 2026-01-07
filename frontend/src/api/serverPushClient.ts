@@ -153,7 +153,6 @@ async function buildWsUrl(token?: string | null): Promise<string> {
     ws.onclose = (ev) => {
       if (ws === nextWs) ws = null;
       connected = false;
-      console.warn('[WS] close', { code: ev.code, reason: ev.reason, wasClean: ev.wasClean });
       if (!intentionallyClosed) scheduleReconnect();
     };
 
