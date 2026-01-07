@@ -137,16 +137,7 @@ export function createAppServices(): AppServices {
 
       const nextSid = (sid ?? '').trim() || null;
       pushClient.setGameId?.(nextSid);
-
-      if (!nextSid) {
-        lastOnlineSid = null;
-        return;
-      }
-
-      if (nextSid !== lastOnlineSid) {
-        lastOnlineSid = nextSid;
-        pushClient.reconnect();
-      }
+      lastOnlineSid = nextSid;
     },
     { immediate: true },
   );

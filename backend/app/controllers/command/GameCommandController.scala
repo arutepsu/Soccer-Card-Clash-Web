@@ -92,7 +92,7 @@ final class GameCommandController @Inject()(
           val res =
             mode match {
               case CommandMode.local  => ensureLocalSid(req, res0, sid)
-              case CommandMode.online => res0
+              case CommandMode.online => ensureSid(req, res0, sid)
             }
 
           Future.successful(res)
