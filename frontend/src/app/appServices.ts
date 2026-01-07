@@ -97,6 +97,7 @@ export function createAppServices(): AppServices {
         streamClient,
         pushClient,
         getPlayerId: () => getCurrentPlayerId(),
+        getSid: () => gameContext.sessionId.value,
       })
     : ({
         openStream() { return { type: 'none' as const, close() {} }; },

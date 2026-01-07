@@ -135,7 +135,7 @@ async function buildWsUrl(token?: string | null): Promise<string> {
 
     const url = await buildWsUrl(token);
     if (mySeq !== connectSeq) return;
-    
+
     let nextWs: WebSocket;
     try {
       nextWs = new WebSocket(url);
@@ -195,6 +195,7 @@ async function buildWsUrl(token?: string | null): Promise<string> {
 
             if (msg.kind === 'error') {
               const e = new Error(errMsg || 'WS command failed');
+              (e as any).isGameError = true; 
               (e as any).code = msg.type;
               (e as any).meta = msg.meta;
               (e as any).gameId = msg.gameId;
