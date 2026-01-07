@@ -51,6 +51,16 @@ class ViewStateMapper @Inject()() extends IViewStateMapper {
     val att = roles.attacker
     val de  = roles.defender
 
+    val now = System.currentTimeMillis()
+    val ttlMs = 30_000L
+
+    val presence =
+      infoOpt.map { info =>
+        val hostOnline  = (now - info.lastSeenHostMs) <= ttlMs
+        val guestOnline = (now - info.lastSeenGuestMs) <= ttlMs
+        SessionPresenceView(hostOnline, guestOnline)
+      }
+
     def handFor(p: IPlayer): Seq[CardView] =
       qToSeq(gameCards.getPlayerHand(p)).map(toCardView)
 
@@ -108,7 +118,8 @@ class ViewStateMapper @Inject()() extends IViewStateMapper {
         defenderGoalkeeper = defenderGK
       ),
       allowed = allowed,
-      you = youView
+      you = youView,
+      presence = presence
     )
 
     }

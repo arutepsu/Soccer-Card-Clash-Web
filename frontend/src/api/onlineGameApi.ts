@@ -9,6 +9,7 @@ interface CreateOnlineGameApiOptions {
   streamClient?: StreamClient | null
   pushClient?: PushClient | null
   getPlayerId?: () => string | null
+  getSid?: () => string | null
 }
 
 type FlatCommandBody = Record<string, unknown> & { type: string; playerId?: string | null }
@@ -50,16 +51,22 @@ export function createOnlineGameApi(options: CreateOnlineGameApiOptions = {}): G
       try {
         await pushClient.sendCommand(type, fields)
         return null
-      } catch (err) {
-        console.warn('[OnlineGameApi] WS failed, fallback to REST:', err)
+      } catch (err: any) {
+        const isServerResponse = !!err?.code || !!err?.meta || !!err?.gameId
+        if (isServerResponse) throw err
+
+        console.warn('[OnlineGameApi] WS transport failed, fallback to REST:', err)
       }
     }
 
-    await apiPostJSON<WebGameState>(withSid('/api/command', sid), body, extraHeaders)
+    const sidResolved = resolveSid(sid)
+    if (!sidResolved) throw new Error(`commandWithWsFallback(${type}): missing sid for REST fallback`)
+
+    await apiPostJSON<WebGameState>(withSid('/api/command', sidResolved), body, extraHeaders)
     return null
   }
 
-  function openStream(
+    function openStream(
     onState: (state: WebGameState, meta?: any | null) => void,
     sid?: string | null,
   ): StreamHandle {
@@ -112,12 +119,23 @@ export function createOnlineGameApi(options: CreateOnlineGameApiOptions = {}): G
     }
   }
 
+  function resolveSid(explicit?: string | null): string | null {
+    const s1 = (explicit ?? '').trim()
+    if (s1) return s1
+    const s2 = (options.getSid?.() ?? '').trim()
+    return s2 ? s2 : null
+  }
+
   async function fetchGameState(sid?: string | null): Promise<WebGameState> {
-    return apiGetJSON<WebGameState>(withSid('/api/state', sid), extraHeaders)
+    const s = resolveSid(sid)
+    if (!s) throw new Error('fetchGameState(online): missing sid')
+    return apiGetJSON<WebGameState>(withSid('/api/state', s), extraHeaders)
   }
 
   function getState(sid?: string | null): Promise<WebGameState | null> {
-    return apiGetJSON<WebGameState>(withSid('/api/state', sid), extraHeaders).catch(() => null)
+    const s = resolveSid(sid)
+    if (!s) return Promise.resolve(null)
+    return apiGetJSON<WebGameState>(withSid('/api/state', s), extraHeaders).catch(() => null)
   }
 
   function createLocalMultiplayer(attackerName: string, defenderName: string) {

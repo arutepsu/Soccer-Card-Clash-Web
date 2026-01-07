@@ -288,8 +288,10 @@ final class GameSessionService @Inject()(
     principal: AuthPrincipal,
     token: PlayerToken,
     id: GameSessionId
-  ): Either[GameSessionError, SessionInfo] =
-    leaveSessionWithReason(principal, token, id, reason = "disconnect")
+  ): Either[GameSessionError, SessionInfo] = {
+    markDisconnected(principal, token, id)
+    getSession(id)
+  }
 
   private def displayName(p: AuthPrincipal): String =
             p.nickname
@@ -317,21 +319,51 @@ final class GameSessionService @Inject()(
 
           publishSessionEnded(id, leftName, reason)
 
-          if (isHost || info.state == SessionState.Started) {
+          if (isHost) {
             sessionRepo.clear(id)
             Left(CommandFailed("Session closed"))
           } else {
             val guestKey = info.guestName.map(norm).getOrElse("")
             val updated = info.copy(
-              guestName    = None,
-              guestToken   = None,
-              guestUserId  = None,
-              state        = SessionState.Waiting,
-              nameToUserId = if (guestKey.nonEmpty) info.nameToUserId - guestKey else info.nameToUserId
+              guestName        = None,
+              guestToken       = None,
+              guestUserId      = None,
+              guestConnected   = false,
+              state            = SessionState.Waiting,
+              nameToUserId     = if (guestKey.nonEmpty) info.nameToUserId - guestKey else info.nameToUserId
             )
             updateSession(id, updated)
             Right(updated)
           }
         }
+    }
+  override def markConnected(principal: AuthPrincipal, token: PlayerToken, id: GameSessionId): Unit =
+    getSessionOpt(id).foreach { info =>
+      if (!isAuthorized(info, principal, token)) ()
+      else {
+        val now = System.currentTimeMillis()
+        val updated =
+          if (info.hostUserId == principal.userId)
+            info.copy(hostConnected = true, lastSeenHostMs = now)
+          else
+            info.copy(guestConnected = true, lastSeenGuestMs = now)
+
+        updateSession(id, updated)
+      }
+    }
+
+  override def markDisconnected(principal: AuthPrincipal, token: PlayerToken, id: GameSessionId): Unit =
+    getSessionOpt(id).foreach { info =>
+      if (!isAuthorized(info, principal, token)) ()
+      else {
+        val now = System.currentTimeMillis()
+        val updated =
+          if (info.hostUserId == principal.userId)
+            info.copy(hostConnected = false, lastSeenHostMs = now)
+          else
+            info.copy(guestConnected = false, lastSeenGuestMs = now)
+
+        updateSession(id, updated)
+      }
     }
 }

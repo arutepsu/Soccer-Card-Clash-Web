@@ -97,6 +97,7 @@ export function createAppServices(): AppServices {
         streamClient,
         pushClient,
         getPlayerId: () => getCurrentPlayerId(),
+        getSid: () => gameContext.sessionId.value,
       })
     : ({
         openStream() { return { type: 'none' as const, close() {} }; },
@@ -137,16 +138,7 @@ export function createAppServices(): AppServices {
 
       const nextSid = (sid ?? '').trim() || null;
       pushClient.setGameId?.(nextSid);
-
-      if (!nextSid) {
-        lastOnlineSid = null;
-        return;
-      }
-
-      if (nextSid !== lastOnlineSid) {
-        lastOnlineSid = nextSid;
-        pushClient.reconnect();
-      }
+      lastOnlineSid = nextSid;
     },
     { immediate: true },
   );

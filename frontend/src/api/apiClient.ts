@@ -1,5 +1,6 @@
 import { getAccessToken } from '@/auth/token'
 import { authState } from '@/auth/authState'
+import { resolveHttpUrl } from '@/api/url'
 
 export class AuthRequiredError extends Error {
   constructor(message = 'Authentication required') {
@@ -35,15 +36,21 @@ function isOfflineFetchError(e: any): boolean {
   )
 }
 
+function looksLikeHtml(res: Response): boolean {
+  const ct = res.headers.get('content-type') || ''
+  return ct.includes('text/html')
+}
+
 export async function apiFetch(url: string, init: RequestInit = {}): Promise<Response> {
-  assertOnline(url)
+  const resolvedUrl = resolveHttpUrl(url)
+  assertOnline(resolvedUrl)
 
   let token: string | null = null
   try {
     token = await getAccessToken()
   } catch (e) {
-    if (isOfflineFetchError(e)) throw new OfflineError(`Offline while getting token: ${url}`)
-    console.error('[apiFetch] getAccessToken threw', e)
+    if (isOfflineFetchError(e)) throw new OfflineError(`Offline while getting token: ${resolvedUrl}`)
+    console.warn('[apiFetch] getAccessToken threw', e)
     token = null
   }
 
@@ -51,19 +58,22 @@ export async function apiFetch(url: string, init: RequestInit = {}): Promise<Res
   if (token) headers.set('Authorization', `Bearer ${token}`)
 
   try {
-    const res = await fetch(url, { ...init, headers, credentials: 'include' })
+    const res = await fetch(resolvedUrl, {
+      ...init,
+      headers,
+      credentials: 'include',
+    })
 
     if (isAuthStatus(res.status)) {
       const body = await res.text().catch(() => '')
-      console.warn('[apiFetch] auth failed', url, res.status, body)
-
+      console.warn('[apiFetch] auth failed', resolvedUrl, res.status, body)
       if (token) authState.setLoggedOut()
-      throw new AuthRequiredError(`Auth required for ${url}`)
+      throw new AuthRequiredError(`Auth required for ${resolvedUrl}`)
     }
 
     return res
   } catch (e) {
-    if (isOfflineFetchError(e)) throw new OfflineError(`Offline: ${url}`)
+    if (isOfflineFetchError(e)) throw new OfflineError(`Offline: ${resolvedUrl}`)
     throw e
   }
 }
@@ -73,6 +83,12 @@ export async function apiGetJSON<T>(url: string, headers?: HeadersInit): Promise
   h.set('Accept', 'application/json')
 
   const res = await apiFetch(url, { method: 'GET', headers: h })
+
+  // super helpful when you accidentally hit frontend (index.html) instead of backend JSON
+  if (looksLikeHtml(res)) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`[apiGetJSON] Expected JSON but got HTML for ${url} (${res.status}). First 120 chars: ${text.slice(0, 120)}`)
+  }
 
   if (!res.ok) {
     const text = await res.text().catch(() => '')
@@ -96,6 +112,11 @@ export async function apiPostJSON<T>(
     headers: h,
     body: JSON.stringify(payload),
   })
+
+  if (looksLikeHtml(res)) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`[apiPostJSON] Expected JSON but got HTML for ${url} (${res.status}). First 120 chars: ${text.slice(0, 120)}`)
+  }
 
   if (!res.ok) {
     const text = await res.text().catch(() => '')

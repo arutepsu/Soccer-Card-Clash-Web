@@ -1,6 +1,6 @@
 import { supabase } from '@/api/supabase'
 import { getAccessToken } from '@/auth/token'
-import { apiGetJSON } from './apiClient'
+import { apiGetJSON, apiFetch } from './apiClient'
 
 export interface AuthMeResponse {
   loggedIn: boolean
@@ -55,39 +55,32 @@ async function me(): Promise<AuthMeResponse> {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'github',
       options: {
-        redirectTo: `${window.location.origin}/web/#/auth/callback`,
+        redirectTo: `${window.location.origin}/#/auth/callback`,
       },
     })
     if (error) throw new Error(error.message)
   }
 
-  async function updateNickname(nickname: string) {
-    const token = await getAccessToken()
-    if (!token) throw new Error('Not logged in')
 
-    const res = await fetch('/api/auth/profile', {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ nickname }),
-    })
+async function updateNickname(nickname: string) {
+  const res = await apiFetch('/api/auth/profile', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nickname }),
+  })
 
-    const body = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(body.error ?? `Update nickname failed: ${res.status}`)
-    return body
-  }
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(body.error ?? `Update nickname failed: ${res.status}`)
+  return body
+}
 
-  async function logout(): Promise<void> {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw new Error(error.message)
 
-    await fetch('/api/auth/logout', {
-      method: 'POST',
-      credentials: 'include',
-    }).catch(() => {})
-  }
+async function logout(): Promise<void> {
+  const { error } = await supabase.auth.signOut()
+  if (error) throw new Error(error.message)
+
+  await apiFetch('/api/auth/logout', { method: 'POST' }).catch(() => {})
+}
 
   return { me, loginEmail, signupEmail, loginGitHub, logout, updateNickname }
 }

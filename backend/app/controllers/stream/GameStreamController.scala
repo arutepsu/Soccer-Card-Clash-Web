@@ -62,6 +62,8 @@ final class GameStreamController @Inject()(
           case Left(res) => Future.successful(res)
 
           case Right(sid) =>
+            sessionService.markConnected(principal, token, sid)
+
             val (queue, src) =
               Source.queue[GameEvent](32, OverflowStrategy.dropHead).preMaterialize()
 
@@ -70,9 +72,10 @@ final class GameStreamController @Inject()(
               ()
             }
 
+
             queue.watchCompletion().foreach { _ =>
               unsubscribe()
-              sessionService.leaveSessionDisconnected(principal, token, sid)
+              sessionService.markDisconnected(principal, token, sid)
               ()
             }(ec)
 
@@ -138,11 +141,12 @@ final class GameStreamController @Inject()(
       case Left(res) =>
         Future.successful(res)
 
-      case Right((principal, _token)) =>
+      case Right((principal, token)) =>
         sidFromQuery(req) match {
           case Left(res) => Future.successful(res)
 
           case Right(sid) =>
+            sessionService.markConnected(principal, token, sid)
             val infoOpt: Option[SessionInfo] = sessionRepo.get(sid)
 
             def snapshotJson: Option[String] =

@@ -12,7 +12,12 @@ final case class SessionInfo(
 
   state: SessionState,
 
-  nameToUserId: Map[String, String] = Map.empty
+  nameToUserId: Map[String, String] = Map.empty,
+
+  hostConnected: Boolean = true,
+  guestConnected: Boolean = true,
+  lastSeenHostMs: Long = System.currentTimeMillis(),
+  lastSeenGuestMs: Long = System.currentTimeMillis()
 )
 
 object SessionInfo {

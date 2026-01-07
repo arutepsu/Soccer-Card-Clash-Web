@@ -115,6 +115,10 @@ module.exports = (env, argv) => {
 
               runtimeCaching: [
                 {
+                  urlPattern: ({ url }) => url.pathname.startsWith('/api/stream/'),
+                  handler: 'NetworkOnly',
+                },
+                {
                   urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
                   handler: 'NetworkOnly',
                 },
@@ -173,6 +177,7 @@ module.exports = (env, argv) => {
         __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: JSON.stringify(false),
         'process.env.SUPABASE_URL': JSON.stringify(process.env.SUPABASE_URL),
         'process.env.SUPABASE_ANON_KEY': JSON.stringify(process.env.SUPABASE_ANON_KEY),
+        'process.env.API_BASE_URL': JSON.stringify(process.env.API_BASE_URL || ''),
       }),
     ],
 

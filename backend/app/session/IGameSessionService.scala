@@ -46,4 +46,8 @@ trait IGameSessionService {
     token: PlayerToken,
     id: GameSessionId
   ): Either[GameSessionError, SessionInfo]
+
+  
+  def markConnected(principal: AuthPrincipal, token: PlayerToken, id: GameSessionId): Unit
+  def markDisconnected(principal: AuthPrincipal, token: PlayerToken, id: GameSessionId): Unit
 }
