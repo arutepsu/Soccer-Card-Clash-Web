@@ -19,6 +19,9 @@ import scala.util.{Try, Success, Failure}
 import app.mapping.IViewStateMapper
 import app.auth.AuthPrincipal
 import app.session.repositories.IGameSessionRepository
+import app.api.ai.AiTurnService
+import de.htwg.se.soccercardclash.model.playerComponent.base.Player
+import app.api.concurrency.SessionLockService
 
 @Singleton
 final class GameUseCases @Inject()(
@@ -27,7 +30,9 @@ final class GameUseCases @Inject()(
   actionMgr: IPlayerActionManager,
   val holder: IGameContextHolder,
   viewStateMapper: IViewStateMapper,
-  sessionRepo: IGameSessionRepository
+  sessionRepo: IGameSessionRepository,
+  aiTurns: AiTurnService,
+  locks: SessionLockService
 ) extends IGameUseCases {
 
 
@@ -64,6 +69,17 @@ final class GameUseCases @Inject()(
     render(sid, ctx, principal)
   }
 
+  private def saveRunAiSaveAndRender(
+    sid: GameSessionId,
+    ctxAfterHuman: GameContext,
+    principal: Option[AuthPrincipal]
+  ): Either[AppError, WebGameState] =
+    locks.withLock(sid) {
+      repo.set(sid, ctxAfterHuman)
+      val ctxAfterAi = aiTurns.runIfNeeded(ctxAfterHuman)
+      repo.set(sid, ctxAfterAi)
+      render(sid, ctxAfterAi, principal)
+    }
 
   override def createGame(
     p1: String,
@@ -87,7 +103,7 @@ final class GameUseCases @Inject()(
     controller.createGameWithAI(humanPlayer, aiName)
     for {
       ctx <- getFromHolder
-      res <- saveAndRender(sid, ctx, principal)
+      res <- saveRunAiSaveAndRender(sid, ctx, principal)
     } yield res
   }
 
@@ -112,7 +128,6 @@ final class GameUseCases @Inject()(
       else Left(AppError("Save failed"))
     }
 
-
   override def state(
     sid: GameSessionId,
     principal: Option[AuthPrincipal]
@@ -128,28 +143,30 @@ final class GameUseCases @Inject()(
     principal: AuthPrincipal
   ): Either[AppError, Unit] = {
 
-    val attackerName = ctx.state.getRoles.attacker.name
-    val attackerKey  = norm(attackerName)
+    ctx.state.getRoles.attacker match {
+      case p: Player if p.isAI =>
+        Left(AppError("Not your turn (AI is acting)"))
 
-    sessionRepo.get(sid) match {
+      case _ =>
+        val attackerName = ctx.state.getRoles.attacker.name
+        val attackerKey  = norm(attackerName)
 
-      case Some(info) =>
-        info.nameToUserId.get(attackerKey) match {
-          case Some(uid) if uid == principal.userId => Right(())
-          case Some(_)  => Left(AppError("Not your turn (only attacker may act)"))
-          case None     =>
-            Left(AppError(
-              s"Cannot resolve attacker user for '$attackerName' (mapping missing). " +
-              s"Known names: [${info.nameToUserId.keys.toSeq.sorted.mkString(", ")}]"
-            ))
+        sessionRepo.get(sid) match {
+          case Some(info) =>
+            info.nameToUserId.get(attackerKey) match {
+              case Some(uid) if uid == principal.userId => Right(())
+              case Some(_)  => Left(AppError("Not your turn (only attacker may act)"))
+              case None     =>
+                Left(AppError(
+                  s"Cannot resolve attacker user for '$attackerName' (mapping missing). " +
+                  s"Known names: [${info.nameToUserId.keys.toSeq.sorted.mkString(", ")}]"
+                ))
+            }
+          case None =>
+            Right(())
         }
-
-      case None =>
-        Right(())
     }
   }
-
-
 
   override def swap(index: Int, sid: GameSessionId, principal: AuthPrincipal): Either[AppError, WebGameState] =
     withCtx(sid) { ctx =>
@@ -158,7 +175,9 @@ final class GameUseCases @Inject()(
         att = ctx.state.getRoles.attacker
         _ <- if (!actionMgr.canPerform(att, PlayerActionPolicies.Swap)) Left(AppError("No swaps remaining")) else Right(())
         (next, ok) = controller.regularSwap(index, ctx)
-        res <- if (!ok) Left(AppError("Swap not allowed")) else saveAndRender(sid, next, Some(principal))
+        res <- if (!ok) Left(AppError("Swap not allowed"))
+              else saveRunAiSaveAndRender(sid, next, Some(principal))
+
       } yield res
     }
 
@@ -167,7 +186,8 @@ final class GameUseCases @Inject()(
       for {
         _ <- requireAttackerTurn(sid, ctx, principal)
         (next, ok) = controller.reverseSwap(ctx)
-        res <- if (!ok) Left(AppError("Reverse swap not allowed")) else saveAndRender(sid, next, Some(principal))
+        res <- if (!ok) Left(AppError("Reverse swap not allowed"))
+              else saveRunAiSaveAndRender(sid, next, Some(principal))
       } yield res
     }
 
@@ -187,14 +207,18 @@ final class GameUseCases @Inject()(
               Left(AppError("No boosts remaining"))
             else Right(())
 
-        (next, ok) =
+        nextOk =
           if (goalkeeper) controller.boostGoalkeeper(ctx)
           else            controller.boostDefender(defenderIndex, ctx)
 
+        (next, ok) = nextOk
+
         res <- if (!ok) Left(AppError("Boost not allowed"))
-              else saveAndRender(sid, next, Some(principal))
+              else saveRunAiSaveAndRender(sid, next, Some(principal))
+
       } yield res
     }
+
 
 
   override def doubleAttack(defenderIndex: Int, sid: GameSessionId, principal: AuthPrincipal): Either[AppError, WebGameState] =
@@ -204,7 +228,8 @@ final class GameUseCases @Inject()(
         att = ctx.state.getRoles.attacker
         _ <- if (!actionMgr.canPerform(att, PlayerActionPolicies.DoubleAttack)) Left(AppError("No double-attacks remaining")) else Right(())
         (next, ok) = controller.doubleAttack(defenderIndex, ctx)
-        res <- if (!ok) Left(AppError("Double attack not allowed")) else saveAndRender(sid, next, Some(principal))
+        res <- if (!ok) Left(AppError("Attack not allowed"))
+              else saveRunAiSaveAndRender(sid, next, Some(principal))
       } yield res
     }
 
@@ -213,7 +238,8 @@ final class GameUseCases @Inject()(
       for {
         _ <- requireAttackerTurn(sid, ctx, principal)
         (next, ok) = controller.singleAttack(defenderIndex, ctx)
-        res <- if (!ok) Left(AppError("Attack not allowed")) else saveAndRender(sid, next, Some(principal))
+        res <- if (!ok) Left(AppError("Attack not allowed"))
+              else saveRunAiSaveAndRender(sid, next, Some(principal))
       } yield res
     }
 
@@ -222,7 +248,7 @@ final class GameUseCases @Inject()(
       for {
         _ <- requireAttackerTurn(sid, ctx, principal)
         next = controller.undo(ctx)
-        res <- saveAndRender(sid, next, Some(principal))
+        res <- saveRunAiSaveAndRender(sid, next, Some(principal))
       } yield res
     }
 
@@ -231,16 +257,7 @@ final class GameUseCases @Inject()(
       for {
         _ <- requireAttackerTurn(sid, ctx, principal)
         next = controller.redo(ctx)
-        res <- saveAndRender(sid, next, Some(principal))
-      } yield res
-    }
-
-  override def executeAI(action: AIAction, sid: GameSessionId, principal: AuthPrincipal): Either[AppError, WebGameState] =
-    withCtx(sid) { ctx =>
-      for {
-        _ <- requireAttackerTurn(sid, ctx, principal)
-        (next, ok) = controller.executeAIAction(action, ctx)
-        res <- if (!ok) Left(AppError("AI action not allowed")) else saveAndRender(sid, next, Some(principal))
+        res <- saveRunAiSaveAndRender(sid, next, Some(principal))
       } yield res
     }
 

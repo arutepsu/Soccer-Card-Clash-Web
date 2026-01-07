@@ -243,9 +243,6 @@ final class GameSessionService @Inject()(
       case GameCommand.Redo =>
         gameUseCases.redo(id, principal)
 
-      case GameCommand.ExecuteAI(action) =>
-        gameUseCases.executeAI(action, id, principal)
-
       case GameCommand.CreateGame(p1, p2) =>
         gameUseCases.createGame(p1, p2, id, Some(principal))
 

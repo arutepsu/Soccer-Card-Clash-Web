@@ -27,8 +27,6 @@ trait IGameUseCases {
   def undo(sid: GameSessionId, principal: AuthPrincipal): Either[AppError, WebGameState]
   def redo(sid: GameSessionId, principal: AuthPrincipal): Either[AppError, WebGameState]
 
-  def executeAI(action: AIAction, sid: GameSessionId, principal: AuthPrincipal): Either[AppError, WebGameState]
-
   def quit(): Either[AppError, Unit]
 
   def getCtx(sid: GameSessionId): Option[GameContext]

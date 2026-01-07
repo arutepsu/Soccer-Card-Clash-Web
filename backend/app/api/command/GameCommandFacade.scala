@@ -95,7 +95,6 @@ final class GameCommandFacade @Inject()(
       case GameCommand.ReverseSwap              => gameUseCases.reverseSwap(sid, p)
       case GameCommand.Undo                     => gameUseCases.undo(sid, p)
       case GameCommand.Redo                     => gameUseCases.redo(sid, p)
-      case GameCommand.ExecuteAI(a)             => gameUseCases.executeAI(a, sid, p)
 
       case GameCommand.CreateGame(p1, p2)       => gameUseCases.createGame(p1, p2, sid, Some(p))
       case GameCommand.CreateGameWithAI(h, ai)  => gameUseCases.createGameWithAI(h, ai, sid, Some(p))

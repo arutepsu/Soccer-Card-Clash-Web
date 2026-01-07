@@ -19,6 +19,7 @@ import app.controllers.ws.{IGameWsController, GameWsController}
 import app.controllers.command._
 import app.controllers.session._
 import app.api.command.{IGameCommandFacade, GameCommandFacade, GameCommandDecoder}
+import app.api.ai.{IAiDecisionService, DomainAiDecisionService}
 
 final class Module extends AbstractModule {
   override def configure(): Unit = {
@@ -41,5 +42,6 @@ final class Module extends AbstractModule {
     bind(classOf[IGameStreamController]).to(classOf[GameStreamController])
     bind(classOf[IGameCommandController]).to(classOf[GameCommandController])
     bind(classOf[ISessionController]).to(classOf[SessionController])
+    bind(classOf[IAiDecisionService]).to(classOf[DomainAiDecisionService])
   }
 }
