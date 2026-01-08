@@ -6,13 +6,10 @@
 
 # Soccer Card Clash
 
-An unofficial web version of **Soccer Card Clash** developed for  
-🌐 **Web Application** classes at **Konstanz University of Applied Sciences**.
+An unofficial web version of Soccer Card Clash developed for  
+Web Application classes at Konstanz University of Applied Sciences.
 
-<p align="center">
-🌍 <strong>Project Domain:</strong>  
-<a href="https://github.com/arutepsu/Soccer-Card-Clash">Soccer-Card-Clash</a>
-</p>
+🏠 **Project Domain:** [Soccer-Card-Clash](https://github.com/arutepsu/Soccer-Card-Clash)
 
 * 🎮 Fast-paced 2-player card game where **soccer meets strategy**
 * 🧠 Outsmart your opponent with attacks, boosts, and clever hand management
@@ -38,6 +35,31 @@ An unofficial web version of **Soccer Card Clash** developed for
 
 ---
 
+## ✨🚀 Features
+
+### 🤖 Singleplayer Mode
+Play against AI opponents with unique playstyles and decision-making strategies.
+
+### 🤝🌍 Online Multiplayer
+Play real-time matches against friends or other players online.
+
+### 🧑‍🤝‍🧑 Local PvP Mode
+Two players can play against each other locally on the same device.
+
+### 🧠 Multiple AI Strategies
+Defensive, aggressive, and hybrid AIs provide varied challenges.
+
+### ⚔️🃏 Strategic Gameplay
+Smart use of **Swap**, **Boost**, and **Double Attack** decides victory.
+
+### 📱⚡ Progressive Web App (PWA)
+Installable on desktop and mobile with an **offline practice mode** against AI opponents.
+
+### 🎨🌈 Cyberpunk Visual Style
+Neon colors, futuristic UI, and smooth animations.
+
+---
+
 ## ⚙️ Server & Architecture
 
 The backend is built using **🧩 Play Framework (Scala)** and follows a clean,  
@@ -53,12 +75,12 @@ The backend is built using **🧩 Play Framework (Scala)** and follows a clean,
 
 ### 📡 Communication Model
 
-#### ⬆️ Commands (Client → Server)
+#### ⬆️ Commands (Client -> Server)
 Player actions such as **attack**, **boost**, **swap**, or **join game** are sent via:
 * 🌍 **REST APIs**
 * ⚡ **WebSockets** for low-latency interaction
 
-#### ⬇️ Updates (Server → Client)
+#### ⬇️ Updates (Server -> Client)
 Game state updates are streamed using:
 * 📣 **Server-Sent Events (SSE)**
 * 🧵 Comet-style long-lived HTTP connections
@@ -118,25 +140,6 @@ The application is deployed on **Railway** using a **service-based architecture*
 * Secrets and credentials are managed via **Railway environment variables**
 * Each service is deployed and scaled independently
 * Mirrors real-world production deployments
-
----
-
-## ✨ Features
-
-### 🤖 Singleplayer Mode
-Play against AI opponents with unique playstyles and decision-making strategies.
-
-### 🧠 Multiple AI Strategies
-Defensive, aggressive, and hybrid AIs for varied gameplay.
-
-### 🤝🌍 Online Multiplayer
-Play real-time matches against friends or other players online.
-
-### 🎨🌈 Cyberpunk Visual Style
-Neon colors, futuristic UI, and smooth animations.
-
-### ⚔️🃏 Strategic Depth
-Smart use of **Swap**, **Boost**, and **Double Attack** decides victory.
 
 ---
 
