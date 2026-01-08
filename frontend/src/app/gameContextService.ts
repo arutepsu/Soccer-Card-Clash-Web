@@ -36,7 +36,6 @@ export interface GameContextService {
 
   setMode(nextMode: GameMode): void;
   setSessionId(id: string | null): void;
-  setComparisonHandler(fn: ((payload: any) => Promise<void>) | null): void
 }
 
 export function createGameContextService(game: GameApiRouter): GameContextService {
@@ -139,18 +138,16 @@ export function createGameContextService(game: GameApiRouter): GameContextServic
           return
         }
 
-        const action = meta?.action
-
-        if (action === 'Comparison' && meta?.payload && comparisonHandler) {
-          lastMeta.value = meta
-          await comparisonHandler(meta.payload)
-        } else {
-          lastMeta.value = meta ?? null
-        }
+        lastMeta.value = meta ?? null
 
         state.value = next
+
+        if (meta?.action === 'Comparison' && meta?.payload && comparisonHandler) {
+          void comparisonHandler(meta.payload)
+        }
       })
     }, sid)
+
 
   }
 
@@ -221,17 +218,16 @@ export function createGameContextService(game: GameApiRouter): GameContextServic
             return
           }
 
-          const action = meta?.action
-          if (action === 'Comparison' && meta?.payload && comparisonHandler) {
-            lastMeta.value = meta
-            await comparisonHandler(meta.payload)
-          } else {
-            lastMeta.value = meta ?? null
-          }
+          lastMeta.value = meta ?? null
 
           state.value = next
+
+          if (meta?.action === 'Comparison' && meta?.payload && comparisonHandler) {
+            void comparisonHandler(meta.payload)
+          }
         })
       }, sid)
+
 
     }
   }
@@ -261,10 +257,6 @@ export function createGameContextService(game: GameApiRouter): GameContextServic
   
   let comparisonHandler: ((payload: any) => Promise<void>) | null = null
 
-  function setComparisonHandler(fn: ((payload: any) => Promise<void>) | null) {
-    comparisonHandler = fn
-  }
-
   return {
     state, mode, sessionId,
     lastMeta,
@@ -278,6 +270,5 @@ export function createGameContextService(game: GameApiRouter): GameContextServic
 
     stop, setState, clear,
     setMode, setSessionId,
-    setComparisonHandler
   };
 }

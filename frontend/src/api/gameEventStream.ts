@@ -298,27 +298,31 @@ export function createGameEventStream(opts: CreateGameEventStreamOptions = {}): 
     let lastAppliedEventId = readLastEventId(s)
     let lastState: WebGameState | null = null
 
-    const applyMsg = (msg: any) => {
-      const eid = getEventId(msg)
-      if (typeof eid === 'number') {
-        if (eid <= lastAppliedEventId) return
-        lastAppliedEventId = eid
-        writeLastEventId(s, lastAppliedEventId)
-      }
+  const applyMsg = (msg: any) => {
+    const eid = getEventId(msg)
+    console.log('[STREAM RAW]', { eid, lastAppliedEventId, msg })
 
-      const meta = unwrapToMeta(msg)
-      const state = unwrapToState(msg)
-
-      if (state) {
-        lastState = state
-        onState(state, meta)
+    if (typeof eid === 'number') {
+      if (eid <= lastAppliedEventId) {
+        console.log('[STREAM DROP]', { eid, lastAppliedEventId })
         return
       }
-
-      if (meta && lastState) {
-        onState(lastState, meta)
-      }
+      lastAppliedEventId = eid
+      writeLastEventId(s, lastAppliedEventId)
     }
+
+    const meta = unwrapToMeta(msg)
+    const state = unwrapToState(msg)
+    console.log('[STREAM META]', meta)
+
+    if (state) {
+      lastState = state
+      onState(state, meta)
+      return
+    }
+    if (meta && lastState) onState(lastState, meta)
+  }
+
 
     const startComet = () => {
       if (active?.type === 'comet') return

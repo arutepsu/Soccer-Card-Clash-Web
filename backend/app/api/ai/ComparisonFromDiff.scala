@@ -75,9 +75,8 @@ final class ComparisonFromDiff @Inject()(
     if (defendCard.isEmpty) return None
 
     val rolesSwitched = aRoles.attacker.name != bRoles.attacker.name
-
-    val rolesSwitched = aRoles.attacker.name != bRoles.attacker.name
     val success = !rolesSwitched
+
 
     val kind = cmd match {
       case GameCommand.DoubleAttack(_) => "Double"

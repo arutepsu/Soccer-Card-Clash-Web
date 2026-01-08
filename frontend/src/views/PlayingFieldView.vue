@@ -21,9 +21,13 @@ import { createPlayerAvatarRegistry } from '../utils/playerAvatarRegistry';
 import { UIActionScheduler } from '../ui/uiActionScheduler';
 import { createComparisonDialogHandler } from '../utils/playingField/comparisonDialogHandler';
 import { createComparisonOrchestrator } from '../utils/playingField/comparisonOrchestrator';
-import type { ActionMeta } from '@/types/SessionDtos';
 import playingBg from '@/assets/images/frames/background5.jpg';
 import { SceneView } from '@/utils/playingField/sceneMapping';
+import {
+  feedComparisonMetaToHandler,
+  pendingActionFromKind,
+  type ComparisonMeta,
+} from '@/utils/playingField/comparisonMetaAdapter';
 
 const {
   gameContext,
@@ -36,14 +40,6 @@ const {
 } = usePlayingField();
 
 const webState = computed(() => gameContext.state.value as WebGameState | null);
-
-type PendingMeta =
-  | { action: 'RegularAttack'; defenderIndex: number }
-  | { action: 'DoubleAttack'; defenderIndex: number }
-  | null;
-
-
-const pendingMeta = ref<PendingMeta>(null);
 
 const displayWebState = ref<WebGameState | null>(null);
 const displaySceneView = ref<SceneView | null>(null);
@@ -154,54 +150,55 @@ watch(
 watch(
   webState,
   (st) => {
-    if (!st) return;
+    if (!st) return
+    if (!displayWebState.value) applyDisplayFromWeb(st)
 
-    if (!displayWebState.value) {
-      applyDisplayFromWeb(st);
-    }
-
-    const orch = orchestrator.value;
+    const orch = orchestrator.value
     if (!orch) {
-      applyDisplayFromWeb(st);
-      return;
+      applyDisplayFromWeb(st)
+      return
     }
 
-    const meta = services.gameContext.lastMeta.value as ActionMeta;
+    const metaAny = services.gameContext.lastMeta.value as any
 
-    if (meta?.action === 'RegularAttack' || meta?.action === 'DoubleAttack') {
-      orch.setPendingAction(meta.action, meta);
-      orch.afterServerApply(st, meta);
+    if (metaAny?.action === 'Comparison') {
+      const cmp = metaAny as ComparisonMeta
+      feedComparisonMetaToHandler(comparisonHandler, cmp)
 
-      services.gameContext.lastMeta.value = null;
-      pendingMeta.value = null;
+      const actionType = pendingActionFromKind(cmp.payload?.kind)
+      const defenderIndex = Number.isInteger(cmp.payload?.defenderIndex)
+        ? (cmp.payload!.defenderIndex as number)
+        : -1
 
-      orch.handleStreamWeb(st);
-      return;
+      orch.setPendingAction(actionType, { action: actionType, defenderIndex })
+      orch.afterServerApply(st, { action: actionType, defenderIndex } as any)
+      orch.handleStreamWeb(st)
+
+      services.gameContext.lastMeta.value = null
+      return
     }
 
-    if (meta?.action === 'SessionEnded') {
-      sessionEnded.value = true;  
-      hide();
+    if (metaAny?.action === 'SessionEnded') {
+      sessionEnded.value = true
+      hide()
       show({
         title: 'Session Ended',
         message: null,
         content: SessionEndedDialog,
         componentProps: {
-          leftPlayerName: meta.leftPlayerName,
+          leftPlayerName: metaAny.leftPlayerName,
           onAction: () => exitToMainMenu(),
         },
-      });
-
-      services.gameContext.lastMeta.value = null;
-      pendingMeta.value = null;
-      return;
+      })
+      services.gameContext.lastMeta.value = null
+      return
     }
 
-    orch.setPendingAction(null, undefined);
-    orch.handleStreamWeb(st);
+    orch.setPendingAction(null)
+    orch.handleStreamWeb(st)
   },
   { immediate: true },
-);
+)
 
 function handleDefenderSelected(index: number | null) {
   selectedTarget.value = index == null ? null : { kind: 'defender', index };
@@ -219,11 +216,6 @@ async function handleAttackDefender() {
   if (sel.kind === 'goalkeeper') return handleAttackGoalkeeper();
 
   try {
-    const meta = { action: 'RegularAttack' as const, defenderIndex: sel.index };
-
-    services.gameContext.lastMeta.value = meta;
-
-    pendingMeta.value = meta;
 
     await attackDefender(sel.index);
 
@@ -231,8 +223,6 @@ async function handleAttackDefender() {
     console.error('[PlayingFieldView] attackDefender error:', err);
     showInfoAlert('Attack failed. Please try again.');
 
-    services.gameContext.lastMeta.value = null;
-    pendingMeta.value = null;
   } finally {
     selectedTarget.value = null;
   }
@@ -243,18 +233,12 @@ async function handleAttackGoalkeeper() {
   if (!mode.requireMyTurn()) return;
 
   try {
-    const meta = { action: 'RegularAttack' as const, defenderIndex: -1 };
-
-    services.gameContext.lastMeta.value = meta;
-    pendingMeta.value = meta;
 
     await attackGoalkeeper();
   } catch (err) {
     console.error('[PlayingFieldView] attackGoalkeeper error:', err);
     showInfoAlert('Goalkeeper attack failed. Please try again.');
 
-    services.gameContext.lastMeta.value = null;
-    pendingMeta.value = null;
   } finally {
     selectedTarget.value = null;
   }
@@ -267,18 +251,12 @@ async function handleDoubleAttack() {
   if (!sel || sel.kind !== 'defender') return showInfoAlert('Pick a defender card for double attack.');
 
   try {
-    const meta = { action: 'DoubleAttack' as const, defenderIndex: sel.index };
-
-    services.gameContext.lastMeta.value = meta;
-    pendingMeta.value = meta;
 
     await doubleAttack(sel.index);
   } catch (err) {
     console.error('[PlayingFieldView] doubleAttack error:', err);
     showInfoAlert('Double attack failed. Please try again.');
 
-    services.gameContext.lastMeta.value = null;
-    pendingMeta.value = null;
   } finally {
     selectedTarget.value = null;
   }

@@ -1,61 +1,41 @@
-// frontend/src/scenes/playingField/comparisonOverlayBridge.ts
-import ComparisonDialog from '@/components/dialog/ComparisonDialog.vue';
-import type {
-  PlayerInfo,
-  ComparisonCard,
-} from './comparisonDialogHandler';
-import type { PlayerAvatarRegistry } from '@/utils/playerAvatarRegistry';
-import { useOverlay } from '@/composables/useOverlay';
+import ComparisonDialog from '@/components/dialog/ComparisonDialog.vue'
+import type { PlayerInfo, ComparisonCard } from './comparisonDialogHandler'
+import type { PlayerAvatarRegistry } from '@/utils/playerAvatarRegistry'
+import { useOverlay } from '@/composables/useOverlay'
 
-export type ComparisonVariant = 'single' | 'double' | 'tie' | 'doubleTie';
+export type ComparisonVariant = 'single' | 'double' | 'tie' | 'doubleTie'
 
 export interface ShowComparisonOverlayParams {
-  variant: ComparisonVariant;
-
-  attacker: PlayerInfo;
-  defender: PlayerInfo;
-
-  attackingCard: ComparisonCard | null;
-  defendingCard: ComparisonCard | null;
-
-  attackingCard2?: ComparisonCard | null;
-
-  extraAttackerCard?: ComparisonCard | null;
-  extraDefenderCard?: ComparisonCard | null;
-
-  attackSuccess?: boolean;
-
-  autoCloseMs?: number;
-  onAutoClose?: () => void | Promise<void>;
-
-  avatarRegistry: PlayerAvatarRegistry;
+  variant: ComparisonVariant
+  attacker: PlayerInfo
+  defender: PlayerInfo
+  attackingCard: ComparisonCard | null
+  defendingCard: ComparisonCard | null
+  attackingCard2?: ComparisonCard | null
+  extraAttackerCard?: ComparisonCard | null
+  extraDefenderCard?: ComparisonCard | null
+  attackSuccess?: boolean
+  autoCloseMs?: number
+  avatarRegistry: PlayerAvatarRegistry
 }
 
-export function showComparisonOverlay(params: ShowComparisonOverlayParams): void {
-  const { show, hide } = useOverlay();
+export async function showComparisonOverlay(params: ShowComparisonOverlayParams): Promise<void> {
+  const { showAndWait } = useOverlay()
 
-  const {
-    autoCloseMs,
-    onAutoClose,
-    ...dialogProps
-  } = params;
+  const ms =
+    typeof params.autoCloseMs === 'number' && params.autoCloseMs > 0
+      ? params.autoCloseMs
+      : 3000
 
-  show({
+  await showAndWait({
     title: '',
     message: '',
     content: ComparisonDialog,
+    autoHide: true,
+    durationMs: ms,
     componentProps: {
       visible: true,
-      ...dialogProps,
+      ...params,
     },
-  });
-
-  if (autoCloseMs && autoCloseMs > 0) {
-    setTimeout(async () => {
-      hide();
-      if (onAutoClose) {
-        await onAutoClose();
-      }
-    }, autoCloseMs);
-  }
+  })
 }

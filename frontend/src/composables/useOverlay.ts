@@ -1,18 +1,18 @@
 // frontend/src/composables/useOverlay.ts
-import { useOverlayStore } from '../stores/overlayStore';
+import { useOverlayStore } from '../stores/overlayStore'
 
 export interface OverlayShowOptions {
-  title?: string;
-  message?: string | null;
-  content?: any;
-  autoHide?: boolean;
-  sizeMult?: number;
-  onHide?: () => void;
-  componentProps?: Record<string, unknown> | null;
+  title?: string
+  message?: string | null
+  content?: any
+  autoHide?: boolean
+  durationMs?: number
+  onHide?: () => void
+  componentProps?: Record<string, unknown> | null
 }
 
 export function useOverlay() {
-  const store = useOverlayStore();
+  const store = useOverlayStore()
 
   function show(opts: OverlayShowOptions) {
     store.show({
@@ -21,18 +21,31 @@ export function useOverlay() {
       content: opts.content ?? null,
       componentProps: opts.componentProps ?? null,
       autoHide: opts.autoHide,
-      sizeMult: opts.sizeMult,
+      durationMs: opts.durationMs,
       onHide: opts.onHide,
-    });
+    })
+  }
+
+  function showAndWait(opts: OverlayShowOptions): Promise<void> {
+    return store.showAndWait({
+      title: opts.title,
+      message: opts.message ?? null,
+      content: opts.content ?? null,
+      componentProps: opts.componentProps ?? null,
+      autoHide: opts.autoHide,
+      durationMs: opts.durationMs,
+      onHide: opts.onHide,
+    })
   }
 
   function hide() {
-    store.hide();
+    store.hide()
   }
 
   return {
     overlayStore: store,
     show,
+    showAndWait,
     hide,
-  };
+  }
 }
