@@ -3,7 +3,12 @@
 </p>
 
 ---
-
+![Backend](https://img.shields.io/badge/Server-Play_Framework_(Scala)-red)
+![Frontend](https://img.shields.io/badge/Frontend-Vue_3-green)
+![Language](https://img.shields.io/badge/Language-TypeScript-blue)
+![Build](https://img.shields.io/badge/Build-Webpack-yellow)
+![Auth](https://img.shields.io/badge/Auth-Supabase-emerald)
+![Deploy](https://img.shields.io/badge/Deploy-Railway-purple)
 # Soccer Card Clash
 
 An unofficial web version of Soccer Card Clash developed for  
