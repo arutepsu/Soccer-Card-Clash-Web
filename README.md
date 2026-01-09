@@ -40,12 +40,12 @@ Web Application classes at Konstanz University of Applied Sciences.
 
 ---
 
-## ✨🚀 Features
+## ✨ Features
 
 ### 🤖 Singleplayer Mode
 Play against AI opponents with unique playstyles and decision-making strategies.
 
-### 🤝🌍 Online Multiplayer
+### 🌍 Online Multiplayer
 Play real-time matches against friends or other players online.
 
 ### 🧑‍🤝‍🧑 Local PvP Mode
@@ -54,13 +54,13 @@ Two players can play against each other locally on the same device.
 ### 🧠 Multiple AI Strategies
 Defensive, aggressive, and hybrid AIs provide varied challenges.
 
-### ⚔️🃏 Strategic Gameplay
+### ⚔️ Strategic Gameplay
 Smart use of **Swap**, **Boost**, and **Double Attack** decides victory.
 
-### 📱⚡ Progressive Web App (PWA)
+### 📱 Progressive Web App (PWA)
 Installable on desktop and mobile with an **offline practice mode** against AI opponents.
 
-### 🎨🌈 Cyberpunk Visual Style
+### 🎨 Cyberpunk Visual Style
 Neon colors, futuristic UI, and smooth animations.
 
 ---
