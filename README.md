@@ -3,7 +3,7 @@
 </p>
 
 ---
-![Backend](https://img.shields.io/badge/Server-Play_Framework_(Scala)-red)
+![Backend](https://img.shields.io/badge/Backend-Play_Framework_(Scala)-red)
 ![Frontend](https://img.shields.io/badge/Frontend-Vue_3-green)
 ![Language](https://img.shields.io/badge/Language-TypeScript-blue)
 ![Build](https://img.shields.io/badge/Build-Webpack-yellow)
