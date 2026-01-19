@@ -151,6 +151,7 @@ The application is deployed on **Railway** using a **service-based architecture*
 ## 📸 Screenshots
 ![login](docs/screenshots/login.png)
 ![menu](docs/screenshots/main.png)
+![lobby](docs/screenshots/lobby.png)
 ![singleplayer](docs/screenshots/createplayers.png)
 ![choseai](docs/screenshots/choseai.png)
 ![playingfield](docs/screenshots/playingfield.png)
