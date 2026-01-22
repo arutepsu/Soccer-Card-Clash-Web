@@ -167,7 +167,7 @@ const overlayFrameStyle = {
               Sign up
             </GameButton>
             <GameButton action="github" :busy="busy" class="gbtn" @command="onCommand">
-              Continue with GitHub
+              GitHub
             </GameButton>
           </form>
         </div>

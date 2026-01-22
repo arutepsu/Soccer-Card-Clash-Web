@@ -204,5 +204,42 @@ const buttonStyle = {
 .game-btn:active:not(.v-btn--disabled) {
   transform: scale(0.97);
 }
+@media (max-width: 576px) {
+  .game-btn {
+    /* allow button to grow with text */
+    width: auto;
+    max-width: 92vw;          /* hard safety limit */
+    min-width: 60vw;          /* baseline size */
+
+    min-height: 48px;
+
+    padding-inline: 1.6rem;
+    padding-block: 0.9rem;
+
+    justify-content: center;
+    align-self: center;
+  }
+
+  .game-btn-label {
+    white-space: nowrap;      /* KEEP single line */
+    overflow: visible;        /* allow expansion */
+    text-overflow: unset;
+
+    font-size: 1.05rem;
+    letter-spacing: 0.04em;
+  }
+
+  .game-btn-hotkey-badge {
+    display: none;
+  }
+
+  /* important for Vuetify internal layout */
+  .game-btn :deep(.v-btn__content) {
+    width: auto;
+    max-width: 100%;
+    justify-content: center;
+  }
+}
+
 
 </style>
