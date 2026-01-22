@@ -97,7 +97,6 @@ const frameStyle = {
   will-change: transform, opacity, filter;
 }
 
-/* Frame */
 .carousel-card__inner {
   --frame-img: none;
   --safe-top: 10%;
@@ -105,7 +104,7 @@ const frameStyle = {
   --safe-bottom: 10%;
   --safe-left: 10%;
 
-  width: min(90vw, 720px);
+  width: min(96vw, 820px);
   aspect-ratio: 1200 / 800;
 
   position: relative;
@@ -114,8 +113,27 @@ const frameStyle = {
   filter: drop-shadow(0 0 18px rgba(0, 0, 0, 0.65));
   transition: filter 0.3s ease, transform 0.3s ease;
 }
+.carousel-card :deep(.v-card-text) {
+  padding: 0 !important;
+}
+.carousel-card :deep(.v-card-title) {
+  padding: 0 !important;
+}
 
-/* Content: vertical stack inside safe frame */
+.carousel-card__content {
+  top: var(--safe-top);
+  right: var(--safe-right);
+  bottom: var(--safe-bottom);
+  left: var(--safe-left);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+
+  gap: 0.6rem;
+}
+
 .carousel-card__content {
   position: absolute;
   top: var(--safe-top);
@@ -124,7 +142,7 @@ const frameStyle = {
   left: var(--safe-left);
 
   display: flex;
-  flex-direction: column;          /* title -> text -> button */
+  flex-direction: column;
   justify-content: space-between;
   align-items: center;
   text-align: center;
@@ -135,7 +153,6 @@ const frameStyle = {
   font-family: 'Rajdhani', Arial, sans-serif;
 }
 
-/* Purple neon title (horizontal) */
 .carousel-card__title {
   font-size: 1.3rem;
   font-weight: 700;
@@ -148,16 +165,13 @@ const frameStyle = {
     0 0 6px #d28cff,
     0 0 12px #b455ff,
     0 0 24px #8f3dff,
-    /* 0 0 36px rgba(180, 85, 255, 0.7),
-    0 0 48px rgba(180, 85, 255, 0.45); */
 }
 
-/* Description: normal horizontal text, fits frame */
 .carousel-card__description {
   font-size: 1.2rem;
   line-height: 1.35;
   margin: 0.4rem auto 0.8rem;
-  max-width: 18rem;                /* keep lines short so it fits */
+  max-width: 18rem;
   overflow-wrap: break-word;
   hyphens: auto;
 
@@ -171,7 +185,6 @@ const frameStyle = {
   align-self: center;
 }
 
-/* ===== CURRENT: Floating Idle Animation ===== */
 .carousel-card--current {
   opacity: 1;
   pointer-events: auto;
@@ -182,20 +195,17 @@ const frameStyle = {
   animation: floatIdle 4s ease-in-out infinite;
 }
 
-/* Floating animation */
 @keyframes floatIdle {
   0%   { transform: translate(-50%, -50%) scale(1); }
   50%  { transform: translate(-50%, -52%) scale(1.015); }
   100% { transform: translate(-50%, -50%) scale(1); }
 }
 
-/* Hover glow */
 .carousel-card--current:hover .carousel-card__inner {
   filter: drop-shadow(0 0 28px rgba(255, 255, 255, 0.38));
   transform: scale(1.02);
 }
 
-/* ===== PREV / NEXT ===== */
 .carousel-card--prev,
 .carousel-card--next {
   opacity: 0.7;
@@ -212,20 +222,44 @@ const frameStyle = {
   transform: translate(-5%, -50%) scale(0.9) rotate(4deg);
 }
 
-/* Mobile tweaks */
 @media (max-width: 576px) {
   .carousel-card__inner {
-    width: min(85vw, 420px);
+    width: 100vw;
+    max-width: 720px;
+    aspect-ratio: 1200 / 1500;
   }
 
-  .carousel-card--prev {
-    transform: translate(-125%, -50%) scale(0.88) rotate(-3deg);
+  .carousel-card__content {
+    top: 30%;
+    right: 7%;
+    bottom: 18%;
+    left: 7%;
+
+    justify-content: flex-start; /* avoid stretching */
+    gap: 0.6rem;
   }
 
-  .carousel-card--next {
-    transform: translate(25%, -50%) scale(0.88) rotate(3deg);
+  .carousel-card__title {
+    font-size: 1.05rem;
+    letter-spacing: 0.1em;
+  }
+
+  .carousel-card__description {
+    font-size: 1.05rem;
+    line-height: 1.4;
+    max-width: 20rem;
+
+    margin: 0;
+    padding: 0 0.25rem;
+  }
+
+  /* keep button from becoming too wide */
+  .carousel-card__button-wrap :deep(.game-button),
+  .carousel-card__button-wrap :deep(button) {
+    width: min(78vw, 260px);
   }
 }
+
 
 .carousel-card.moving .carousel-card__inner {
   filter: blur(2px) brightness(1.15)

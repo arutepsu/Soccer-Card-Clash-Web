@@ -171,7 +171,6 @@ function onHover(payload: { action: MainMenuAction; hovering: boolean }) {
   }
 }
 
-/** keyboard: arrows rotate carousel, Enter selects current, Esc closes overlay */
 function onKeydown(e: KeyboardEvent): void {
   switch (e.key) {
     case 'ArrowRight':
@@ -245,62 +244,65 @@ const mainMenuStyle = {
     :style="mainMenuStyle"
   >
 
-    <div class="container-fluid h-100">
-      <div class="row h-100 align-items-center justify-content-center">
-        <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
-          <div class="menu-stack">
-            <GameLogo />
-
-            <MenuCarousel
-              ref="carouselRef"
-              :items="menuItems"
-              @command="onCommand"
-              @hover="onHover"
-            />
-          </div>
+    <div class="menu-shell">
+      <div class="menu-stack">
+        <div class="logo-wrap">
+          <GameLogo />
         </div>
+
+        <MenuCarousel
+          ref="carouselRef"
+          :items="menuItems"
+          @command="onCommand"
+          @hover="onHover"
+        />
       </div>
     </div>
+
 
     <div class="info-label">Developed by Arutepsu</div>
   </div>
 </template>
 
 <style scoped>
-
-html, body {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-}
-
 .scene--mainmenu {
   position: fixed;
   inset: 0;
+
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
 
   font-family: "Rajdhani", Arial, sans-serif;
-  overflow-y: auto;
+
   overflow-x: hidden;
+  overflow-y: auto;
+
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
-.scene--mainmenu.is-active {
-  display: block;
+.menu-shell {
+  width: 100%;
+  min-height: 100dvh;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding-bottom: 64px;
 }
 
 .menu-stack {
-  width: 100%;
-  max-width: 400px;
+  width: min(92vw, 420px);
   margin: 0 auto;
-  padding: 0px;
+
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  transform: translateY(-8vh);
+  gap: 20px;
 }
+
 
 .buttons {
   display: flex;
@@ -324,6 +326,21 @@ html, body {
 .gbtn {
   margin: -20px 0 !important;
   width: 100% !important;
+}
+.logo-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.logo-wrap :deep(.logo-card) {
+  margin: 0 auto;
+}
+
+.logo-wrap :deep(img) {
+  display: block;
+  margin: 0 auto;
 }
 
 .logo-image {
@@ -353,7 +370,9 @@ html, body {
   .logo-image {
     max-width: 150px;
   }
-  
+  .logo-wrap {
+    margin-top: 14vh;
+  }
   .gbtn {
     --btn-w: 260px !important;
     --btn-h: 100px !important;
