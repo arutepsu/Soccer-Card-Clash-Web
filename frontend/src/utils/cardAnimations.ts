@@ -129,7 +129,7 @@ export function createCardAnimations(
           },
           {
             transform: 'scale(1) rotate(0deg)',
-            filter: 'grayscale(0.95) contrast(0.9) brightness(0.9)',
+            filter: 'none',
             boxShadow: 'var(--shadow)',
           },
         ],

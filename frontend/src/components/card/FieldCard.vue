@@ -196,12 +196,6 @@ function handleKeydown(event: KeyboardEvent) {
   transform: none;
   box-shadow: none;
 }
-/*
-.field-card.is-defeated {
-  filter: grayscale(.95) contrast(.9) brightness(.9);
-  opacity: .9;
-}
-*/
 
 /* Selection highlight */
 .field-card.is-selected {
